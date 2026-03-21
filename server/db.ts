@@ -31,8 +31,8 @@ import {
   type WithdrawalRequest,
   type InsertWithdrawalRequest,
 } from "../drizzle/schema.js";
-import { ENV } from './_core/env';
-import { addPrecise, subtractPrecise, roundTo } from "./utils/precision";
+import { ENV } from './_core/env.js';
+import { addPrecise, subtractPrecise, roundTo } from "./utils/precision.js";
 
 import { nanoid } from "nanoid";
 
