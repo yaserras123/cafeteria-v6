@@ -6,7 +6,7 @@ import type { Request } from "express";
 import { SignJWT, jwtVerify } from "jose";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db.js";
-import { ENV } from "./env";
+import { ENV } from "./env.js";
 import type {
   ExchangeTokenRequest,
   ExchangeTokenResponse,
