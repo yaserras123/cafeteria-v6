@@ -1,25 +1,25 @@
-import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
-import { systemRouter as coreSystemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
-import { ordersRouter } from "./routers/orders";
-import { systemRouter } from "./routers/system";
-import { shiftsRouter } from "./routers/shifts";
-import { reportingRouter } from "./routers/reporting";
-import { menuRouter } from "./routers/menu";
-import { tablesRouter } from "./routers/tables";
-import { rechargesRouter } from "./routers/recharges";
-import { staffRouter } from "./routers/staff";
-import { withdrawalsRouter } from "./routers/withdrawals";
-import { qrOrdersRouter } from "./routers/qr-orders";
-import { marketersRouter } from "./routers/marketers";
-import { commissionsRouter } from "./routers/commissions";
-import { cafeteriasRouter } from "./routers/cafeterias";
-import { authRouter } from "./routers/auth";
-import { splitBillRouter } from "./routers/splitBill";
-import { waiterEscalationRouter } from "./routers/waiterEscalation";
-import { chefRoutingRouter } from "./routers/chefRouting";
-import { realtimeUpdatesRouter } from "./routers/realtimeUpdates";
+import { COOKIE_NAME } from "../shared/const.js";
+import { getSessionCookieOptions } from "./_core/cookies.js";
+import { systemRouter as coreSystemRouter } from "./_core/systemRouter.js";
+import { publicProcedure, router } from "./_core/trpc.js";
+import { ordersRouter } from "./routers/orders.js";
+import { systemRouter } from "./routers/system.js";
+import { shiftsRouter } from "./routers/shifts.js";
+import { reportingRouter } from "./routers/reporting.js";
+import { menuRouter } from "./routers/menu.js";
+import { tablesRouter } from "./routers/tables.js";
+import { rechargesRouter } from "./routers/recharges.js";
+import { staffRouter } from "./routers/staff.js";
+import { withdrawalsRouter } from "./routers/withdrawals.js";
+import { qrOrdersRouter } from "./routers/qr-orders.js";
+import { marketersRouter } from "./routers/marketers.js";
+import { commissionsRouter } from "./routers/commissions.js";
+import { cafeteriasRouter } from "./routers/cafeterias.js";
+import { authRouter } from "./routers/auth.js";
+import { splitBillRouter } from "./routers/splitBill.js";
+import { waiterEscalationRouter } from "./routers/waiterEscalation.js";
+import { chefRoutingRouter } from "./routers/chefRouting.js";
+import { realtimeUpdatesRouter } from "./routers/realtimeUpdates.js";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
