@@ -49,7 +49,7 @@ export const realtimeUpdatesRouter = router({
         payload: z.record(z.any()).optional(),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx }: any) => {
       try {
         return await emitRealtimeEvent({
           cafeteriaId: input.cafeteriaId,
@@ -105,7 +105,7 @@ export const realtimeUpdatesRouter = router({
         totalAmount: z.string(),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx }: any) => {
       try {
         return await emitRealtimeEvent({
           cafeteriaId: input.cafeteriaId,
@@ -136,7 +136,7 @@ export const realtimeUpdatesRouter = router({
         message: z.string().optional(),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx }: any) => {
       try {
         return await emitRealtimeEvent({
           cafeteriaId: input.cafeteriaId,
@@ -167,7 +167,7 @@ export const realtimeUpdatesRouter = router({
         priority: z.enum(["low", "medium", "high"]).default("medium"),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx }: any) => {
       try {
         return await emitRealtimeEvent({
           cafeteriaId: input.cafeteriaId,
