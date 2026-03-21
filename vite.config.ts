@@ -19,6 +19,8 @@ export default defineConfig({
   build: {
     outDir: "../dist/client",
     emptyOutDir: true,
+    reportCompressedSize: false,
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, "client/index.html"),
