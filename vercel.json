@@ -8,10 +8,12 @@
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "dist/index.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "dist/index.js"
     }
-  ],
-  "installCommand": "pnpm install",
-  "buildCommand": "pnpm build"
+  ]
 }
