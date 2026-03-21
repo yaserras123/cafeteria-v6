@@ -1,7 +1,7 @@
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "./_core/trpc.js";
 import { z } from "zod";
-import { getDb } from "../db";
-import { cafeterias } from "../../drizzle/schema";
+import { getDb } from "./db.js";
+import { cafeterias } from "./../drizzle/schema.js";
 import { eq } from "drizzle-orm";
 
 export const cafeteriasRouter = router({

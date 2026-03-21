@@ -1,10 +1,10 @@
 // New endpoints to add to staff router
-import { protectedProcedure } from "../_core/trpc";
+import { protectedProcedure } from "./_core/trpc.js";
 import { z } from "zod";
-import { getDb } from "../db";
-import { cafeteriaStaff } from "../../drizzle/schema";
+import { getDb } from "./db.js";
+import { cafeteriaStaff } from "./../drizzle/schema.js";
 import { eq } from "drizzle-orm";
-import { getDefaultPermissionsForRole, isValidStaffRole } from "../utils/staffPermissions";
+import { getDefaultPermissionsForRole, isValidStaffRole } from "./utils/staffPermissions.js";
 
 export const updateStaffRoleEndpoint = protectedProcedure
   .input(

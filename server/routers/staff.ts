@@ -4,17 +4,17 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "./_core/trpc.js";
 import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";
-import { getDb } from "../db";
+import { getDb } from "./db.js";
 import {
   cafeteriaStaff,
   sections,
   staffSectionAssignments,
   staffCategoryAssignments,
   menuCategories,
-} from "../../drizzle/schema";
+} from "./../drizzle/schema.js";
 import {
   canGrantLoginPermission,
   canRevokeLoginPermission,
@@ -22,7 +22,7 @@ import {
   getVisibleCategories,
   isValidStaffRole,
   getDefaultPermissionsForRole,
-} from "../utils/staffPermissions";
+} from "./utils/staffPermissions.js";
 import {
   grantStaffLoginPermission,
   revokeStaffLoginPermission,
@@ -33,7 +33,7 @@ import {
   getStaffCategoryAssignments,
   createSection,
   getSectionsByCafeteria,
-} from "../db";
+} from "./db.js";
 
 export const staffRouter = router({
   /**

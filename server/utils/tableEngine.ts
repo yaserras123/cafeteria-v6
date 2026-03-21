@@ -3,7 +3,7 @@
  * Handles table assignments, section organization, and table status
  */
 
-import type { CafeteriaTable, Section } from "../../drizzle/schema";
+import type { CafeteriaTable, Section } from "./../drizzle/schema.js";
 
 /**
  * Get tables by section

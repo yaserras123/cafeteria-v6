@@ -10,7 +10,7 @@
  * - Commission lifetime can expire, blocking new commissions
  */
 
-import { addPrecise, multiplyPrecise, dividePrecise, subtractPrecise, roundTo } from "./precision";
+import { addPrecise, multiplyPrecise, dividePrecise, subtractPrecise, roundTo } from "./precision.js";
 
 export interface CommissionDistribution {
   id: string;

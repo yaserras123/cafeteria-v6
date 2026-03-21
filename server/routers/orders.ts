@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { protectedProcedure, staffProcedure, router } from "../_core/trpc";
+import { protectedProcedure, staffProcedure, router } from "./_core/trpc.js";
 import { nanoid } from "nanoid";
 import { eq, and, asc, desc } from "drizzle-orm";
-import { getDb } from "../db";
+import { getDb } from "./db.js";
 import {
   orders,
   orderItems,
@@ -10,13 +10,13 @@ import {
   shiftSales,
   ledgerEntries,
   freeOperationPeriods,
-} from "../../drizzle/schema";
-import { logger } from "../utils/logger";
+} from "./../drizzle/schema.js";
+import { logger } from "./utils/logger.js";
 import {
   convertBillToPoints,
   canTransitionItemStatus,
-} from "../utils/orderEngine";
-import { isInFreeOperationPeriod } from "../utils/freeOperationEngine";
+} from "./utils/orderEngine.js";
+import { isInFreeOperationPeriod } from "./utils/freeOperationEngine.js";
 
 export const ordersRouter = router({
   createOrder: staffProcedure

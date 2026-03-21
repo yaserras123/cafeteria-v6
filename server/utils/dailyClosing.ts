@@ -1,7 +1,7 @@
-import { getDb } from "../db";
-import { orders, cafeteriaTables } from "../../drizzle/schema";
+import { getDb } from "./db.js";
+import { orders, cafeteriaTables } from "./../drizzle/schema.js";
 import { eq, and, sql } from "drizzle-orm";
-import { logger } from "./logger";
+import { logger } from "./logger.js";
 
 /**
  * Daily Closing Utility

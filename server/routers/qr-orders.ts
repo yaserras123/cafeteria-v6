@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { publicProcedure, router } from "../_core/trpc";
+import { publicProcedure, router } from "./_core/trpc.js";
 import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";
-import { getDb } from "../db";
-import { cafeteriaTables, orders, orderItems, menuItems } from "../../drizzle/schema";
+import { getDb } from "./db.js";
+import { cafeteriaTables, orders, orderItems, menuItems } from "./../drizzle/schema.js";
 import { and } from "drizzle-orm";
-import { logger } from "../utils/logger";
+import { logger } from "./utils/logger.js";
 
 /**
  * QR Table Ordering Router

@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "./_core/trpc.js";
 import { nanoid } from "nanoid";
 import { eq, and, inArray } from "drizzle-orm";
-import { getDb } from "../db";
-import { menuCategories, menuItems } from "../../drizzle/schema";
+import { getDb } from "./db.js";
+import { menuCategories, menuItems } from "./../drizzle/schema.js";
 import {
   getDefaultCategory,
   organizeItemsByCategory,
@@ -11,7 +11,7 @@ import {
   validateMenuCategory,
   getMenuSummary,
   getCategoryStats,
-} from "../utils/menuEngine";
+} from "./utils/menuEngine.js";
 
 export const menuRouter = router({
   createCategory: protectedProcedure

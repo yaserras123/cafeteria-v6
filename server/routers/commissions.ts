@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
-import { getMarketerBalance, getCommissionDistributions, transitionCommissionsToAvailable } from "../db";
-import { calculateTotalCommission, getCommissionHistorySummary, getCommissionStatusSummary } from "../utils/commissionEngine";
+import { protectedProcedure, router } from "./_core/trpc.js";
+import { getMarketerBalance, getCommissionDistributions, transitionCommissionsToAvailable } from "./db.js";
+import { calculateTotalCommission, getCommissionHistorySummary, getCommissionStatusSummary } from "./utils/commissionEngine.js";
 import { eq, and, desc } from "drizzle-orm";
-import { marketers, commissionDistributions } from "../../drizzle/schema";
-import { getDb } from "../db";
+import { marketers, commissionDistributions } from "./../drizzle/schema.js";
+import { getDb } from "./db.js";
 
 // Helper to check if a user has access to a marketer's data
 async function checkMarketerAccess(db: any, userId: string, marketerId: string) {

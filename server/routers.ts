@@ -1,4 +1,4 @@
-import { COOKIE_NAME } from "../shared/const.js";
+import { COOKIE_NAME } from "./shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies.js";
 import { systemRouter as coreSystemRouter } from "./_core/systemRouter.js";
 import { publicProcedure, router } from "./_core/trpc.js";

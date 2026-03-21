@@ -1,9 +1,9 @@
 
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "./_core/trpc.js";
 import { nanoid } from "nanoid";
 import { eq, and, gte, lte, desc, inArray } from "drizzle-orm";
-import { getDb } from "../db";
+import { getDb } from "./db.js";
 import {
   cafeteriaReports,
   orders,
@@ -11,7 +11,7 @@ import {
   shifts,
   cafeterias,
   cafeteriaStaff,
-} from "../../drizzle/schema";
+} from "./../drizzle/schema.js";
 import {
   generateCafeteriaReport,
   calculateTotalSales,
@@ -22,7 +22,7 @@ import {
   calculatePeakHours,
   compareReports,
   validateReportParameters,
-} from "../utils/reportingEngine";
+} from "./utils/reportingEngine.js";
 
 // Helper to check if a user has access to a cafeteria
 async function checkCafeteriaAccess(db: any, userId: string, cafeteriaId: string) {

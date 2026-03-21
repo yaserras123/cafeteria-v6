@@ -1,11 +1,11 @@
-import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '@shared/const';
+import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '../shared/const';.js
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import type { TrpcContext } from "./context";
-import { getDb } from "../db";
-import { cafeteriaStaff, shifts } from "../../drizzle/schema";
+import type { TrpcContext } from "./context.js";
+import { getDb } from "./db.js";
+import { cafeteriaStaff, shifts } from "./../drizzle/schema.js";
 import { eq, and } from "drizzle-orm";
-import { hasActiveShift } from "../utils/shiftEngine";
+import { hasActiveShift } from "./utils/shiftEngine.js";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,

@@ -1,5 +1,5 @@
-import { getDb } from "../db";
-import { orders, cafeteriaTables, cafeteriaStaff, menuItems, menuCategories } from "../../drizzle/schema";
+import { getDb } from "./db.js";
+import { orders, cafeteriaTables, cafeteriaStaff, menuItems, menuCategories } from "./../drizzle/schema.js";
 import { eq } from "drizzle-orm";
 
 /**

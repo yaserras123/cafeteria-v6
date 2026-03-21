@@ -1,17 +1,17 @@
 
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "./_core/trpc.js";
 import { nanoid } from "nanoid";
 import { eq, and } from "drizzle-orm";
-import { getDb } from "../db";
+import { getDb } from "./db.js";
 import {
   withdrawalRequests,
   marketerBalances,
   ledgerEntries,
-} from "../../drizzle/schema";
-import { addPrecise, subtractPrecise } from "../utils/precision";
+} from "./../drizzle/schema.js";
+import { addPrecise, subtractPrecise } from "./utils/precision.js";
 
-import { createWithdrawalRequest } from "../db";
+import { createWithdrawalRequest } from "./db.js";
 
 export const withdrawalsRouter = router({
   requestWithdrawal: protectedProcedure

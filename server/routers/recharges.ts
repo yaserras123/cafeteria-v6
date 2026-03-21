@@ -5,16 +5,16 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "./_core/trpc.js";
 import { nanoid } from "nanoid";
 import { eq, and } from "drizzle-orm";
-import { getDb } from "../db";
+import { getDb } from "./db.js";
 import {
   rechargeRequests,
   cafeterias,
   ledgerEntries,
-} from "../../drizzle/schema";
-import { processCommissionsForRecharge } from "../db-commission-helpers";
+} from "./../drizzle/schema.js";
+import { processCommissionsForRecharge } from "./db-commission-helpers.js";
 
 export const rechargesRouter = router({
   /**
