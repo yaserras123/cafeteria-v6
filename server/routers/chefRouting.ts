@@ -162,7 +162,11 @@ export const chefRoutingRouter = router({
           total: assignments.length,
         };
       } catch (error: any) {
-        throw new   /**
+        throw new Error(`Failed to get chef assignments: ${error.message}`);
+      }
+    }),
+
+  /**
    * Lock order items when sent to kitchen
    * FIX: Persist lock to kitchenLocks table.
    */
@@ -216,7 +220,10 @@ export const chefRoutingRouter = router({
         };
       } catch (error: any) {
         throw new Error(`Failed to lock kitchen items: ${error.message}`);
-     /**
+      }
+    }),
+
+  /**
    * Check if an item is locked
    * FIX: Query kitchenLocks table.
    */
@@ -238,7 +245,9 @@ export const chefRoutingRouter = router({
       } catch (error: any) {
         throw new Error(`Failed to check item lock: ${error.message}`);
       }
-    }), mana  /**
+    }),
+
+  /**
    * Unlock order items (e.g., manager/admin can do this)
    * FIX: Update kitchenLocks table.
    */
@@ -269,7 +278,6 @@ export const chefRoutingRouter = router({
       } catch (error: any) {
         throw new Error(`Failed to unlock items: ${error.message}`);
       }
-    }),    }
     }),
 
   /**

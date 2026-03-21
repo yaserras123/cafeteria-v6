@@ -12,9 +12,12 @@
       "dest": "dist/index.js"
     },
     {
-      "src": "/(.*)",
-      "dest": "dist/client/$1",
-      "check": true
+      "src": "/assets/(.*)",
+      "dest": "dist/client/assets/$1"
+    },
+    {
+      "src": "/((?!api|assets).*\\..*)",
+      "dest": "dist/client/$1"
     },
     {
       "src": "/(.*)",
