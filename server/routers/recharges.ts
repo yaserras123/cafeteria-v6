@@ -103,9 +103,14 @@ export const rechargesRouter = router({
       if (input.status) {
         conditions.push(eq(rechargeRequests.status, input.status));
       }
+      
       const requests = await db
-        .select()
+        .select({
+          recharge: rechargeRequests,
+          cafeteria: cafeterias,
+        })
         .from(rechargeRequests)
+        .innerJoin(cafeterias, eq(rechargeRequests.cafeteriaId, cafeterias.id))
         .where(conditions.length > 0 ? and(...conditions) : undefined)
         .limit(input.limit)
         .offset(input.offset);
@@ -113,13 +118,19 @@ export const rechargesRouter = router({
       return {
         total: requests.length,
         requests: requests.map((r) => ({
-          id: r.id,
-          cafeteriaId: r.cafeteriaId,
-          amount: Number(r.amount) || 0,
-          status: r.status,
-          commissionCalculated: r.commissionCalculated,
-          createdAt: r.createdAt,
-          processedAt: r.processedAt,
+          id: r.recharge.id,
+          cafeteriaId: r.recharge.cafeteriaId,
+          cafeteria: {
+            id: r.cafeteria.id,
+            name: r.cafeteria.name,
+            country: r.cafeteria.country,
+            currency: r.cafeteria.currency,
+          },
+          amount: Number(r.recharge.amount) || 0,
+          status: r.recharge.status,
+          commissionCalculated: r.recharge.commissionCalculated,
+          createdAt: r.recharge.createdAt,
+          processedAt: r.recharge.processedAt,
         })),
       };
     }),
@@ -134,8 +145,12 @@ export const rechargesRouter = router({
       if (!db) throw new Error("Database not available");
 
       const requests = await db
-        .select()
+        .select({
+          recharge: rechargeRequests,
+          cafeteria: cafeterias,
+        })
         .from(rechargeRequests)
+        .innerJoin(cafeterias, eq(rechargeRequests.cafeteriaId, cafeterias.id))
         .where(eq(rechargeRequests.id, input.rechargeRequestId));
 
       if (requests.length === 0) {
@@ -144,15 +159,25 @@ export const rechargesRouter = router({
 
       const r = requests[0];
       return {
-        id: r.id,
-        cafeteriaId: r.cafeteriaId,
-        amount: Number(r.amount) || 0,
-        status: r.status,
-        commissionCalculated: r.commissionCalculated,
-        createdAt: r.createdAt,
-        processedAt: r.processedAt,
-        processedBy: r.processedBy,
-        notes: r.notes,
+        id: r.recharge.id,
+        cafeteriaId: r.recharge.cafeteriaId,
+        cafeteria: {
+          id: r.cafeteria.id,
+          name: r.cafeteria.name,
+          country: r.cafeteria.country,
+          currency: r.cafeteria.currency,
+        },
+        amount: Number(r.recharge.amount) || 0,
+        status: r.recharge.status,
+        commissionCalculated: r.recharge.commissionCalculated,
+        createdAt: r.recharge.createdAt,
+        processedAt: r.recharge.processedAt,
+        processedBy: r.recharge.processedBy,
+        notes: r.recharge.notes,
+        paidAmount: r.recharge.paidAmount ? Number(r.recharge.paidAmount) : undefined,
+        paidCurrency: r.recharge.paidCurrency,
+        exchangeRateToUsd: r.recharge.exchangeRateToUsd ? Number(r.recharge.exchangeRateToUsd) : undefined,
+        pointsMultiplier: r.recharge.pointsMultiplier ? Number(r.recharge.pointsMultiplier) : undefined,
       };
     }),
 
@@ -164,6 +189,11 @@ export const rechargesRouter = router({
       z.object({
         rechargeRequestId: z.string(),
         notes: z.string().optional(),
+        approvedPoints: z.number().positive(),
+        paidAmount: z.number().optional(),
+        paidCurrency: z.string().optional(),
+        exchangeRateToUsd: z.number().optional(),
+        pointsMultiplier: z.number().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -188,7 +218,7 @@ export const rechargesRouter = router({
           throw new Error(`Recharge request has already been processed (status: ${request.status})`);
         }
 
-        const amount = Number(request.amount) || 0;
+        const approvedPoints = input.approvedPoints;
 
         // Get cafeteria details
         const cafeterias_result = await tx
@@ -211,7 +241,11 @@ export const rechargesRouter = router({
             processedAt: now,
             processedBy: ctx.user?.name || "admin",
             notes: input.notes,
-            pointsAddedToBalance: String(amount),
+            pointsAddedToBalance: String(approvedPoints),
+            paidAmount: input.paidAmount ? String(input.paidAmount) : undefined,
+            paidCurrency: input.paidCurrency,
+            exchangeRateToUsd: input.exchangeRateToUsd ? String(input.exchangeRateToUsd) : undefined,
+            pointsMultiplier: input.pointsMultiplier ? String(input.pointsMultiplier) : undefined,
           })
           .where(eq(rechargeRequests.id, input.rechargeRequestId));
 
@@ -220,18 +254,20 @@ export const rechargesRouter = router({
         await tx
           .update(cafeterias)
           .set({
-            pointsBalance: String(currentBalance + amount),
+            pointsBalance: String(currentBalance + approvedPoints),
           })
           .where(eq(cafeterias.id, request.cafeteriaId));
 
-        // Create ledger entry for approval
+        // Create ledger entry for approval with balance tracking
         await tx.insert(ledgerEntries).values({
           id: nanoid(),
           type: "recharge_approved",
           ledgerType: "points_credit",
-          description: `Recharge approved: ${amount} points added`,
+          description: `Recharge approved: ${approvedPoints} points added (Original request: ${request.amount})`,
           cafeteriaId: request.cafeteriaId,
-          amount: String(amount),
+          amount: String(approvedPoints),
+          balanceBefore: String(currentBalance),
+          balanceAfter: String(currentBalance + approvedPoints),
           refId: input.rechargeRequestId,
           createdAt: now,
         });
@@ -244,7 +280,7 @@ export const rechargesRouter = router({
               tx,
               input.rechargeRequestId,
               cafeteriaMarketerId,
-              amount,
+              approvedPoints,
               request.cafeteriaId
             );
           } else {
@@ -268,8 +304,8 @@ export const rechargesRouter = router({
         return {
           success: true,
           rechargeId: input.rechargeRequestId,
-          pointsAdded: amount,
-          newBalance: currentBalance + amount,
+          pointsAdded: approvedPoints,
+          newBalance: currentBalance + approvedPoints,
         };
       });
     }),

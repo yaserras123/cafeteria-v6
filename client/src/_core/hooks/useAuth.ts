@@ -1,7 +1,7 @@
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
@@ -9,9 +9,13 @@ type UseAuthOptions = {
 };
 
 export function useAuth(options?: UseAuthOptions) {
-  const { redirectOnUnauthenticated = false, redirectPath = getLoginUrl() } =
-    options ?? {};
+  const {
+    redirectOnUnauthenticated = false,
+    redirectPath = getLoginUrl(),
+  } = options ?? {};
+
   const utils = trpc.useUtils();
+  const hasRedirectedRef = useRef(false);
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
@@ -41,16 +45,26 @@ export function useAuth(options?: UseAuthOptions) {
     }
   }, [logoutMutation, utils]);
 
+  const isUnauthorizedError =
+    meQuery.error instanceof TRPCClientError &&
+    meQuery.error.data?.code === "UNAUTHORIZED";
+
+  const isSettled = !meQuery.isLoading && !logoutMutation.isPending;
+
+  const isAuthenticated = Boolean(meQuery.data);
+
+  const isUnauthenticated =
+    isSettled && (meQuery.data === null || meQuery.data === undefined) && !!meQuery.error
+      ? isUnauthorizedError
+      : isSettled && !meQuery.data;
+
   const state = useMemo(() => {
-    localStorage.setItem(
-      "manus-runtime-user-info",
-      JSON.stringify(meQuery.data)
-    );
     return {
       user: meQuery.data ?? null,
       loading: meQuery.isLoading || logoutMutation.isPending,
       error: meQuery.error ?? logoutMutation.error ?? null,
-      isAuthenticated: Boolean(meQuery.data),
+      isAuthenticated,
+      isUnauthenticated,
     };
   }, [
     meQuery.data,
@@ -58,22 +72,49 @@ export function useAuth(options?: UseAuthOptions) {
     meQuery.isLoading,
     logoutMutation.error,
     logoutMutation.isPending,
+    isAuthenticated,
+    isUnauthenticated,
   ]);
 
   useEffect(() => {
-    if (!redirectOnUnauthenticated) return;
-    if (meQuery.isLoading || logoutMutation.isPending) return;
-    if (state.user) return;
     if (typeof window === "undefined") return;
-    if (window.location.pathname === redirectPath) return;
 
-    window.location.href = redirectPath
+    try {
+      if (meQuery.data) {
+        localStorage.setItem(
+          "manus-runtime-user-info",
+          JSON.stringify(meQuery.data)
+        );
+      } else {
+        localStorage.removeItem("manus-runtime-user-info");
+      }
+    } catch {
+      // ignore localStorage failures
+    }
+  }, [meQuery.data]);
+
+  useEffect(() => {
+    if (!redirectOnUnauthenticated) return;
+    if (!isSettled) return;
+    if (!isUnauthenticated) return;
+    if (typeof window === "undefined") return;
+    if (hasRedirectedRef.current) return;
+
+    const currentPath = window.location.pathname;
+    const currentUrl = window.location.href;
+
+    const targetUrl = new URL(redirectPath, window.location.origin);
+    const targetPath = targetUrl.pathname;
+
+    if (currentPath === targetPath || currentUrl === targetUrl.href) return;
+
+    hasRedirectedRef.current = true;
+    window.location.replace(targetUrl.href);
   }, [
     redirectOnUnauthenticated,
     redirectPath,
-    logoutMutation.isPending,
-    meQuery.isLoading,
-    state.user,
+    isSettled,
+    isUnauthenticated,
   ]);
 
   return {

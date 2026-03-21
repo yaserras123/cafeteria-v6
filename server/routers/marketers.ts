@@ -36,9 +36,9 @@ export const marketersRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      // Only admins can create root marketers
-      if (ctx.user?.role !== "admin") {
-        throw new Error("Only admins can create root marketers");
+      // Only the owner can create root marketers
+      if (ctx.user?.role !== "owner") {
+        throw new Error("Only the owner can create root marketers");
       }
 
       const referenceCode = await generateInitialReferenceCode(EntityType.MARKETER);

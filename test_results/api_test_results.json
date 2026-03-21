@@ -1,0 +1,343 @@
+{
+  "passed": 13,
+  "failed": 33,
+  "warnings": 2,
+  "tests": [
+    {
+      "name": "Server Health Check",
+      "status": "PASS",
+      "details": "Status: ok, DB: healthy",
+      "category": "HEALTH",
+      "timestamp": "2026-03-15T14:18:07.289623"
+    },
+    {
+      "name": "Frontend Static Files",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "category": "HEALTH",
+      "timestamp": "2026-03-15T14:18:07.326562"
+    },
+    {
+      "name": "Valid Owner Login",
+      "status": "PASS",
+      "details": "Login successful, session created",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:18:07.449743"
+    },
+    {
+      "name": "Invalid Login - Wrong Password",
+      "status": "PASS",
+      "details": "Correctly rejected",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:18:08.133483"
+    },
+    {
+      "name": "Invalid Login - Non-existent User",
+      "status": "PASS",
+      "details": "Correctly rejected",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:18:08.930996"
+    },
+    {
+      "name": "Empty Credentials Rejection",
+      "status": "PASS",
+      "details": "Correctly rejected empty credentials",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:18:09.113654"
+    },
+    {
+      "name": "Get Current User (auth.me)",
+      "status": "PASS",
+      "details": "User: System Owner, Role: admin",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:18:09.927113"
+    },
+    {
+      "name": "Unauthenticated Access Blocked",
+      "status": "FAIL",
+      "details": "Should have blocked unauthenticated access",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:18:09.931523"
+    },
+    {
+      "name": "Create Marketer",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'No procedure found on path \"marketers.create\"', 'code': -32004, 'data': {'code': 'NOT_FOUND', 'httpStatus': 404, 'stack': 'TRPCError: No procedure found on path \"marketers.create\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:325:17)\\n    at Array.map (<anonymous>)\\n    at resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:317:33)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'marketers.create'}}}",
+      "category": "CAFETERIA",
+      "timestamp": "2026-03-15T14:18:09.939506"
+    },
+    {
+      "name": "List Marketers",
+      "status": "FAIL",
+      "details": "'result'",
+      "category": "CAFETERIA",
+      "timestamp": "2026-03-15T14:18:09.947425"
+    },
+    {
+      "name": "Create Cafeteria",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'No procedure found on path \"cafeterias.create\"', 'code': -32004, 'data': {'code': 'NOT_FOUND', 'httpStatus': 404, 'stack': 'TRPCError: No procedure found on path \"cafeterias.create\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:325:17)\\n    at Array.map (<anonymous>)\\n    at resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:317:33)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'cafeterias.create'}}}",
+      "category": "CAFETERIA",
+      "timestamp": "2026-03-15T14:18:09.957037"
+    },
+    {
+      "name": "List Cafeterias",
+      "status": "FAIL",
+      "details": "'result'",
+      "category": "CAFETERIA",
+      "timestamp": "2026-03-15T14:18:09.966734"
+    },
+    {
+      "name": "Cafeteria Admin Login",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Invalid username or password', 'code': -32603, 'data': {'code': 'INTERNAL_SERVER_ERROR', 'httpStatus': 500, 'stack': 'Error: Invalid username or password\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/routers/auth.ts:181:13)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async resolveMiddleware (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:571:22)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'auth.login'}}}}",
+      "category": "STAFF",
+      "timestamp": "2026-03-15T14:18:09.977452"
+    },
+    {
+      "name": "Create Staff (Manager)",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'No procedure found on path \"staff.create\"', 'code': -32004, 'data': {'code': 'NOT_FOUND', 'httpStatus': 404, 'stack': 'TRPCError: No procedure found on path \"staff.create\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:325:17)\\n    at Array.map (<anonymous>)\\n    at resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:317:33)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'staff.create'}}}",
+      "category": "STAFF",
+      "timestamp": "2026-03-15T14:18:10.003268"
+    },
+    {
+      "name": "Create Staff (Waiter)",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'No procedure found on path \"staff.create\"', 'code': -32004, 'data': {'code': 'NOT_FOUND', 'httpStatus': 404, 'stack': 'TRPCError: No procedure found on path \"staff.create\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:325:17)\\n    at Array.map (<anonymous>)\\n    at resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:317:33)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'staff.create'}}}",
+      "category": "STAFF",
+      "timestamp": "2026-03-15T14:18:10.167367"
+    },
+    {
+      "name": "Create Staff (Chef)",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'No procedure found on path \"staff.create\"', 'code': -32004, 'data': {'code': 'NOT_FOUND', 'httpStatus': 404, 'stack': 'TRPCError: No procedure found on path \"staff.create\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:325:17)\\n    at Array.map (<anonymous>)\\n    at resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:317:33)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'staff.create'}}}",
+      "category": "STAFF",
+      "timestamp": "2026-03-15T14:18:10.218595"
+    },
+    {
+      "name": "List Staff",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'No procedure found on path \"staff.list\"', 'code': -32004, 'data': {'code': 'NOT_FOUND', 'httpStatus': 404, 'stack': 'TRPCError: No procedure found on path \"staff.list\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:325:17)\\n    at Array.map (<anonymous>)\\n    at resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:317:33)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'staff.list'}}}",
+      "category": "STAFF",
+      "timestamp": "2026-03-15T14:18:10.226654"
+    },
+    {
+      "name": "Create Menu Category",
+      "status": "FAIL",
+      "details": "{'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\n    at inputValidatorMiddleware (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/middleware.ts:191:15)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'menu.createCategory'}}}",
+      "category": "MENU",
+      "timestamp": "2026-03-15T14:18:10.234828"
+    },
+    {
+      "name": "Create Menu Item",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'No procedure found on path \"menu.createItem\"', 'code': -32004, 'data': {'code': 'NOT_FOUND', 'httpStatus': 404, 'stack': 'TRPCError: No procedure found on path \"menu.createItem\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:325:17)\\n    at Array.map (<anonymous>)\\n    at resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:317:33)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'menu.createItem'}}}",
+      "category": "MENU",
+      "timestamp": "2026-03-15T14:18:10.241649"
+    },
+    {
+      "name": "List Menu Categories",
+      "status": "FAIL",
+      "details": "{'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\n    at inputValidatorMiddleware (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/middleware.ts:191:15)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'menu.getCategories'}}}",
+      "category": "MENU",
+      "timestamp": "2026-03-15T14:18:10.249372"
+    },
+    {
+      "name": "List Menu Items",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'No procedure found on path \"menu.getItems\"', 'code': -32004, 'data': {'code': 'NOT_FOUND', 'httpStatus': 404, 'stack': 'TRPCError: No procedure found on path \"menu.getItems\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:325:17)\\n    at Array.map (<anonymous>)\\n    at resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:317:33)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'menu.getItems'}}}",
+      "category": "MENU",
+      "timestamp": "2026-03-15T14:18:10.256804"
+    },
+    {
+      "name": "Create Table Section",
+      "status": "FAIL",
+      "details": "{'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\n    at inputValidatorMiddleware (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/middleware.ts:191:15)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'tables.createSection'}}}",
+      "category": "TABLES",
+      "timestamp": "2026-03-15T14:18:10.264531"
+    },
+    {
+      "name": "Create Table",
+      "status": "FAIL",
+      "details": "{'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"sectionId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"number\",\\n    \"received\": \"undefined\",\\n    \"path\": [\\n      \"tableNumber\"\\n    ],\\n    \"message\": \"Required\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"sectionId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"number\",\\n    \"received\": \"undefined\",\\n    \"path\": [\\n      \"tableNumber\"\\n    ],\\n    \"message\": \"Required\"\\n  }\\n]\\n    at inputValidatorMiddleware (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/middleware.ts:191:15)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'tables.createTable'}}}",
+      "category": "TABLES",
+      "timestamp": "2026-03-15T14:18:10.272097"
+    },
+    {
+      "name": "List Tables",
+      "status": "FAIL",
+      "details": "{'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\n    at inputValidatorMiddleware (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/middleware.ts:191:15)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'tables.getTables'}}}",
+      "category": "TABLES",
+      "timestamp": "2026-03-15T14:18:10.279306"
+    },
+    {
+      "name": "Waiter Login",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Invalid username or password', 'code': -32603, 'data': {'code': 'INTERNAL_SERVER_ERROR', 'httpStatus': 500, 'stack': 'Error: Invalid username or password\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/routers/auth.ts:181:13)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async resolveMiddleware (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:571:22)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'auth.login'}}}}",
+      "category": "ORDERS",
+      "timestamp": "2026-03-15T14:18:10.287096"
+    },
+    {
+      "name": "Start Shift (Waiter)",
+      "status": "FAIL",
+      "details": "{'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"undefined\",\\n    \"path\": [\\n      \"staffId\"\\n    ],\\n    \"message\": \"Required\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"undefined\",\\n    \"path\": [\\n      \"staffId\"\\n    ],\\n    \"message\": \"Required\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\n    at inputValidatorMiddleware (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/middleware.ts:191:15)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'shifts.startShift'}}}",
+      "category": "ORDERS",
+      "timestamp": "2026-03-15T14:18:10.294307"
+    },
+    {
+      "name": "Create Order",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'Staff member not found or not assigned.', 'code': -32003, 'data': {'code': 'FORBIDDEN', 'httpStatus': 403, 'stack': 'TRPCError: Staff member not found or not assigned.\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/_core/trpc.ts:47:11)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'orders.createOrder'}}}",
+      "category": "ORDERS",
+      "timestamp": "2026-03-15T14:18:10.302373"
+    },
+    {
+      "name": "Add Item to Order",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'Staff member not found or not assigned.', 'code': -32003, 'data': {'code': 'FORBIDDEN', 'httpStatus': 403, 'stack': 'TRPCError: Staff member not found or not assigned.\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/_core/trpc.ts:47:11)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'orders.addItem'}}}",
+      "category": "ORDERS",
+      "timestamp": "2026-03-15T14:18:10.309557"
+    },
+    {
+      "name": "Send Order to Kitchen",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'Staff member not found or not assigned.', 'code': -32003, 'data': {'code': 'FORBIDDEN', 'httpStatus': 403, 'stack': 'TRPCError: Staff member not found or not assigned.\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/_core/trpc.ts:47:11)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'orders.sendToKitchen'}}}",
+      "category": "ORDERS",
+      "timestamp": "2026-03-15T14:18:10.317136"
+    },
+    {
+      "name": "Chef Login",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Invalid username or password', 'code': -32603, 'data': {'code': 'INTERNAL_SERVER_ERROR', 'httpStatus': 500, 'stack': 'Error: Invalid username or password\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/routers/auth.ts:181:13)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async resolveMiddleware (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:571:22)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'auth.login'}}}}",
+      "category": "ORDERS",
+      "timestamp": "2026-03-15T14:18:10.324427"
+    },
+    {
+      "name": "Chef: Update Item to In Preparation",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'Staff member not found or not assigned.', 'code': -32003, 'data': {'code': 'FORBIDDEN', 'httpStatus': 403, 'stack': 'TRPCError: Staff member not found or not assigned.\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/_core/trpc.ts:47:11)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'orders.updateItemStatus'}}}",
+      "category": "ORDERS",
+      "timestamp": "2026-03-15T14:18:10.332618"
+    },
+    {
+      "name": "Chef: Update Item to Ready",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'Staff member not found or not assigned.', 'code': -32003, 'data': {'code': 'FORBIDDEN', 'httpStatus': 403, 'stack': 'TRPCError: Staff member not found or not assigned.\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/_core/trpc.ts:47:11)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'orders.updateItemStatus'}}}",
+      "category": "ORDERS",
+      "timestamp": "2026-03-15T14:18:10.340860"
+    },
+    {
+      "name": "Create Recharge Request",
+      "status": "FAIL",
+      "details": "{'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\n    at inputValidatorMiddleware (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/middleware.ts:191:15)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'recharges.createRequest'}}}",
+      "category": "ORDERS",
+      "timestamp": "2026-03-15T14:18:10.348551"
+    },
+    {
+      "name": "Close Order",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'Staff member not found or not assigned.', 'code': -32003, 'data': {'code': 'FORBIDDEN', 'httpStatus': 403, 'stack': 'TRPCError: Staff member not found or not assigned.\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/_core/trpc.ts:47:11)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:20)\\n    at async procedure (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:673:20)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:347:31)\\n    at async resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:375:31)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'orders.closeOrder'}}}",
+      "category": "ORDERS",
+      "timestamp": "2026-03-15T14:18:10.356840"
+    },
+    {
+      "name": "Get Sales Report",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'No procedure found on path \"reporting.getSalesReport\"', 'code': -32004, 'data': {'code': 'NOT_FOUND', 'httpStatus': 404, 'stack': 'TRPCError: No procedure found on path \"reporting.getSalesReport\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:325:17)\\n    at Array.map (<anonymous>)\\n    at resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:317:33)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'reporting.getSalesReport'}}}",
+      "category": "REPORTING",
+      "timestamp": "2026-03-15T14:18:10.364508"
+    },
+    {
+      "name": "Get Staff Performance Report",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'No procedure found on path \"reporting.getStaffPerformance\"', 'code': -32004, 'data': {'code': 'NOT_FOUND', 'httpStatus': 404, 'stack': 'TRPCError: No procedure found on path \"reporting.getStaffPerformance\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:325:17)\\n    at Array.map (<anonymous>)\\n    at resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:317:33)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'reporting.getStaffPerformance'}}}",
+      "category": "REPORTING",
+      "timestamp": "2026-03-15T14:18:10.371609"
+    },
+    {
+      "name": "SQL Injection Prevention",
+      "status": "PASS",
+      "details": "SQL injection attempt blocked",
+      "category": "SECURITY",
+      "timestamp": "2026-03-15T14:18:10.379182"
+    },
+    {
+      "name": "XSS Prevention in Login",
+      "status": "PASS",
+      "details": "XSS attempt blocked",
+      "category": "SECURITY",
+      "timestamp": "2026-03-15T14:18:10.387121"
+    },
+    {
+      "name": "Role Authorization - Waiter cannot list cafeterias",
+      "status": "PASS",
+      "details": "Access correctly denied",
+      "category": "SECURITY",
+      "timestamp": "2026-03-15T14:18:10.393092"
+    },
+    {
+      "name": "CSRF/Unauthorized Create Blocked",
+      "status": "PASS",
+      "details": "Unauthorized creation blocked",
+      "category": "SECURITY",
+      "timestamp": "2026-03-15T14:18:10.396973"
+    },
+    {
+      "name": "Weak Password Rejection",
+      "status": "PASS",
+      "details": "Weak password rejected",
+      "category": "SECURITY",
+      "timestamp": "2026-03-15T14:18:10.403480"
+    },
+    {
+      "name": "Rate Limiting Active",
+      "status": "WARN",
+      "details": "No rate limiting detected in 10 requests (0.08s)",
+      "category": "SECURITY",
+      "timestamp": "2026-03-15T14:18:10.478653"
+    },
+    {
+      "name": "Get Table QR Token",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'No procedure found on path \"tables.getTableToken\"', 'code': -32004, 'data': {'code': 'NOT_FOUND', 'httpStatus': 404, 'stack': 'TRPCError: No procedure found on path \"tables.getTableToken\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:325:17)\\n    at Array.map (<anonymous>)\\n    at resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:317:33)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'tables.getTableToken'}}}",
+      "category": "QR",
+      "timestamp": "2026-03-15T14:18:10.485910"
+    },
+    {
+      "name": "Customer Menu via QR Token",
+      "status": "WARN",
+      "details": "No token available to test",
+      "category": "QR",
+      "timestamp": "2026-03-15T14:18:10.485938"
+    },
+    {
+      "name": "Get Marketer Balance",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'No procedure found on path \"marketers.getBalance\"', 'code': -32004, 'data': {'code': 'NOT_FOUND', 'httpStatus': 404, 'stack': 'TRPCError: No procedure found on path \"marketers.getBalance\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:325:17)\\n    at Array.map (<anonymous>)\\n    at resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:317:33)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'marketers.getBalance'}}}",
+      "category": "COMMISSION",
+      "timestamp": "2026-03-15T14:18:10.491859"
+    },
+    {
+      "name": "Get Commission Configs",
+      "status": "FAIL",
+      "details": "{'json': {'message': 'No procedure found on path \"commissions.getConfigs\"', 'code': -32004, 'data': {'code': 'NOT_FOUND', 'httpStatus': 404, 'stack': 'TRPCError: No procedure found on path \"commissions.getConfigs\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:325:17)\\n    at Array.map (<anonymous>)\\n    at resolveResponse (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:317:33)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)', 'path': 'commissions.getConfigs'}}}",
+      "category": "COMMISSION",
+      "timestamp": "2026-03-15T14:18:10.498907"
+    },
+    {
+      "name": "Logout",
+      "status": "PASS",
+      "details": "Logout successful",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:18:10.507887"
+    },
+    {
+      "name": "Access Blocked After Logout",
+      "status": "FAIL",
+      "details": "Session still valid after logout!",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:18:10.511265"
+    }
+  ]
+}

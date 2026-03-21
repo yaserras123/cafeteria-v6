@@ -75,47 +75,44 @@ export const qrOrdersRouter = router({
         }
 
         const table = tableResult[0];
-        const orderId = nanoid();
         const now = new Date();
-
-        // TASK 3 — Basic Rate Limiting: 1 order per table every 5 seconds
-        const recentOrders = await db
+        
+        // Find existing open order for this table to maintain one session per table
+        const existingOpenOrders = await db
           .select()
           .from(orders)
           .where(
             and(
               eq(orders.tableId, table.id),
-              eq(orders.source, "customer")
+              eq(orders.status, "open")
             )
-          );
-
-        if (recentOrders.length > 0) {
-          const lastOrder = recentOrders[recentOrders.length - 1];
-          const timeSinceLastOrder = now.getTime() - new Date(lastOrder.createdAt).getTime();
-          if (timeSinceLastOrder < 5000) {
-            logger.warn("RATE_LIMIT_EXCEEDED", "Table order rate limit exceeded", { tableId: table.id });
-            throw new Error("Please wait before creating another order (Rate limit: 5s)");
-          }
+          )
+          .limit(1);
+        
+        let orderId: string;
+        let isNewOrder = false;
+        
+        if (existingOpenOrders.length > 0) {
+          orderId = existingOpenOrders[0].id;
+        } else {
+          orderId = nanoid();
+          isNewOrder = true;
         }
 
         // Calculate total amount from menu items
         let totalAmount = 0;
         const itemsWithPrices = [];
-
         for (const item of input.items) {
           const menuItem = await db
             .select()
             .from(menuItems)
             .where(eq(menuItems.id, item.menuItemId));
-
           if (!menuItem || menuItem.length === 0) {
             throw new Error(`Menu item ${item.menuItemId} not found`);
           }
-
           const price = parseFloat(menuItem[0].price || "0");
           const itemTotal = price * item.quantity;
           totalAmount += itemTotal;
-
           itemsWithPrices.push({
             ...item,
             price,
@@ -123,18 +120,28 @@ export const qrOrdersRouter = router({
           });
         }
 
-        // Create order with source = "customer"
-        await db.insert(orders).values({
-          id: orderId,
-          cafeteriaId: table.cafeteriaId,
-          tableId: table.id,
-          totalAmount: String(totalAmount),
-          status: "open",
-          source: "customer",
-          pointsConsumed: "0",
-          createdAt: now,
-        });
-
+        if (isNewOrder) {
+          // Create new order session for the table
+          await db.insert(orders).values({
+            id: orderId,
+            cafeteriaId: table.cafeteriaId,
+            tableId: table.id,
+            totalAmount: String(totalAmount),
+            status: "open",
+            source: "customer",
+            pointsConsumed: "0",
+            createdAt: now,
+          });
+        } else {
+          // Update existing order session total
+          const currentTotal = parseFloat(existingOpenOrders[0].totalAmount || "0");
+          await db
+            .update(orders)
+            .set({
+              totalAmount: String(currentTotal + totalAmount),
+            })
+            .where(eq(orders.id, orderId));
+        }
         // Add order items
         for (const item of itemsWithPrices) {
           const orderItemId = nanoid();
@@ -145,7 +152,7 @@ export const qrOrdersRouter = router({
             quantity: item.quantity,
             unitPrice: String(item.price),
             totalPrice: String(item.itemTotal),
-            status: "pending",
+            status: "waiter_review",
             createdAt: now,
           });
         }

@@ -1,0 +1,488 @@
+{
+  "passed": 52,
+  "failed": 2,
+  "warnings": 12,
+  "tests": [
+    {
+      "name": "SQL Injection: ' OR '1'='1",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "SQL_INJECTION"
+    },
+    {
+      "name": "SQL Injection: '; DROP TABLE users; --",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "SQL_INJECTION"
+    },
+    {
+      "name": "SQL Injection: ' UNION SELECT * FROM users --",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "SQL_INJECTION"
+    },
+    {
+      "name": "SQL Injection: admin'--",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "SQL_INJECTION"
+    },
+    {
+      "name": "SQL Injection: ' OR 1=1 --",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "SQL_INJECTION"
+    },
+    {
+      "name": "XSS Attempt: <script>alert('xss')</script>",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "XSS"
+    },
+    {
+      "name": "XSS Attempt: javascript:alert(1)",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "XSS"
+    },
+    {
+      "name": "XSS Attempt: <img src=x onerror=alert(1)>",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "XSS"
+    },
+    {
+      "name": "XSS Attempt: ';alert('xss')//",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "XSS"
+    },
+    {
+      "name": "Brute Force - All attempts rejected",
+      "status": "PASS",
+      "details": "10/10 rejected",
+      "category": "BRUTE_FORCE"
+    },
+    {
+      "name": "Rate Limiting Active",
+      "status": "WARN",
+      "details": "20 requests in 0.1s (no rate limiting detected)",
+      "category": "RATE_LIMIT"
+    },
+    {
+      "name": "Empty/null credentials: {'username': '', 'password': ''}",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "AUTH_VALIDATION"
+    },
+    {
+      "name": "Empty/null credentials: {'username': '   ', 'password': '   '}",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "AUTH_VALIDATION"
+    },
+    {
+      "name": "Empty/null credentials: {'username': None, 'password': None}",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "AUTH_VALIDATION"
+    },
+    {
+      "name": "Very long input (10000 chars)",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "INPUT_VALIDATION"
+    },
+    {
+      "name": "Unauth access to auth.me",
+      "status": "FAIL",
+      "details": "SECURITY BREACH: None",
+      "category": "UNAUTH_ACCESS"
+    },
+    {
+      "name": "Unauth access to staff.getStaff",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "UNAUTH_ACCESS"
+    },
+    {
+      "name": "Unauth access to orders.getOrders",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "UNAUTH_ACCESS"
+    },
+    {
+      "name": "Unauth access to reporting.getCafeteriaReports",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "UNAUTH_ACCESS"
+    },
+    {
+      "name": "Unauth access to shifts.getCafeteriaShifts",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "UNAUTH_ACCESS"
+    },
+    {
+      "name": "Unauth access to recharges.getRequests",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "UNAUTH_ACCESS"
+    },
+    {
+      "name": "Unauth access to commissions.getBalance",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "UNAUTH_ACCESS"
+    },
+    {
+      "name": "Unauth access to withdrawals.getRequests",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "UNAUTH_ACCESS"
+    },
+    {
+      "name": "Unauth access to system.getLogs",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "UNAUTH_ACCESS"
+    },
+    {
+      "name": "Owner-only endpoint system.getGlobalFreeMonths (admin blocked)",
+      "status": "PASS",
+      "details": "Admin correctly blocked from owner endpoint",
+      "category": "RBAC"
+    },
+    {
+      "name": "Owner-only endpoint system.setGlobalFreeMonths (admin blocked)",
+      "status": "PASS",
+      "details": "Admin correctly blocked from owner endpoint",
+      "category": "RBAC"
+    },
+    {
+      "name": "Owner-only endpoint system.grantSpecialFreePeriod (admin blocked)",
+      "status": "PASS",
+      "details": "Admin correctly blocked from owner endpoint",
+      "category": "RBAC"
+    },
+    {
+      "name": "Marketer-only marketers.createCafeteria (admin blocked)",
+      "status": "PASS",
+      "details": "Admin correctly blocked",
+      "category": "RBAC"
+    },
+    {
+      "name": "Marketer-only marketers.getMarketerHierarchy (admin blocked)",
+      "status": "PASS",
+      "details": "Admin correctly blocked",
+      "category": "RBAC"
+    },
+    {
+      "name": "Invalid input: cafeteriaId must be string",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "INPUT_VALIDATION"
+    },
+    {
+      "name": "Invalid input: price must be number",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "INPUT_VALIDATION"
+    },
+    {
+      "name": "Invalid input: negative table number",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "INPUT_VALIDATION"
+    },
+    {
+      "name": "Invalid input: negative amount",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "INPUT_VALIDATION"
+    },
+    {
+      "name": "Missing required field: missing password",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "INPUT_VALIDATION"
+    },
+    {
+      "name": "Missing required field: missing name and role",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "INPUT_VALIDATION"
+    },
+    {
+      "name": "Missing required field: missing price and categoryId",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "INPUT_VALIDATION"
+    },
+    {
+      "name": "Weak password rejected: '123'",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "PASSWORD_POLICY"
+    },
+    {
+      "name": "Weak password rejected: 'password'",
+      "status": "FAIL",
+      "details": "SECURITY ISSUE: Weak password accepted!",
+      "category": "PASSWORD_POLICY"
+    },
+    {
+      "name": "Weak password rejected: 'abc'",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "PASSWORD_POLICY"
+    },
+    {
+      "name": "Weak password rejected: '12345678'",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "PASSWORD_POLICY"
+    },
+    {
+      "name": "Invalid session token rejected",
+      "status": "PASS",
+      "details": "No user returned",
+      "category": "SESSION"
+    },
+    {
+      "name": "Tampered JWT rejected",
+      "status": "PASS",
+      "details": "No user returned",
+      "category": "SESSION"
+    },
+    {
+      "name": "Empty session cookie handled",
+      "status": "PASS",
+      "details": "No user returned",
+      "category": "SESSION"
+    },
+    {
+      "name": "Session invalidated after logout",
+      "status": "WARN",
+      "details": "Session was not active before logout",
+      "category": "SESSION"
+    },
+    {
+      "name": "CORS - Malicious origin restricted",
+      "status": "PASS",
+      "details": "CORS header: '' (not wildcard)",
+      "category": "API_SECURITY"
+    },
+    {
+      "name": "DELETE method on mutation endpoint",
+      "status": "WARN",
+      "details": "HTTP 415",
+      "category": "API_SECURITY"
+    },
+    {
+      "name": "PUT method on mutation endpoint",
+      "status": "WARN",
+      "details": "HTTP 415",
+      "category": "API_SECURITY"
+    },
+    {
+      "name": "Wrong Content-Type rejected",
+      "status": "PASS",
+      "details": "HTTP 415",
+      "category": "API_SECURITY"
+    },
+    {
+      "name": "Large payload (200KB) handled",
+      "status": "PASS",
+      "details": "HTTP 500",
+      "category": "API_SECURITY"
+    },
+    {
+      "name": "Path traversal: ../../../etc/passwd",
+      "status": "WARN",
+      "details": "HTTP 200",
+      "category": "PATH_TRAVERSAL"
+    },
+    {
+      "name": "Path traversal: ..%2F..%2Fetc%2Fpasswd",
+      "status": "WARN",
+      "details": "HTTP 200",
+      "category": "PATH_TRAVERSAL"
+    },
+    {
+      "name": "Path traversal: ....//....//etc/passwd",
+      "status": "WARN",
+      "details": "HTTP 200",
+      "category": "PATH_TRAVERSAL"
+    },
+    {
+      "name": "Security test marketer created",
+      "status": "PASS",
+      "details": "Code: MKT-04",
+      "category": "BUSINESS_LOGIC"
+    },
+    {
+      "name": "Cross-tenant marketer hierarchy access blocked",
+      "status": "PASS",
+      "details": "Access denied",
+      "category": "BUSINESS_LOGIC"
+    },
+    {
+      "name": "Double-approval prevention",
+      "status": "WARN",
+      "details": "No approved requests to test with",
+      "category": "BUSINESS_LOGIC"
+    },
+    {
+      "name": "Non-existent resource: cafeterias.getCafeteriaDetails",
+      "status": "PASS",
+      "details": "Error returned",
+      "category": "DATA_INTEGRITY"
+    },
+    {
+      "name": "Non-existent resource: orders.getOrderDetails",
+      "status": "PASS",
+      "details": "Error returned",
+      "category": "DATA_INTEGRITY"
+    },
+    {
+      "name": "Non-existent resource: shifts.getShift",
+      "status": "PASS",
+      "details": "Error returned",
+      "category": "DATA_INTEGRITY"
+    },
+    {
+      "name": "Invalid enum value: invalid role",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "DATA_INTEGRITY"
+    },
+    {
+      "name": "Invalid enum value: invalid status",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "DATA_INTEGRITY"
+    },
+    {
+      "name": "Invalid enum value: invalid status",
+      "status": "PASS",
+      "details": "Rejected",
+      "category": "DATA_INTEGRITY"
+    },
+    {
+      "name": "Security header: X-Content-Type-Options",
+      "status": "WARN",
+      "details": "Value: ''",
+      "category": "HTTP_HEADERS"
+    },
+    {
+      "name": "Security header: X-Frame-Options",
+      "status": "WARN",
+      "details": "Value: ''",
+      "category": "HTTP_HEADERS"
+    },
+    {
+      "name": "Security header: Content-Security-Policy",
+      "status": "WARN",
+      "details": "Missing",
+      "category": "HTTP_HEADERS"
+    },
+    {
+      "name": "Sensitive header exposed: Server",
+      "status": "PASS",
+      "details": "Not exposed",
+      "category": "HTTP_HEADERS"
+    },
+    {
+      "name": "Sensitive header exposed: X-Powered-By",
+      "status": "WARN",
+      "details": "Exposed: 'Express'",
+      "category": "HTTP_HEADERS"
+    }
+  ],
+  "categories": {
+    "SQL_INJECTION": {
+      "passed": 5,
+      "failed": 0,
+      "warnings": 0
+    },
+    "XSS": {
+      "passed": 4,
+      "failed": 0,
+      "warnings": 0
+    },
+    "BRUTE_FORCE": {
+      "passed": 1,
+      "failed": 0,
+      "warnings": 0
+    },
+    "RATE_LIMIT": {
+      "passed": 0,
+      "failed": 0,
+      "warnings": 1
+    },
+    "AUTH_VALIDATION": {
+      "passed": 3,
+      "failed": 0,
+      "warnings": 0
+    },
+    "INPUT_VALIDATION": {
+      "passed": 8,
+      "failed": 0,
+      "warnings": 0
+    },
+    "UNAUTH_ACCESS": {
+      "passed": 8,
+      "failed": 1,
+      "warnings": 0
+    },
+    "RBAC": {
+      "passed": 5,
+      "failed": 0,
+      "warnings": 0
+    },
+    "PASSWORD_POLICY": {
+      "passed": 3,
+      "failed": 1,
+      "warnings": 0
+    },
+    "SESSION": {
+      "passed": 3,
+      "failed": 0,
+      "warnings": 1
+    },
+    "API_SECURITY": {
+      "passed": 3,
+      "failed": 0,
+      "warnings": 2
+    },
+    "PATH_TRAVERSAL": {
+      "passed": 0,
+      "failed": 0,
+      "warnings": 3
+    },
+    "BUSINESS_LOGIC": {
+      "passed": 2,
+      "failed": 0,
+      "warnings": 1
+    },
+    "DATA_INTEGRITY": {
+      "passed": 6,
+      "failed": 0,
+      "warnings": 0
+    },
+    "HTTP_HEADERS": {
+      "passed": 1,
+      "failed": 0,
+      "warnings": 4
+    }
+  },
+  "summary": {
+    "total": 66,
+    "passed": 52,
+    "failed": 2,
+    "warnings": 12,
+    "pass_rate": 78.8,
+    "timestamp": "2026-03-15T14:30:05.518322"
+  }
+}

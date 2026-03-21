@@ -30,7 +30,7 @@ export function canStaffLogin(canLogin: boolean, role: string): boolean {
  */
 export function canGrantLoginPermission(grantingUserRole: string, targetStaffRole: string): boolean {
   // Admin can grant to anyone
-  if (grantingUserRole === "admin") {
+  if (grantingUserRole === "cafeteria_admin") {
     return true;
   }
 
@@ -64,7 +64,7 @@ export function canRevokeLoginPermission(
  */
 export function canAssignToSections(assigningUserRole: string): boolean {
   // Only admin can assign sections
-  return assigningUserRole === "admin";
+  return assigningUserRole === "cafeteria_admin";
 }
 
 /**
@@ -74,7 +74,7 @@ export function canAssignToSections(assigningUserRole: string): boolean {
  */
 export function canAssignToCategories(assigningUserRole: string): boolean {
   // Only admin can assign categories
-  return assigningUserRole === "admin";
+  return assigningUserRole === "cafeteria_admin";
 }
 
 /**
@@ -90,7 +90,7 @@ export function getVisibleSections(
   allSectionIds: string[]
 ): string[] {
   // Chefs and admins see all sections
-  if (staffRole === "chef" || staffRole === "admin") {
+  if (staffRole === "chef" || staffRole === "cafeteria_admin") {
     return allSectionIds;
   }
 
@@ -121,7 +121,7 @@ export function getVisibleCategories(
   allCategoryIds: string[]
 ): string[] {
   // Waiters and admins see all categories
-  if (staffRole === "waiter" || staffRole === "admin") {
+  if (staffRole === "waiter" || staffRole === "cafeteria_admin") {
     return allCategoryIds;
   }
 
@@ -145,7 +145,7 @@ export function getVisibleCategories(
  * @returns true if role is valid
  */
 export function isValidStaffRole(role: string): boolean {
-  const validRoles = ["admin", "manager", "waiter", "chef"];
+  const validRoles = ["cafeteria_admin", "manager", "waiter", "chef"];
   return validRoles.includes(role);
 }
 
@@ -156,7 +156,7 @@ export function isValidStaffRole(role: string): boolean {
  */
 export function getRoleHierarchyLevel(role: string): number {
   const hierarchy: Record<string, number> = {
-    admin: 3,
+    cafeteria_admin: 3,
     manager: 2,
     waiter: 1,
     chef: 1,
@@ -183,7 +183,7 @@ export function canManageRole(managingRole: string, targetRole: string): boolean
  */
 export function getDefaultPermissionsForRole(role: string) {
   const defaults: Record<string, Record<string, boolean>> = {
-    admin: {
+    cafeteria_admin: {
       canLogin: false, // Must be explicitly granted
       canCreateStaff: true,
       canManageMenu: true,
@@ -255,7 +255,7 @@ export function formatLoginPermissionStatus(
  */
 export function getStaffVisibilityRestrictions(staffRole: string) {
   const restrictions: Record<string, Record<string, boolean>> = {
-    admin: {
+    cafeteria_admin: {
       canSeeAllStaff: true,
       canSeeAllOrders: true,
       canSeeAllReports: true,
@@ -309,7 +309,7 @@ export function isValidStaffCategoryAssignment(staffRole: string, categoryId: st
  */
 export function getStaffActionCapabilities(staffRole: string) {
   const capabilities: Record<string, Record<string, boolean>> = {
-    admin: {
+    cafeteria_admin: {
       createOrder: true,
       closeOrder: true,
       viewAllOrders: true,

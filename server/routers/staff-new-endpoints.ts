@@ -10,7 +10,7 @@ export const updateStaffRoleEndpoint = protectedProcedure
   .input(
     z.object({
       staffId: z.string(),
-      newRole: z.enum(["admin", "manager", "waiter", "chef"]),
+      newRole: z.enum(["cafeteria_admin", "manager", "waiter", "chef"]),
     })
   )
   .mutation(async ({ input }) => {

@@ -173,6 +173,25 @@ export const ordersRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
+      // FIX: Guard against re-sending items that are already in kitchen or beyond.
+      const itemResult = await db
+        .select()
+        .from(orderItems)
+        .where(eq(orderItems.id, input.orderItemId))
+        .limit(1);
+
+      if (itemResult.length === 0) {
+        throw new Error("Order item not found");
+      }
+
+      const item = itemResult[0];
+      const lockedStatuses = ["sent_to_kitchen", "in_preparation", "ready", "served", "cancelled"];
+      if (lockedStatuses.includes(item.status || "")) {
+        throw new Error(
+          `Cannot send item to kitchen: current status is '${item.status}'. Item is already locked in kitchen.`
+        );
+      }
+
       const now = new Date();
 
       await db
@@ -259,11 +278,28 @@ export const ordersRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
 
-        const items = await db
+        // FIX: Filter by cafeteriaId to prevent cross-cafeteria data leakage.
+        // Join orderItems with orders to scope results to the requesting cafeteria.
+        const cafeteriaOrders = await db
+          .select({ id: orders.id })
+          .from(orders)
+          .where(eq(orders.cafeteriaId, input.cafeteriaId));
+
+        const cafeteriaOrderIds = cafeteriaOrders.map((o) => o.id);
+
+        if (cafeteriaOrderIds.length === 0) {
+          return [];
+        }
+
+        const allKitchenItems = await db
           .select()
           .from(orderItems)
           .where(eq(orderItems.status, "sent_to_kitchen"))
           .orderBy(asc(orderItems.sentToKitchenAt));
+
+        const items = allKitchenItems.filter((item) =>
+          cafeteriaOrderIds.includes(item.orderId)
+        );
 
         return items.map((item) => ({
           id: item.id,
@@ -356,6 +392,8 @@ export const ordersRouter = router({
           description: `Order ${input.orderId} closed: ${pointsDeduction} points deducted`,
           cafeteriaId: order.cafeteriaId,
           amount: String(pointsDeduction),
+          balanceBefore: String(currentBalance),
+          balanceAfter: String(newBalance),
           refId: input.orderId,
           createdAt: now,
         });
@@ -367,6 +405,8 @@ export const ordersRouter = router({
           description: `Order ${input.orderId} closed: Free operation period (0 points deducted)`,
           cafeteriaId: order.cafeteriaId,
           amount: "0",
+          balanceBefore: String(currentBalance),
+          balanceAfter: String(currentBalance),
           refId: input.orderId,
           createdAt: now,
         });

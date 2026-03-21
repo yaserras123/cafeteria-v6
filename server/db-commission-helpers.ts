@@ -1,3 +1,19 @@
+/**
+ * Commission Helpers
+ *
+ * COMMISSION RULES
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 1. Commissions are created ONLY when a cafeteria recharge is APPROVED.
+ * 2. New commissions are always created with status = "pending".
+ * 3. When a SUBSEQUENT recharge is approved for the SAME cafeteria, the
+ *    commissions from the PREVIOUS approved recharge become "available".
+ *    (i.e., recharge N makes recharge N-1 commissions available)
+ * 4. The FIRST recharge's commissions are NEVER made available immediately —
+ *    they only become available when a second recharge is approved.
+ * 5. Commission flows upward through the REAL ancestor chain:
+ *       cafeteria → direct marketer → parent marketer → … → owner
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 
 import { eq, and, desc, ne } from "drizzle-orm";
 import { getDb } from "./db";
@@ -10,18 +26,21 @@ import {
   marketerBalances,
   ledgerEntries,
 } from "../drizzle/schema";
-import {
-  calculateCommissionDistributions,
-} from "./utils/commissionEngine";
-import {
-  shouldGenerateCommissions,
-} from "./utils/freeOperationEngine";
+import { calculateCommissionDistributions } from "./utils/commissionEngine";
+import { shouldGenerateCommissions } from "./utils/freeOperationEngine";
 import { addPrecise, subtractPrecise, roundTo } from "./utils/precision";
 import { nanoid } from "nanoid";
 
 // Define a type for the transaction object
-type Transaction = any; // Will be properly typed when getDb returns a database instance
+type Transaction = any;
 
+// ─── Hierarchy ───────────────────────────────────────────────────────────────
+
+/**
+ * Walks the marketer parent chain starting from `cafeteriaMarketerId` all the
+ * way up to the root, returning the full ancestor array ordered from the
+ * direct parent to the root (owner-level marketer last).
+ */
 export async function getMarketerHierarchy(
   db: Transaction | Awaited<ReturnType<typeof getDb>>,
   cafeteriaMarketerIdOrId: string
@@ -53,6 +72,8 @@ export async function getMarketerHierarchy(
   return hierarchy;
 }
 
+// ─── Commission rates ────────────────────────────────────────────────────────
+
 export async function getCommissionRatesForMarketers(
   db: Transaction | Awaited<ReturnType<typeof getDb>>,
   marketerIds: string[]
@@ -60,7 +81,6 @@ export async function getCommissionRatesForMarketers(
   if (!db) throw new Error("Database not available");
 
   const rates = new Map<string, number>();
-
   for (const marketerId of marketerIds) {
     const result = await (db as any)
       .select()
@@ -68,15 +88,12 @@ export async function getCommissionRatesForMarketers(
       .where(eq(commissionConfigs.marketerId, marketerId))
       .limit(1);
 
-    if (result.length > 0) {
-      rates.set(marketerId, Number(result[0].rate) || 0);
-    } else {
-      rates.set(marketerId, 0);
-    }
+    rates.set(marketerId, result.length > 0 ? Number(result[0].rate) || 0 : 0);
   }
-
   return rates;
 }
+
+// ─── Free period check ───────────────────────────────────────────────────────
 
 export async function isCafeteriaInFreePeriod(
   db: Transaction | Awaited<ReturnType<typeof getDb>>,
@@ -88,17 +105,23 @@ export async function isCafeteriaInFreePeriod(
   const result = await (db as any)
     .select()
     .from(freeOperationPeriods)
-    .where(
-      and(
-        eq(freeOperationPeriods.cafeteriaId, cafeteriaId),
-        // This is a simplified check; in production, use proper date comparison
-      )
-    );
+    .where(eq(freeOperationPeriods.cafeteriaId, cafeteriaId));
 
   return result.some((period: any) => now >= period.startDate && now <= period.endDate);
 }
 
-async function releaseCommissionsForPreviousRecharge(tx: Transaction, previousRechargeId: string): Promise<void> {
+// ─── Release previous recharge commissions ───────────────────────────────────
+
+/**
+ * Moves all PENDING commissions for `previousRechargeId` to AVAILABLE status,
+ * and updates marketer balances accordingly.
+ *
+ * This is called when a NEW recharge is approved for the same cafeteria.
+ */
+async function releaseCommissionsForPreviousRecharge(
+  tx: Transaction,
+  previousRechargeId: string
+): Promise<void> {
   const commissionsToRelease = await tx
     .select()
     .from(commissionDistributions)
@@ -110,24 +133,30 @@ async function releaseCommissionsForPreviousRecharge(tx: Transaction, previousRe
     );
 
   if (commissionsToRelease.length === 0) {
-    return; // No pending commissions for the previous recharge to release
+    // No pending commissions for the previous recharge — nothing to do.
+    return;
   }
 
   for (const commission of commissionsToRelease) {
-    await tx
-      .update(commissionDistributions)
-      .set({ status: "available" })
+    // 1. Mark commission as available
+    await tx.update(commissionDistributions).set({ status: "available", releasedAt: new Date() })
       .where(eq(commissionDistributions.id, commission.id));
 
-    // Update marketer balance: move from pending to available
+    // 2. Move amount from pendingBalance → availableBalance
     const marketerId = commission.marketerId;
     const amount = Number(commission.commissionAmount);
 
-    const balance = await (tx as any).select().from(marketerBalances).where(eq(marketerBalances.marketerId, marketerId)).limit(1).then((res: any) => res[0]);
+    const balanceRows = await (tx as any)
+      .select()
+      .from(marketerBalances)
+      .where(eq(marketerBalances.marketerId, marketerId))
+      .limit(1);
+
+    const balance = balanceRows[0];
 
     if (balance) {
-      const newPending = subtractPrecise(balance.pendingBalance, amount);
-      const newAvailable = addPrecise(balance.availableBalance, amount);
+      const newPending = subtractPrecise(Number(balance.pendingBalance), amount);
+      const newAvailable = addPrecise(Number(balance.availableBalance), amount);
 
       await tx
         .update(marketerBalances)
@@ -138,17 +167,18 @@ async function releaseCommissionsForPreviousRecharge(tx: Transaction, previousRe
         })
         .where(eq(marketerBalances.marketerId, marketerId));
     } else {
-      // This case should ideally not happen if marketerBalances are created when commissions are first generated
-      console.warn(`[Commission Release] Marketer balance not found for marketer ${marketerId} during commission release.`);
+      console.warn(
+        `[Commission Release] Marketer balance not found for marketer ${marketerId} during commission release.`
+      );
     }
 
-    // Add ledger entry for commission becoming available
+    // 3. Ledger entry
     await tx.insert(ledgerEntries).values({
       id: nanoid(),
       type: "commission_released",
       ledgerType: "commission_available",
       description: `Commission for recharge ${previousRechargeId} released to marketer ${marketerId}`,
-      marketerId: marketerId,
+      marketerId,
       amount: String(amount),
       refId: commission.id,
       createdAt: new Date(),
@@ -156,6 +186,18 @@ async function releaseCommissionsForPreviousRecharge(tx: Transaction, previousRe
   }
 }
 
+// ─── Main entry point ────────────────────────────────────────────────────────
+
+/**
+ * Called inside the recharge-approval transaction.
+ *
+ * Steps:
+ *  1. Find the most recently approved recharge for this cafeteria (excluding
+ *     the current one).
+ *  2. If one exists, release its PENDING commissions → AVAILABLE.
+ *  3. Create new PENDING commissions for the current recharge, distributed
+ *     up the full ancestor chain.
+ */
 export async function processCommissionsForRecharge(
   tx: Transaction,
   currentRechargeRequestId: string,
@@ -163,7 +205,7 @@ export async function processCommissionsForRecharge(
   rechargeAmount: number,
   cafeteriaId: string
 ): Promise<void> {
-  // Find the most recent previously approved recharge for this cafeteria
+  // ── Step 1: Find the previous approved recharge for this cafeteria ──────
   const previousRecharges = await (tx as any)
     .select()
     .from(rechargeRequests)
@@ -171,7 +213,6 @@ export async function processCommissionsForRecharge(
       and(
         eq(rechargeRequests.cafeteriaId, cafeteriaId),
         eq(rechargeRequests.status, "approved"),
-        // Ensure we only consider recharges that happened before the current one
         ne(rechargeRequests.id, currentRechargeRequestId)
       )
     )
@@ -180,16 +221,21 @@ export async function processCommissionsForRecharge(
 
   const previousRecharge = previousRecharges[0];
 
+  // ── Step 2: Release previous recharge's commissions (if any) ────────────
   if (previousRecharge) {
-    // Release commissions for the previous recharge
     await releaseCommissionsForPreviousRecharge(tx, previousRecharge.id);
   }
+  // NOTE: If there is no previous recharge (this is the first one), we do NOT
+  // make any commissions available immediately — they stay PENDING until the
+  // next recharge is approved.
 
+  // ── Step 3: Create new PENDING commissions for the current recharge ──────
   try {
     const inFreePeriod = await isCafeteriaInFreePeriod(tx, cafeteriaId);
     const shouldGenerate = shouldGenerateCommissions(inFreePeriod);
 
     if (!shouldGenerate) {
+      // Cafeteria is in free period — no commissions generated.
       await (tx as any)
         .update(rechargeRequests)
         .set({ commissionCalculated: true })
@@ -197,6 +243,7 @@ export async function processCommissionsForRecharge(
       return;
     }
 
+    // Build the full ancestor chain (direct marketer → … → root)
     const hierarchy = await getMarketerHierarchy(tx, cafeteriaMarketerId);
 
     if (hierarchy.length === 0) {
@@ -213,34 +260,47 @@ export async function processCommissionsForRecharge(
     );
 
     let totalNewCommissions = 0;
+
     for (const distribution of distributions) {
-      await (tx as any).insert(commissionDistributions).values({        id: nanoid(),
+      // Insert commission record — always PENDING
+      await (tx as any).insert(commissionDistributions).values({
+        id: nanoid(),
         rechargeRequestId: currentRechargeRequestId,
         marketerId: distribution.marketerId,
         level: distribution.level,
         commissionAmount: String(roundTo(distribution.commissionAmount)),
-        status: "pending",
+        status: "pending",   // ← ALWAYS pending; never available on creation
         createdAt: new Date(),
       });
 
-      const balance = await (tx as any).select().from(marketerBalances).where(eq(marketerBalances.marketerId, distribution.marketerId)).limit(1).then((res: any) => res[0]);
-      const newPending = addPrecise(balance?.pendingBalance ?? '0', distribution.commissionAmount);
+      // Update marketer pending balance
+      const balanceRows = await (tx as any)
+        .select()
+        .from(marketerBalances)
+        .where(eq(marketerBalances.marketerId, distribution.marketerId))
+        .limit(1);
 
-      if(balance){
+      const balance = balanceRows[0];
+      const newPending = addPrecise(
+        balance?.pendingBalance ?? "0",
+        distribution.commissionAmount
+      );
+
+      if (balance) {
         await (tx as any)
-            .update(marketerBalances)
-            .set({
-                pendingBalance: String(Math.max(0, newPending)),
-                lastUpdated: new Date(),
-            })
-            .where(eq(marketerBalances.marketerId, distribution.marketerId));
+          .update(marketerBalances)
+          .set({
+            pendingBalance: String(Math.max(0, newPending)),
+            lastUpdated: new Date(),
+          })
+          .where(eq(marketerBalances.marketerId, distribution.marketerId));
       } else {
         await (tx as any).insert(marketerBalances).values({
-            id: nanoid(),
-            marketerId: distribution.marketerId,
-            pendingBalance: String(Math.max(0, newPending)),
-            availableBalance: '0',
-            totalWithdrawn: '0',
+          id: nanoid(),
+          marketerId: distribution.marketerId,
+          pendingBalance: String(Math.max(0, newPending)),
+          availableBalance: "0",
+          totalWithdrawn: "0",
         });
       }
 
@@ -253,7 +313,8 @@ export async function processCommissionsForRecharge(
       .where(eq(rechargeRequests.id, currentRechargeRequestId));
 
     console.log(
-      `[Commission Processing] Recharge ${currentRechargeRequestId}: Processed ${distributions.length} commission distributions, total: $${totalNewCommissions}`
+      `[Commission Processing] Recharge ${currentRechargeRequestId}: ` +
+        `${distributions.length} distributions created (all PENDING), total: $${totalNewCommissions}`
     );
   } catch (error) {
     console.error(

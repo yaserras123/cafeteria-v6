@@ -46,7 +46,7 @@ export const reportingRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      if (ctx.user.role !== 'admin' && !(await checkCafeteriaAccess(db, ctx.user.id, input.cafeteriaId))) {
+      if (ctx.user.role !== 'owner' && !(await checkCafeteriaAccess(db, ctx.user.id, input.cafeteriaId))) {
           throw new Error("Unauthorized access to cafeteria data");
       }
 
@@ -152,7 +152,7 @@ export const reportingRouter = router({
 
       const report = reportResult[0];
 
-      if (ctx.user.role !== 'admin' && !(await checkCafeteriaAccess(db, ctx.user.id, report.cafeteriaId))) {
+      if (ctx.user.role !== 'owner' && !(await checkCafeteriaAccess(db, ctx.user.id, report.cafeteriaId))) {
         throw new Error("Unauthorized access to report");
       }
 
@@ -183,7 +183,7 @@ export const reportingRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      if (ctx.user.role !== 'admin' && !(await checkCafeteriaAccess(db, ctx.user.id, input.cafeteriaId))) {
+      if (ctx.user.role !== 'owner' && !(await checkCafeteriaAccess(db, ctx.user.id, input.cafeteriaId))) {
         throw new Error("Unauthorized access to cafeteria reports");
       }
 

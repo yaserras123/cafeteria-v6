@@ -85,15 +85,20 @@ export function calculateCommissionDistributions(
     .sort((a, b) => (a.referenceCode?.length || 0) - (b.referenceCode?.length || 0))
     .reverse(); // Reverse so direct parent is first
 
-  // Calculate commission for each level
-  sortedMarketers.forEach((marketer, index) => {
+  // Calculate commission for each level.
+  // FIX: Use a separate level counter so that the level reflects the marketer's
+  // actual position in the hierarchy (direct parent = level 1), regardless of
+  // whether intermediate marketers have a zero-rate commission.
+  let level = 0;
+  sortedMarketers.forEach((marketer) => {
+    level++;
     const rate = commissionRates.get(marketer.id) || 0;
     const commissionAmount = calculateCommissionAmount(rechargeAmount, rate);
 
     if (commissionAmount > 0) {
       distributions.push({
         marketerId: marketer.id,
-        level: index + 1,
+        level,
         commissionAmount,
       });
     }

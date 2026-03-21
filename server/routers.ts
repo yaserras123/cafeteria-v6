@@ -16,6 +16,10 @@ import { marketersRouter } from "./routers/marketers";
 import { commissionsRouter } from "./routers/commissions";
 import { cafeteriasRouter } from "./routers/cafeterias";
 import { authRouter } from "./routers/auth";
+import { splitBillRouter } from "./routers/splitBill";
+import { waiterEscalationRouter } from "./routers/waiterEscalation";
+import { chefRoutingRouter } from "./routers/chefRouting";
+import { realtimeUpdatesRouter } from "./routers/realtimeUpdates";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -35,6 +39,12 @@ export const appRouter = router({
   qrOrders: qrOrdersRouter,
   marketers: marketersRouter,
   commissions: commissionsRouter,
+
+  // V6 Features
+  splitBill: splitBillRouter,
+  waiterEscalation: waiterEscalationRouter,
+  chefRouting: chefRoutingRouter,
+  realtimeUpdates: realtimeUpdatesRouter,
 });
 
 export type AppRouter = typeof appRouter;

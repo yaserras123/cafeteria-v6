@@ -44,7 +44,7 @@ export const staffRouter = router({
       z.object({
         cafeteriaId: z.string(),
         name: z.string(),
-        role: z.enum(["admin", "manager", "waiter", "chef"]),
+        role: z.enum(["cafeteria_admin", "manager", "waiter", "chef"]),
         country: z.string().optional(),
         currency: z.string().optional(),
       })
@@ -412,7 +412,7 @@ export const staffRouter = router({
     .input(
       z.object({
         staffId: z.string(),
-        newRole: z.enum(["admin", "manager", "waiter", "chef"]),
+        newRole: z.enum(["cafeteria_admin", "manager", "waiter", "chef"]),
       })
     )
     .mutation(async ({ input }) => {

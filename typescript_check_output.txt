@@ -1,0 +1,4 @@
+
+> cafeteria-v2-app@1.0.0 check /home/ubuntu/cafeteria_v6
+> tsc --noEmit
+

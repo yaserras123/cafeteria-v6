@@ -1,0 +1,490 @@
+{
+  "passed": 15,
+  "failed": 42,
+  "warnings": 1,
+  "tests": [
+    {
+      "name": "Server Health",
+      "status": "PASS",
+      "details": "Status: ok, DB: healthy",
+      "category": "HEALTH",
+      "timestamp": "2026-03-15T14:20:41.388313"
+    },
+    {
+      "name": "Frontend Accessible",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "category": "HEALTH",
+      "timestamp": "2026-03-15T14:20:41.395038"
+    },
+    {
+      "name": "Owner Login (valid credentials)",
+      "status": "PASS",
+      "details": "Welcome: System Owner",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:20:41.541808"
+    },
+    {
+      "name": "Get Current User (auth.me)",
+      "status": "PASS",
+      "details": "Role: admin",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:20:41.549868"
+    },
+    {
+      "name": "Login with wrong password",
+      "status": "PASS",
+      "details": "Correctly rejected",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:20:41.667297"
+    },
+    {
+      "name": "Login with non-existent user",
+      "status": "PASS",
+      "details": "Correctly rejected",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:20:41.675365"
+    },
+    {
+      "name": "Login with empty credentials",
+      "status": "PASS",
+      "details": "Correctly rejected",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:20:41.679311"
+    },
+    {
+      "name": "Unauthenticated access blocked",
+      "status": "FAIL",
+      "details": "Not blocked!",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:20:41.682241"
+    },
+    {
+      "name": "Create Root Marketer",
+      "status": "PASS",
+      "details": "ID: 2eTxOGGjcnXjkc1j5jMoz, Code: MKT-01",
+      "category": "MARKETER",
+      "timestamp": "2026-03-15T14:20:41.691223"
+    },
+    {
+      "name": "Create Child Marketer",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Marketer access required.', 'code': -32003, 'data': {'code': 'FORBIDDEN', 'httpStatus': 403, 'stack': 'TRPCError: Marketer access required.\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/_core/trpc.ts:107:13)\\n    at callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:26)\\n    at procedure (/hom",
+      "category": "MARKETER",
+      "timestamp": "2026-03-15T14:20:41.696986"
+    },
+    {
+      "name": "Get Marketer Balance",
+      "status": "PASS",
+      "details": "Pending: 0, Available: 0",
+      "category": "MARKETER",
+      "timestamp": "2026-03-15T14:20:41.703749"
+    },
+    {
+      "name": "Get Marketer Hierarchy",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Marketer access required.', 'code': -32003, 'data': {'code': 'FORBIDDEN', 'httpStatus': 403, 'stack': 'TRPCError: Marketer access required.\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/_core/trpc.ts:107:13)\\n    at callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:26)\\n    at procedure (/hom",
+      "category": "MARKETER",
+      "timestamp": "2026-03-15T14:20:41.709453"
+    },
+    {
+      "name": "Create Cafeteria via Marketer",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Marketer access required.', 'code': -32003, 'data': {'code': 'FORBIDDEN', 'httpStatus': 403, 'stack': 'TRPCError: Marketer access required.\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/_core/trpc.ts:107:13)\\n    at callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:26)\\n    at procedure (/hom",
+      "category": "CAFETERIA",
+      "timestamp": "2026-03-15T14:20:41.716886"
+    },
+    {
+      "name": "Cafeteria Admin Login",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Invalid username or password', 'code': -32603, 'data': {'code': 'INTERNAL_SERVER_ERROR', 'httpStatus': 500, 'stack': 'Error: Invalid username or password\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/routers/auth.ts:181:13)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async resolveMiddleware (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3",
+      "category": "CAFETERIA",
+      "timestamp": "2026-03-15T14:20:41.724996"
+    },
+    {
+      "name": "Create Manager Staff",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "STAFF",
+      "timestamp": "2026-03-15T14:20:41.732539"
+    },
+    {
+      "name": "Create Waiter Staff",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "STAFF",
+      "timestamp": "2026-03-15T14:20:41.739001"
+    },
+    {
+      "name": "Create Chef Staff",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "STAFF",
+      "timestamp": "2026-03-15T14:20:41.745638"
+    },
+    {
+      "name": "Get Staff List",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "STAFF",
+      "timestamp": "2026-03-15T14:20:41.751680"
+    },
+    {
+      "name": "Create Menu Category",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "MENU",
+      "timestamp": "2026-03-15T14:20:41.758944"
+    },
+    {
+      "name": "Create Second Menu Category",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "MENU",
+      "timestamp": "2026-03-15T14:20:41.765374"
+    },
+    {
+      "name": "Create Menu Item",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"categoryId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  ",
+      "category": "MENU",
+      "timestamp": "2026-03-15T14:20:41.772848"
+    },
+    {
+      "name": "Create Second Menu Item",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"categoryId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  ",
+      "category": "MENU",
+      "timestamp": "2026-03-15T14:20:41.779938"
+    },
+    {
+      "name": "Get Menu Categories",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "MENU",
+      "timestamp": "2026-03-15T14:20:41.787337"
+    },
+    {
+      "name": "Get Menu Items",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "MENU",
+      "timestamp": "2026-03-15T14:20:41.794045"
+    },
+    {
+      "name": "Get Menu Summary",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "MENU",
+      "timestamp": "2026-03-15T14:20:41.801052"
+    },
+    {
+      "name": "Create Table Section",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "TABLES",
+      "timestamp": "2026-03-15T14:20:41.807152"
+    },
+    {
+      "name": "Create Table",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"sectionId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"number\",\\n    \"received\": \"undefined\",\\n    \"p",
+      "category": "TABLES",
+      "timestamp": "2026-03-15T14:20:41.813807"
+    },
+    {
+      "name": "Create Second Table",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"sectionId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"number\",\\n    \"received\": \"undefined\",\\n    \"p",
+      "category": "TABLES",
+      "timestamp": "2026-03-15T14:20:41.820134"
+    },
+    {
+      "name": "Get Tables",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "TABLES",
+      "timestamp": "2026-03-15T14:20:41.827503"
+    },
+    {
+      "name": "Get Sections",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "TABLES",
+      "timestamp": "2026-03-15T14:20:41.833891"
+    },
+    {
+      "name": "Get Available Tables",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "TABLES",
+      "timestamp": "2026-03-15T14:20:41.840033"
+    },
+    {
+      "name": "Get Cafeteria Occupancy",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "TABLES",
+      "timestamp": "2026-03-15T14:20:41.846738"
+    },
+    {
+      "name": "Create Recharge Request",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "RECHARGE",
+      "timestamp": "2026-03-15T14:20:41.853127"
+    },
+    {
+      "name": "Get Pending Recharge Requests",
+      "status": "PASS",
+      "details": "Found 0 pending",
+      "category": "RECHARGE",
+      "timestamp": "2026-03-15T14:20:41.860568"
+    },
+    {
+      "name": "Waiter Login",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Invalid username or password', 'code': -32603, 'data': {'code': 'INTERNAL_SERVER_ERROR', 'httpStatus': 500, 'stack': 'Error: Invalid username or password\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/routers/auth.ts:181:13)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async resolveMiddleware (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3",
+      "category": "SHIFTS",
+      "timestamp": "2026-03-15T14:20:41.872052"
+    },
+    {
+      "name": "Chef Login",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Invalid username or password', 'code': -32603, 'data': {'code': 'INTERNAL_SERVER_ERROR', 'httpStatus': 500, 'stack': 'Error: Invalid username or password\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/routers/auth.ts:181:13)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async resolveMiddleware (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3",
+      "category": "SHIFTS",
+      "timestamp": "2026-03-15T14:20:41.878614"
+    },
+    {
+      "name": "Start Shift (Waiter)",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"undefined\",\\n    \"path\": [\\n      \"staffId\"\\n    ],\\n    \"message\": \"Required\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"inva",
+      "category": "SHIFTS",
+      "timestamp": "2026-03-15T14:20:41.884538"
+    },
+    {
+      "name": "Get Cafeteria Shifts",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "SHIFTS",
+      "timestamp": "2026-03-15T14:20:41.890032"
+    },
+    {
+      "name": "Create Order",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Staff member not found or not assigned.', 'code': -32003, 'data': {'code': 'FORBIDDEN', 'httpStatus': 403, 'stack': 'TRPCError: Staff member not found or not assigned.\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/_core/trpc.ts:47:11)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescrip",
+      "category": "ORDERS",
+      "timestamp": "2026-03-15T14:20:41.896938"
+    },
+    {
+      "name": "Get Kitchen Orders (Chef)",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Staff member not found or not assigned.', 'code': -32003, 'data': {'code': 'FORBIDDEN', 'httpStatus': 403, 'stack': 'TRPCError: Staff member not found or not assigned.\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/_core/trpc.ts:47:11)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescrip",
+      "category": "ORDERS",
+      "timestamp": "2026-03-15T14:20:41.903677"
+    },
+    {
+      "name": "Get Orders List",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "ORDERS",
+      "timestamp": "2026-03-15T14:20:41.911092"
+    },
+    {
+      "name": "Resolve Table by QR Token",
+      "status": "WARN",
+      "details": "No token available",
+      "category": "QR",
+      "timestamp": "2026-03-15T14:20:41.911146"
+    },
+    {
+      "name": "Generate Daily Report",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"date\",\\n    \"received\": \"undefined\",\\n    \"path\": [\\n      \"reportDate\"\\n    ],\\n    \"message\": \"Required\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"inv",
+      "category": "REPORTING",
+      "timestamp": "2026-03-15T14:20:41.918637"
+    },
+    {
+      "name": "Get Cafeteria Reports",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "REPORTING",
+      "timestamp": "2026-03-15T14:20:41.924940"
+    },
+    {
+      "name": "Get Top Items Report",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "REPORTING",
+      "timestamp": "2026-03-15T14:20:41.931059"
+    },
+    {
+      "name": "Get Top Staff Report",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]\\",
+      "category": "REPORTING",
+      "timestamp": "2026-03-15T14:20:41.936949"
+    },
+    {
+      "name": "Get Staff Performance",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"undefined\",\\n    \"path\": [\\n      \"staffId\"\\n    ],\\n    \"message\": \"Required\"\\n  },\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"null\",\\n    \"path\": [\\n      \"cafeteriaId\"\\n    ],\\n    \"message\": \"Expected string, received null\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"inva",
+      "category": "REPORTING",
+      "timestamp": "2026-03-15T14:20:41.942807"
+    },
+    {
+      "name": "Get Commission Balance",
+      "status": "PASS",
+      "details": "Balance retrieved",
+      "category": "COMMISSION",
+      "timestamp": "2026-03-15T14:20:41.948569"
+    },
+    {
+      "name": "Get Commission Distributions",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': '[\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"undefined\",\\n    \"path\": [\\n      \"rechargeRequestId\"\\n    ],\\n    \"message\": \"Required\"\\n  }\\n]', 'code': -32600, 'data': {'code': 'BAD_REQUEST', 'httpStatus': 400, 'stack': 'TRPCError: [\\n  {\\n    \"code\": \"invalid_type\",\\n    \"expected\": \"string\",\\n    \"received\": \"undefined\",\\n    \"path\": [\\n      \"rechargeRequestId\"\\n    ],\\n    \"message\": \"Required\"\\n  }\\n]\\n    at inputValidator",
+      "category": "COMMISSION",
+      "timestamp": "2026-03-15T14:20:41.955608"
+    },
+    {
+      "name": "Get Commission History",
+      "status": "PASS",
+      "details": "History retrieved",
+      "category": "COMMISSION",
+      "timestamp": "2026-03-15T14:20:41.968129"
+    },
+    {
+      "name": "Request Withdrawal",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Insufficient available balance', 'code': -32603, 'data': {'code': 'INTERNAL_SERVER_ERROR', 'httpStatus': 500, 'stack': 'Error: Insufficient available balance\\n    at createWithdrawalRequest (/home/ubuntu/cafeteria_app/cafeteria_project/server/db.ts:275:11)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at async <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/routers/withdrawals.ts:29:26)\\n    at async reso",
+      "category": "WITHDRAWAL",
+      "timestamp": "2026-03-15T14:20:41.980176"
+    },
+    {
+      "name": "Get Withdrawal Requests",
+      "status": "PASS",
+      "details": "Found 0 pending",
+      "category": "WITHDRAWAL",
+      "timestamp": "2026-03-15T14:20:41.990158"
+    },
+    {
+      "name": "Get System Logs",
+      "status": "PASS",
+      "details": "Found 0 logs",
+      "category": "SYSTEM",
+      "timestamp": "2026-03-15T14:20:41.997342"
+    },
+    {
+      "name": "Get Global Free Months",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Owner access required.', 'code': -32003, 'data': {'code': 'FORBIDDEN', 'httpStatus': 403, 'stack': 'TRPCError: Owner access required.\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/_core/trpc.ts:90:13)\\n    at callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:26)\\n    at procedure (/home/ubunt",
+      "category": "SYSTEM",
+      "timestamp": "2026-03-15T14:20:42.003945"
+    },
+    {
+      "name": "Set Global Free Months",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Owner access required.', 'code': -32003, 'data': {'code': 'FORBIDDEN', 'httpStatus': 403, 'stack': 'TRPCError: Owner access required.\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/server/_core/trpc.ts:90:13)\\n    at callRecursive (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/procedureBuilder.ts:633:26)\\n    at procedure (/home/ubunt",
+      "category": "SYSTEM",
+      "timestamp": "2026-03-15T14:20:42.010020"
+    },
+    {
+      "name": "Export System Backup",
+      "status": "FAIL",
+      "details": "{'error': {'json': {'message': 'Unsupported GET-request to mutation procedure at path \"system.exportBackup\"', 'code': -32005, 'data': {'code': 'METHOD_NOT_SUPPORTED', 'httpStatus': 405, 'stack': 'TRPCError: Unsupported GET-request to mutation procedure at path \"system.exportBackup\"\\n    at <anonymous> (/home/ubuntu/cafeteria_app/cafeteria_project/node_modules/.pnpm/@trpc+server@11.6.0_typescript@5.9.3/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:332:17)\\n    ",
+      "category": "SYSTEM",
+      "timestamp": "2026-03-15T14:20:42.015537"
+    },
+    {
+      "name": "Owner Logout",
+      "status": "PASS",
+      "details": "Logged out successfully",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:20:42.020941"
+    },
+    {
+      "name": "Session Invalidated After Logout",
+      "status": "FAIL",
+      "details": "Session still active!",
+      "category": "AUTH",
+      "timestamp": "2026-03-15T14:20:42.023313"
+    }
+  ],
+  "categories": {
+    "HEALTH": {
+      "passed": 2,
+      "failed": 0,
+      "warnings": 0
+    },
+    "AUTH": {
+      "passed": 6,
+      "failed": 2,
+      "warnings": 0
+    },
+    "MARKETER": {
+      "passed": 2,
+      "failed": 2,
+      "warnings": 0
+    },
+    "CAFETERIA": {
+      "passed": 0,
+      "failed": 2,
+      "warnings": 0
+    },
+    "STAFF": {
+      "passed": 0,
+      "failed": 4,
+      "warnings": 0
+    },
+    "MENU": {
+      "passed": 0,
+      "failed": 7,
+      "warnings": 0
+    },
+    "TABLES": {
+      "passed": 0,
+      "failed": 7,
+      "warnings": 0
+    },
+    "RECHARGE": {
+      "passed": 1,
+      "failed": 1,
+      "warnings": 0
+    },
+    "SHIFTS": {
+      "passed": 0,
+      "failed": 4,
+      "warnings": 0
+    },
+    "ORDERS": {
+      "passed": 0,
+      "failed": 3,
+      "warnings": 0
+    },
+    "QR": {
+      "passed": 0,
+      "failed": 0,
+      "warnings": 1
+    },
+    "REPORTING": {
+      "passed": 0,
+      "failed": 5,
+      "warnings": 0
+    },
+    "COMMISSION": {
+      "passed": 2,
+      "failed": 1,
+      "warnings": 0
+    },
+    "WITHDRAWAL": {
+      "passed": 1,
+      "failed": 1,
+      "warnings": 0
+    },
+    "SYSTEM": {
+      "passed": 1,
+      "failed": 3,
+      "warnings": 0
+    }
+  }
+}

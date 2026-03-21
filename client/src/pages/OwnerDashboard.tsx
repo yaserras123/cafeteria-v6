@@ -16,7 +16,8 @@ import {
   Users,
   Store,
   Gift,
-  Settings
+  Settings,
+  Calculator
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ import { TableQRManager } from '@/components/TableQRManager';
 import { SystemTestTools } from '@/components/SystemTestTools';
 import { SystemMonitorPanel } from '@/components/SystemMonitorPanel';
 import { LaunchToolkitManager } from '@/components/LaunchToolkitManager';
+import { PointsCalculator } from '@/components/PointsCalculator';
 
 /**
  * OWNER DASHBOARD - CAFETERIA V2
@@ -43,6 +45,7 @@ export default function OwnerDashboard() {
   const [targetRefCodes, setTargetRefCodes] = useState<string>('');
   const [grantReason, setGrantReason] = useState<string>('');
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [selectedRecharge, setSelectedRecharge] = useState<any>(null);
 
   // Handle scroll to show/hide scroll-to-top button
   React.useEffect(() => {
@@ -58,7 +61,7 @@ export default function OwnerDashboard() {
   };
 
   // Verify user is admin
-  if (!authLoading && user?.role !== 'admin') {
+  if (!authLoading && user?.role !== 'owner') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-red-50">
         <Card className="w-full max-w-md">
@@ -104,7 +107,9 @@ export default function OwnerDashboard() {
   // Approve recharge mutation
   const approveRechargeMutation = trpc.recharges.approveRequest.useMutation({
     onSuccess: () => {
-      // Refresh data
+      setSelectedRecharge(null);
+      // Invalidate the recharges query to refresh the list
+      trpc.useUtils().recharges.getRequests.invalidate({ status: "pending" });
     }
   });
 
@@ -218,49 +223,82 @@ export default function OwnerDashboard() {
               <TabsContent value="recharges" className="mt-6">
                 <div className="space-y-4">
                   <h3 className="text-lg font-bold text-gray-800">Approve Recharge Requests</h3>
-                  {rechargesLoading ? (
-                    <p className="text-gray-500">Loading...</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className="text-gray-400 text-sm border-b border-gray-100">
-                            <th className="pb-3 font-medium">Cafeteria</th>
-                            <th className="pb-3 font-medium">Amount</th>
-                            <th className="pb-3 font-medium">Date</th>
-                            <th className="pb-3 font-medium">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                          {pendingRecharges?.map((req: any) => (
-                            <tr key={req.id} className="text-sm">
-                              <td className="py-4 font-medium text-gray-900">{req.cafeteria?.name}</td>
-                              <td className="py-4 text-blue-600 font-bold">${req.amount}</td>
-                              <td className="py-4 text-gray-500">{new Date(req.createdAt).toLocaleString()}</td>
-                              <td className="py-4">
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => approveRechargeMutation.mutate({ rechargeRequestId: req.id })}
-                                    disabled={approveRechargeMutation.isPending}
-                                  >
-                                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => {}}
-                                  >
-                                    <XCircle className="w-5 h-5 text-red-600" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  
+                  {selectedRecharge ? (
+                    <div className="max-w-2xl mx-auto py-4">
+                      <PointsCalculator
+                        cafeteriaName={selectedRecharge.cafeteria?.name || "Cafeteria"}
+                        cafeteriaCurrency={selectedRecharge.cafeteria?.currency || "USD"}
+                        requestedAmount={selectedRecharge.amount}
+                        isProcessing={approveRechargeMutation.isPending}
+                        onCancel={() => setSelectedRecharge(null)}
+                        onApprove={(data) => {
+                          approveRechargeMutation.mutate({
+                            rechargeRequestId: selectedRecharge.id,
+                            approvedPoints: data.approvedPoints,
+                            paidAmount: data.paidAmount,
+                            paidCurrency: data.paidCurrency,
+                            exchangeRateToUsd: data.exchangeRateToUsd,
+                            pointsMultiplier: data.pointsMultiplier,
+                            notes: `Paid ${data.paidAmount} ${data.paidCurrency} @ ${data.exchangeRateToUsd} USD/rate x ${data.pointsMultiplier} multiplier`
+                          });
+                        }}
+                      />
                     </div>
+                  ) : (
+                    <>
+                      {rechargesLoading ? (
+                        <p className="text-gray-500">Loading...</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left">
+                            <thead>
+                              <tr className="text-gray-400 text-sm border-b border-gray-100">
+                                <th className="pb-3 font-medium">Cafeteria</th>
+                                <th className="pb-3 font-medium">Amount</th>
+                                <th className="pb-3 font-medium">Date</th>
+                                <th className="pb-3 font-medium">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {pendingRecharges?.map((req: any) => (
+                                <tr key={req.id} className="text-sm">
+                                  <td className="py-4 font-medium text-gray-900">{req.cafeteria?.name}</td>
+                                  <td className="py-4 text-blue-600 font-bold">${req.amount}</td>
+                                  <td className="py-4 text-gray-500">{new Date(req.createdAt).toLocaleString()}</td>
+                                  <td className="py-4">
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="gap-2 border-green-200 text-green-700 hover:bg-green-50"
+                                        onClick={() => setSelectedRecharge(req)}
+                                        disabled={approveRechargeMutation.isPending}
+                                      >
+                                        <Calculator className="w-4 h-4" />
+                                        Calculate & Approve
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {}}
+                                      >
+                                        <XCircle className="w-5 h-5 text-red-600" />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                              {(!pendingRecharges || pendingRecharges.length === 0) && (
+                                <tr>
+                                  <td colSpan={4} className="py-8 text-center text-gray-500">No pending recharge requests</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </TabsContent>

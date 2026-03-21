@@ -167,7 +167,7 @@ export function calculatePointsDeduction(
  * Get order item status progression
  */
 export function getItemStatusProgression(): string[] {
-  return ["pending", "sent_to_kitchen", "in_preparation", "ready", "served"];
+  return ["waiter_review", "pending", "sent_to_kitchen", "in_preparation", "ready", "served"];
 }
 
 /**
@@ -189,7 +189,7 @@ export function canTransitionItemStatus(currentStatus: string, nextStatus: strin
 
   // Allow cancellation from specific states: pending, sent_to_kitchen, in_preparation
   if (nextStatus === "cancelled") {
-    const cancellableStates = ["pending", "sent_to_kitchen", "in_preparation"];
+    const cancellableStates = ["waiter_review", "pending", "sent_to_kitchen", "in_preparation"];
     return cancellableStates.includes(currentStatus);
   }
 

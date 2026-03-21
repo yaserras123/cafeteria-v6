@@ -22,8 +22,6 @@ import { relations, sql } from "drizzle-orm";
 // Enums
 // ============================================================================
 export const userRoleEnum = pgEnum("user_role", [
-  "user",
-  "admin",
   "owner",
   "marketer",
   "cafeteria_admin",
@@ -47,6 +45,7 @@ export const periodTypeEnum = pgEnum("period_type", ["global_first_time", "speci
 export const tableStatusEnum = pgEnum("table_status", ["available", "occupied", "reserved", "cleaning"]);
 export const orderStatusEnum = pgEnum("order_status", ["open", "closed", "cancelled"]);
 export const orderItemStatusEnum = pgEnum("order_item_status", [
+  "waiter_review",
   "pending",
   "sent_to_kitchen",
   "in_preparation",
@@ -57,7 +56,7 @@ export const orderItemStatusEnum = pgEnum("order_item_status", [
 export const shiftStatusEnum = pgEnum("shift_status", ["active", "completed", "cancelled"]);
 export const reportTypeEnum = pgEnum("report_type", ["daily", "weekly", "monthly"]);
 export const staffStatusEnum = pgEnum("staff_status", ["active", "inactive"]);
-export const staffRoleEnum = pgEnum("staff_role", ["admin", "manager", "waiter", "chef"]);
+export const staffRoleEnum = pgEnum("staff_role", ["cafeteria_admin", "manager", "waiter", "chef"]);
 export const withdrawalStatusEnum = pgEnum("withdrawal_status", ["pending", "approved", "rejected"]);
 
 // ============================================================================
@@ -73,7 +72,7 @@ export const users = pgTable(
     loginUsername: varchar("loginUsername", { length: 320 }).unique(),
     passwordHash: text("passwordHash"),
     loginMethod: loginMethodEnum("loginMethod").default("email"),
-    role: userRoleEnum("role").default("user").notNull(),
+    role: userRoleEnum("role").default("cafeteria_admin").notNull(),
     preferredLanguage: varchar("preferred_language", { length: 10 }).default("en"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().$onUpdate(() => new Date()).notNull(),
@@ -208,6 +207,10 @@ export const rechargeRequests = pgTable(
     commissionCalculated: boolean("commissionCalculated").default(false),
     commissionDistributionId: text("commissionDistributionId"),
     pointsAddedToBalance: decimal("pointsAddedToBalance", { precision: 10, scale: 2 }).default("0"),
+    paidAmount: decimal("paidAmount", { precision: 10, scale: 2 }),
+    paidCurrency: varchar("paidCurrency", { length: 3 }),
+    exchangeRateToUsd: decimal("exchangeRateToUsd", { precision: 10, scale: 4 }),
+    pointsMultiplier: decimal("pointsMultiplier", { precision: 10, scale: 2 }),
     country: varchar("country", { length: 2 }),
     currency: varchar("currency", { length: 3 }),
     language: varchar("language", { length: 10 }),
@@ -263,9 +266,9 @@ export const commissionDistributions = pgTable(
     id: text("id").primaryKey().$defaultFn(() => nanoid()),
     rechargeRequestId: text("rechargeRequestId").notNull(),
     marketerId: text("marketerId").notNull(),
-    level: integer("level").notNull(),
+    level: integer("level").notNull(),    percentage: decimal("percentage", { precision: 5, scale: 2 }),
     commissionAmount: decimal("commissionAmount", { precision: 15, scale: 2 }).notNull(),
-    status: commissionStatusEnum("status").default("pending"),
+    status: commissionStatusEnum("status").default("pending"),    releasedAt: timestamp("releasedAt"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   }
 );
@@ -355,7 +358,8 @@ export const ledgerEntries = pgTable(
     marketerId: text("marketerId"),
     amount: decimal("amount", { precision: 10, scale: 2 }),
     refId: text("refId"),
-    relatedMarketerIds: jsonb("relatedMarketerIds"),
+    relatedMarketerIds: jsonb("relatedMarketerIds"),    balanceBefore: decimal("balanceBefore", { precision: 15, scale: 2 }),
+    balanceAfter: decimal("balanceAfter", { precision: 15, scale: 2 }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   }
 );
@@ -832,3 +836,90 @@ export type InsertWithdrawalRequest = typeof withdrawalRequests.$inferInsert;
 function nanoid() {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
+
+// ============================================================================
+// New Enums for Persistence
+// ============================================================================
+export const billSplitStatusEnum = pgEnum("bill_split_status", ["pending", "partially_paid", "fully_paid", "cancelled"]);
+export const orderEscalationStatusEnum = pgEnum("order_escalation_status", ["active", "resolved"]);
+export const kitchenLockStatusEnum = pgEnum("kitchen_lock_status", ["locked", "unlocked"]);
+
+// ============================================================================
+// New Tables for Persistence
+// ============================================================================
+
+// 26. BILL SPLITS TABLE - Persisted Bill Splitting
+export const billSplits = pgTable(
+  "billSplits",
+  {
+    id: text("id").primaryKey().$defaultFn(() => nanoid()),
+    orderId: text("orderId").notNull(),
+    items: jsonb("items").notNull(), // Store split items as JSON
+    totalAmount: decimal("totalAmount", { precision: 10, scale: 2 }).notNull(),
+    paidAmount: decimal("paidAmount", { precision: 10, scale: 2 }).default("0"),
+    status: billSplitStatusEnum("status").default("pending"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().$onUpdate(() => new Date()).notNull(),
+  }
+);
+
+export const billSplitsRelations = relations(billSplits, ({ one }) => ({
+  order: one(orders, {
+    fields: [billSplits.orderId],
+    references: [orders.id],
+  }),
+}));
+
+export type BillSplit = typeof billSplits.$inferSelect;
+export type InsertBillSplit = typeof billSplits.$inferInsert;
+
+// 27. ORDER ESCALATIONS TABLE - Persisted Waiter Escalation
+export const orderEscalations = pgTable(
+  "orderEscalations",
+  {
+    id: text("id").primaryKey().$defaultFn(() => nanoid()),
+    orderId: text("orderId").notNull(),
+    cafeteriaId: text("cafeteriaId").notNull(),
+    escalatedAt: timestamp("escalatedAt").defaultNow().notNull(),
+    resolvedAt: timestamp("resolvedAt"),
+    status: orderEscalationStatusEnum("status").default("active"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  }
+);
+
+export const orderEscalationsRelations = relations(orderEscalations, ({ one }) => ({
+  order: one(orders, {
+    fields: [orderEscalations.orderId],
+    references: [orders.id],
+  }),
+  cafeteria: one(cafeterias, {
+    fields: [orderEscalations.cafeteriaId],
+    references: [cafeterias.id],
+  }),
+}));
+
+export type OrderEscalation = typeof orderEscalations.$inferSelect;
+export type InsertOrderEscalation = typeof orderEscalations.$inferInsert;
+
+// 28. KITCHEN LOCKS TABLE - Persisted Kitchen Item Locks
+export const kitchenLocks = pgTable(
+  "kitchenLocks",
+  {
+    id: text("id").primaryKey().$defaultFn(() => nanoid()),
+    orderItemId: text("orderItemId").notNull().unique(),
+    lockedAt: timestamp("lockedAt").defaultNow().notNull(),
+    lockedBy: text("lockedBy").notNull(), // staffId or 'system'
+    status: kitchenLockStatusEnum("status").default("locked"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  }
+);
+
+export const kitchenLocksRelations = relations(kitchenLocks, ({ one }) => ({
+  orderItem: one(orderItems, {
+    fields: [kitchenLocks.orderItemId],
+    references: [orderItems.id],
+  }),
+}));
+
+export type KitchenLock = typeof kitchenLocks.$inferSelect;
+export type InsertKitchenLock = typeof kitchenLocks.$inferInsert;

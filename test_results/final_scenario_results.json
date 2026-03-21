@@ -1,0 +1,499 @@
+{
+  "passed": 27,
+  "failed": 38,
+  "warnings": 2,
+  "tests": [
+    {
+      "name": "Server Health Check",
+      "status": "PASS",
+      "details": "Status: ok, DB: healthy",
+      "category": "HEALTH"
+    },
+    {
+      "name": "Frontend Accessible (HTTP 200)",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "category": "HEALTH"
+    },
+    {
+      "name": "Owner Login (valid credentials)",
+      "status": "PASS",
+      "details": "Name: System Owner, Type: user",
+      "category": "AUTH"
+    },
+    {
+      "name": "Get Current User (auth.me)",
+      "status": "PASS",
+      "details": "Role: admin",
+      "category": "AUTH"
+    },
+    {
+      "name": "Login with wrong password (rejected)",
+      "status": "PASS",
+      "details": "Correctly rejected",
+      "category": "AUTH"
+    },
+    {
+      "name": "Login with non-existent user (rejected)",
+      "status": "PASS",
+      "details": "Correctly rejected",
+      "category": "AUTH"
+    },
+    {
+      "name": "Login with empty credentials (rejected)",
+      "status": "PASS",
+      "details": "Correctly rejected",
+      "category": "AUTH"
+    },
+    {
+      "name": "Unauthenticated access blocked",
+      "status": "PASS",
+      "details": "No user returned",
+      "category": "AUTH"
+    },
+    {
+      "name": "Create Root Marketer",
+      "status": "PASS",
+      "details": "ID: tqcsuWqEMe61gtWTa5SJn, Code: MKT-02",
+      "category": "MARKETER"
+    },
+    {
+      "name": "Create Marketer Login Credentials",
+      "status": "FAIL",
+      "details": "Username already exists",
+      "category": "MARKETER"
+    },
+    {
+      "name": "Marketer Login",
+      "status": "PASS",
+      "details": "Type: marketer, Name: Alpha Marketer",
+      "category": "MARKETER"
+    },
+    {
+      "name": "Create Child Marketer",
+      "status": "FAIL",
+      "details": "Marketer access required.",
+      "category": "MARKETER"
+    },
+    {
+      "name": "Get Marketer Hierarchy",
+      "status": "FAIL",
+      "details": "Marketer access required.",
+      "category": "MARKETER"
+    },
+    {
+      "name": "Get Marketer Commission Balance",
+      "status": "PASS",
+      "details": "Pending: 0",
+      "category": "MARKETER"
+    },
+    {
+      "name": "Cafeteria Admin Login",
+      "status": "WARN",
+      "details": "No cafeteria created, using owner session",
+      "category": "CAFETERIA"
+    },
+    {
+      "name": "Create Manager Staff",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "STAFF"
+    },
+    {
+      "name": "Create Waiter Staff",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "STAFF"
+    },
+    {
+      "name": "Create Chef Staff",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "STAFF"
+    },
+    {
+      "name": "Get Staff List",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "STAFF"
+    },
+    {
+      "name": "Waiter Login",
+      "status": "FAIL",
+      "details": "Invalid username or password",
+      "category": "STAFF"
+    },
+    {
+      "name": "Chef Login",
+      "status": "FAIL",
+      "details": "Invalid username or password",
+      "category": "STAFF"
+    },
+    {
+      "name": "Create Menu Category (Main Dishes)",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "MENU"
+    },
+    {
+      "name": "Create Menu Category (Beverages)",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "MENU"
+    },
+    {
+      "name": "Create Menu Item (Grilled Chicken)",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  },\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"categoryId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "MENU"
+    },
+    {
+      "name": "Create Menu Item (Orange Juice)",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  },\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"categoryId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "MENU"
+    },
+    {
+      "name": "Get Menu Categories",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "MENU"
+    },
+    {
+      "name": "Get Menu Items",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "MENU"
+    },
+    {
+      "name": "Get Menu Summary",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "MENU"
+    },
+    {
+      "name": "Create Table Section (Main Hall)",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "TABLES"
+    },
+    {
+      "name": "Create Table Section (VIP Lounge)",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "TABLES"
+    },
+    {
+      "name": "Create Table 1",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  },\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"sectionId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "TABLES"
+    },
+    {
+      "name": "Create Table 2",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  },\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"sectionId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "TABLES"
+    },
+    {
+      "name": "Get Tables",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "TABLES"
+    },
+    {
+      "name": "Get Sections",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "TABLES"
+    },
+    {
+      "name": "Get Available Tables",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "TABLES"
+    },
+    {
+      "name": "Get Cafeteria Occupancy",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "TABLES"
+    },
+    {
+      "name": "Get Table Status Distribution",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "TABLES"
+    },
+    {
+      "name": "Create Recharge Request (500 SAR)",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "RECHARGE"
+    },
+    {
+      "name": "Get Pending Recharge Requests",
+      "status": "PASS",
+      "details": "Found 0 pending requests",
+      "category": "RECHARGE"
+    },
+    {
+      "name": "Get Cafeteria Shifts",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "SHIFTS"
+    },
+    {
+      "name": "Create Order (Table Order)",
+      "status": "FAIL",
+      "details": "Staff member not found or not assigned.",
+      "category": "ORDERS"
+    },
+    {
+      "name": "Get Orders List",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "ORDERS"
+    },
+    {
+      "name": "Resolve Table by QR Token",
+      "status": "WARN",
+      "details": "No token available",
+      "category": "QR"
+    },
+    {
+      "name": "Generate Daily Report",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  },\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"date\",\n    \"received\": \"string\",\n    \"path\": [\n      \"reportDate\"\n    ],\n    \"message\": \"Expected date, received string\"\n  }\n]",
+      "category": "REPORTING"
+    },
+    {
+      "name": "Get Cafeteria Reports",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "REPORTING"
+    },
+    {
+      "name": "Get Top Items Report",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "REPORTING"
+    },
+    {
+      "name": "Get Top Staff Report",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "REPORTING"
+    },
+    {
+      "name": "Get Sales Comparison",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  },\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"date\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"startDate\"\n    ],\n    \"message\": \"Required\"\n  },\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"date\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"endDate\"\n    ],\n    \"message\": \"Required\"\n  }\n]",
+      "category": "REPORTING"
+    },
+    {
+      "name": "Get Cafeteria Performance",
+      "status": "FAIL",
+      "details": "[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"null\",\n    \"path\": [\n      \"cafeteriaId\"\n    ],\n    \"message\": \"Expected string, received null\"\n  }\n]",
+      "category": "REPORTING"
+    },
+    {
+      "name": "Get Commission Balance",
+      "status": "PASS",
+      "details": "Pending: 0",
+      "category": "COMMISSION"
+    },
+    {
+      "name": "Get Commission History",
+      "status": "PASS",
+      "details": "History retrieved",
+      "category": "COMMISSION"
+    },
+    {
+      "name": "Transition Commission to Available",
+      "status": "PASS",
+      "details": "Transitioned successfully",
+      "category": "COMMISSION"
+    },
+    {
+      "name": "Request Withdrawal (10 SAR)",
+      "status": "FAIL",
+      "details": "Insufficient available balance",
+      "category": "WITHDRAWAL"
+    },
+    {
+      "name": "Get Pending Withdrawal Requests",
+      "status": "PASS",
+      "details": "Found 0 pending",
+      "category": "WITHDRAWAL"
+    },
+    {
+      "name": "Get System Logs",
+      "status": "PASS",
+      "details": "Found 0 log entries",
+      "category": "SYSTEM"
+    },
+    {
+      "name": "Get Global Free Months",
+      "status": "FAIL",
+      "details": "Owner access required.",
+      "category": "SYSTEM"
+    },
+    {
+      "name": "Set Global Free Months (3)",
+      "status": "FAIL",
+      "details": "Owner access required.",
+      "category": "SYSTEM"
+    },
+    {
+      "name": "SQL Injection Prevention",
+      "status": "PASS",
+      "details": "Injection blocked",
+      "category": "SECURITY"
+    },
+    {
+      "name": "XSS Prevention in Login",
+      "status": "PASS",
+      "details": "XSS blocked",
+      "category": "SECURITY"
+    },
+    {
+      "name": "Waiter cannot access Owner endpoints",
+      "status": "PASS",
+      "details": "Access denied",
+      "category": "SECURITY"
+    },
+    {
+      "name": "Unauthenticated cannot create staff",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "SECURITY"
+    },
+    {
+      "name": "Unauthenticated cannot access orders",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "SECURITY"
+    },
+    {
+      "name": "Unauthenticated cannot access reports",
+      "status": "PASS",
+      "details": "Blocked",
+      "category": "SECURITY"
+    },
+    {
+      "name": "Marketer cannot access Owner-only endpoints",
+      "status": "PASS",
+      "details": "Access denied",
+      "category": "SECURITY"
+    },
+    {
+      "name": "Change Password with wrong old password (rejected)",
+      "status": "PASS",
+      "details": "Correctly rejected",
+      "category": "SECURITY"
+    },
+    {
+      "name": "Owner Logout",
+      "status": "PASS",
+      "details": "Logged out successfully",
+      "category": "AUTH"
+    },
+    {
+      "name": "Session Cleared After Logout",
+      "status": "PASS",
+      "details": "Session correctly invalidated",
+      "category": "AUTH"
+    }
+  ],
+  "categories": {
+    "HEALTH": {
+      "passed": 2,
+      "failed": 0,
+      "warnings": 0
+    },
+    "AUTH": {
+      "passed": 8,
+      "failed": 0,
+      "warnings": 0
+    },
+    "MARKETER": {
+      "passed": 3,
+      "failed": 3,
+      "warnings": 0
+    },
+    "CAFETERIA": {
+      "passed": 0,
+      "failed": 0,
+      "warnings": 1
+    },
+    "STAFF": {
+      "passed": 0,
+      "failed": 6,
+      "warnings": 0
+    },
+    "MENU": {
+      "passed": 0,
+      "failed": 7,
+      "warnings": 0
+    },
+    "TABLES": {
+      "passed": 0,
+      "failed": 9,
+      "warnings": 0
+    },
+    "RECHARGE": {
+      "passed": 1,
+      "failed": 1,
+      "warnings": 0
+    },
+    "SHIFTS": {
+      "passed": 0,
+      "failed": 1,
+      "warnings": 0
+    },
+    "ORDERS": {
+      "passed": 0,
+      "failed": 2,
+      "warnings": 0
+    },
+    "QR": {
+      "passed": 0,
+      "failed": 0,
+      "warnings": 1
+    },
+    "REPORTING": {
+      "passed": 0,
+      "failed": 6,
+      "warnings": 0
+    },
+    "COMMISSION": {
+      "passed": 3,
+      "failed": 0,
+      "warnings": 0
+    },
+    "WITHDRAWAL": {
+      "passed": 1,
+      "failed": 1,
+      "warnings": 0
+    },
+    "SYSTEM": {
+      "passed": 1,
+      "failed": 2,
+      "warnings": 0
+    },
+    "SECURITY": {
+      "passed": 8,
+      "failed": 0,
+      "warnings": 0
+    }
+  },
+  "summary": {
+    "total": 67,
+    "passed": 27,
+    "failed": 38,
+    "warnings": 2,
+    "pass_rate": 40.3,
+    "timestamp": "2026-03-15T14:26:08.796254"
+  }
+}

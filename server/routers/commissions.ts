@@ -33,7 +33,7 @@ export const commissionsRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      if (ctx.user.role !== 'admin' && !(await checkMarketerAccess(db, ctx.user.id, input.marketerId))) {
+      if (ctx.user.role !== 'owner' && !(await checkMarketerAccess(db, ctx.user.id, input.marketerId))) {
         throw new Error("Unauthorized access to marketer balance");
       }
 
@@ -66,7 +66,7 @@ export const commissionsRouter = router({
 
         if (distributions.length > 0) {
             const marketerId = distributions[0].marketerId;
-            if (ctx.user.role !== 'admin' && !(await checkMarketerAccess(db, ctx.user.id, marketerId))) {
+            if (ctx.user.role !== 'owner' && !(await checkMarketerAccess(db, ctx.user.id, marketerId))) {
                 throw new Error("Unauthorized access to commission distributions");
             }
         }
@@ -93,7 +93,7 @@ export const commissionsRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      if (ctx.user.role !== 'admin' && !(await checkMarketerAccess(db, ctx.user.id, input.marketerId))) {
+      if (ctx.user.role !== 'owner' && !(await checkMarketerAccess(db, ctx.user.id, input.marketerId))) {
         throw new Error("Unauthorized access to commission history");
       }
 
@@ -126,7 +126,7 @@ export const commissionsRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
 
-        if (ctx.user.role !== 'admin' && !(await checkMarketerAccess(db, ctx.user.id, input.marketerId))) {
+        if (ctx.user.role !== 'owner' && !(await checkMarketerAccess(db, ctx.user.id, input.marketerId))) {
             throw new Error("Unauthorized to transition commissions for this marketer");
         }
 

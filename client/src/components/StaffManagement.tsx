@@ -67,7 +67,7 @@ export function StaffManagement({ cafeteriaId }: StaffManagementProps) {
       if (currentStaff && currentStaff.role !== editingRole) {
         await trpcVanilla.staff.updateStaffRole.mutate({
           staffId: editingStaffId,
-          newRole: editingRole as "admin" | "manager" | "waiter" | "chef",
+          newRole: editingRole as "cafeteria_admin" | "manager" | "waiter" | "chef",
         });
       }
 
@@ -152,7 +152,7 @@ export function StaffManagement({ cafeteriaId }: StaffManagementProps) {
                         <option value="waiter">Waiter</option>
                         <option value="chef">Chef</option>
                         <option value="manager">Manager</option>
-                        <option value="admin">Admin</option>
+                        <option value="cafeteria_admin">Admin</option>
                       </select>
                       <div className="flex items-center gap-1">
                         <span className="text-xs text-gray-500">Login</span>
