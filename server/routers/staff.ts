@@ -27,6 +27,7 @@ import {
   isValidStaffRole,
   getDefaultPermissionsForRole,
 } from "../utils/staffPermissions";
+import { getPlanContext, assertLimit } from "../utils/planGuard.js";
 import {
   grantStaffLoginPermission,
   revokeStaffLoginPermission,
@@ -73,6 +74,20 @@ export const staffRouter = router({
       if (!isValidStaffRole(input.role)) {
         throw new Error(`Invalid staff role: ${input.role}`);
       }
+
+      // Enforce plan limits
+      const planContext = await getPlanContext(input.cafeteriaId);
+      const currentStaff = await db
+        .select()
+        .from(cafeteriaStaff)
+        .where(eq(cafeteriaStaff.cafeteriaId, input.cafeteriaId));
+      
+      assertLimit(
+        planContext, 
+        "maxStaff", 
+        currentStaff.length, 
+        `Your current ${planContext.plan} plan only allows up to ${planContext.limits.maxStaff} staff members.`
+      );
 
       // Check if loginUsername already exists across all account tables (system-wide uniqueness)
       const existingInStaff = await db

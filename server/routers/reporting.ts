@@ -12,6 +12,7 @@ import {
   cafeterias,
   cafeteriaStaff,
 } from "../../drizzle/schema";
+import { getPlanContext, assertFeature } from "../utils/planGuard.js";
 import {
   generateCafeteriaReport,
   calculateTotalSales,
@@ -49,6 +50,14 @@ export const reportingRouter = router({
       if (ctx.user.role !== 'owner' && !(await checkCafeteriaAccess(db, ctx.user.id, input.cafeteriaId))) {
           throw new Error("Unauthorized access to cafeteria data");
       }
+
+      // Enforce plan limits for reporting
+      const planContext = await getPlanContext(input.cafeteriaId);
+      assertFeature(
+        planContext, 
+        "premiumReports", 
+        `Daily reporting is a premium feature. Your current ${planContext.plan} plan does not support this.`
+      );
 
       const startOfDay = new Date(input.reportDate);
       startOfDay.setHours(0, 0, 0, 0);
