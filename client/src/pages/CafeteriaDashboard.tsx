@@ -191,6 +191,12 @@ export default function CafeteriaDashboard() {
     { enabled: !!cafeteriaId, refetchInterval: 5000 }
   );
 
+  // Recharge Queries
+  const { data: backendRecharges, refetch: refetchRecharges } = trpc.recharges.getRequests.useQuery(
+    { cafeteriaId },
+    { enabled: !!cafeteriaId, refetchInterval: 10000 }
+  );
+
   // Mutations
   // Menu Mutations
   const createItemMutation = trpc.menu.createMenuItem.useMutation({ onSuccess: () => refetchItems() });
@@ -238,6 +244,14 @@ export default function CafeteriaDashboard() {
   const updateOrderStatusMutation = trpc.orders.updateOrderStatus.useMutation({ onSuccess: () => refetchOrders() });
   const cancelOrderMutation = trpc.orders.cancelOrder.useMutation({ onSuccess: () => refetchOrders() });
 
+  // Recharge Mutations
+  const createRechargeMutation = trpc.recharges.createRequest.useMutation({ 
+    onSuccess: () => {
+      refetchRecharges();
+      setRechargeAmount('');
+    } 
+  });
+
   // ── STATE ARCHITECTURE ───────────────────────────────────────────────────
   
   // Menu State
@@ -245,6 +259,9 @@ export default function CafeteriaDashboard() {
 
   // Tables State
   const [selectedSectionId, setSelectedSectionId] = useState<string>('all');
+
+  // Recharge State
+  const [rechargeAmount, setRechargeAmount] = useState('');
 
   // Orders State - derived from backend data
   const orders = (backendOrders || []).map((order: any) => ({
@@ -437,6 +454,19 @@ export default function CafeteriaDashboard() {
   };
   const handleCancelOrder = async (id: string) => {
     await cancelOrderMutation.mutateAsync({ orderId: id });
+  };
+
+  // Recharge Handlers
+  const handleCreateRecharge = async () => {
+    const amount = parseFloat(rechargeAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+    await createRechargeMutation.mutateAsync({
+      cafeteriaId,
+      amount,
+    });
   };
 
   // ── SYSTEM LOGIC ─────────────────────────────────────────────────────────
@@ -1016,7 +1046,13 @@ export default function CafeteriaDashboard() {
                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('recharge_amount')}</Label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <Input type="number" placeholder="0.00" className="pl-10 h-12 text-lg font-bold border-slate-200 focus:ring-blue-500" />
+                      <Input 
+                        type="number" 
+                        placeholder="0.00" 
+                        className="pl-10 h-12 text-lg font-bold border-slate-200 focus:ring-blue-500" 
+                        value={rechargeAmount}
+                        onChange={(e) => setRechargeAmount(e.target.value)}
+                      />
                     </div>
                   </div>
                   
@@ -1054,8 +1090,12 @@ export default function CafeteriaDashboard() {
                     </div>
                   </div>
 
-                  <Button className="w-full h-12 bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-100 mt-4">
-                    {t('submit_recharge')}
+                  <Button 
+                    className="w-full h-12 bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-100 mt-4"
+                    onClick={handleCreateRecharge}
+                    disabled={createRechargeMutation.isPending}
+                  >
+                    {createRechargeMutation.isPending ? 'Processing...' : t('submit_recharge')}
                   </Button>
                 </CardContent>
               </Card>
@@ -1066,34 +1106,38 @@ export default function CafeteriaDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {[
-                      { amount: '$500', date: 'Oct 12, 2024', status: 'CHARGED', points: '+5,000' },
-                      { amount: '$200', date: 'Oct 05, 2024', status: 'APPROVED', points: '+2,000' },
-                      { amount: '$100', date: 'Sep 28, 2024', status: 'UNDER REVIEW', points: 'PENDING' },
-                      { amount: '$300', date: 'Sep 15, 2024', status: 'REJECTED', points: '0' },
-                    ].map((req, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                    {(backendRecharges?.requests || []).map((req: any) => (
+                      <div key={req.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
                         <div className="flex items-center gap-4">
-                          <div className={`p-3 rounded-xl ${req.status === 'REJECTED' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                          <div className={`p-3 rounded-xl ${req.status === 'rejected' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
                             <Wallet className="w-5 h-5" />
                           </div>
                           <div>
-                            <p className="text-sm font-black text-slate-900">{req.amount}</p>
-                            <p className="text-[10px] text-slate-400 font-bold">{req.date} • ID: #TRX-99{i}</p>
+                            <p className="text-sm font-black text-slate-900">${req.amount.toFixed(2)}</p>
+                            <p className="text-[10px] text-slate-400 font-bold">
+                              {new Date(req.createdAt).toLocaleDateString()} • ID: #{req.id.substring(0, 8).toUpperCase()}
+                            </p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className={`text-sm font-black ${req.status === 'REJECTED' ? 'text-red-600' : 'text-green-600'}`}>{req.points}</p>
-                          <Badge className={`text-[9px] font-black border-none h-5 mt-1 ${
-                            req.status === 'CHARGED' ? 'bg-green-100 text-green-700' :
-                            req.status === 'UNDER REVIEW' ? 'bg-blue-100 text-blue-700' :
-                            req.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'
+                          <p className={`text-sm font-black ${req.status === 'rejected' ? 'text-red-600' : 'text-green-600'}`}>
+                            {req.status === 'approved' ? `+${req.amount.toLocaleString()}` : (req.status === 'pending' ? 'PENDING' : '0')}
+                          </p>
+                          <Badge className={`text-[9px] font-black border-none h-5 mt-1 uppercase ${
+                            req.status === 'approved' ? 'bg-green-100 text-green-700' :
+                            req.status === 'pending' ? 'bg-blue-100 text-blue-700' :
+                            req.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'
                           }`}>
                             {req.status}
                           </Badge>
                         </div>
                       </div>
                     ))}
+                    {(!backendRecharges?.requests || backendRecharges.requests.length === 0) && (
+                      <div className="text-center py-8 text-slate-400">
+                        <p className="text-sm font-medium">{t('no_recharge_history') || 'No recharge history'}</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
