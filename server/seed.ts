@@ -1,12 +1,14 @@
 /**
  * Database Seed Script
- * Creates initial owner user with login credentials
+ * Creates initial owner user and test admin user with login credentials.
+ * Safe to run multiple times — uses INSERT ... ON CONFLICT DO NOTHING.
  */
 import "dotenv/config";
 import { getDb } from "./db";
 import { users } from "../drizzle/schema";
 import bcryptjs from "bcryptjs";
 import { nanoid } from "nanoid";
+import { eq } from "drizzle-orm";
 
 const SALT_ROUNDS = 10;
 
@@ -24,35 +26,74 @@ async function seed() {
   try {
     console.log("🌱 Starting database seed...");
 
-    // Create owner user with login credentials
-    const ownerUsername = "yaserras@gmail.com";
-    const ownerPassword = "Kamel123321$";
-    const ownerPasswordHash = await hashPassword(ownerPassword);
+    // ── 1. Owner user ──────────────────────────────────────────────────────────
+    const ownerEmail = "yaserras@gmail.com";
+    const existingOwner = await db.select().from(users).where(eq(users.email, ownerEmail));
 
-    const ownerId = nanoid();
-    const ownerOpenId = `owner_${ownerId}`;
+    if (existingOwner.length === 0) {
+      const ownerPassword = "Kamel123321$";
+      const ownerPasswordHash = await hashPassword(ownerPassword);
+      const ownerId = nanoid();
+      const ownerOpenId = `owner_${ownerId}`;
 
-    await db.insert(users).values({
-      id: ownerId,
-      openId: ownerOpenId,
-      name: "System Owner",
-      email: "yaserras@gmail.com",
-      loginUsername: ownerUsername,
-      passwordHash: ownerPasswordHash,
-      loginMethod: "email",
-      role: "owner",
-      referenceCode: "10",
-      preferredLanguage: "en",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      lastSignedIn: new Date(),
-    });
+      await db.insert(users).values({
+        id: ownerId,
+        openId: ownerOpenId,
+        name: "System Owner",
+        email: ownerEmail,
+        loginUsername: ownerEmail,
+        passwordHash: ownerPasswordHash,
+        loginMethod: "email",
+        role: "owner",
+        referenceCode: "10",
+        preferredLanguage: "en",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastSignedIn: new Date(),
+      });
 
-    console.log("✅ Owner user created successfully!");
-    console.log("📝 Login Credentials:");
-    console.log(`   Username: ${ownerUsername}`);
-    console.log(`   Password: ${ownerPassword}`);
-    console.log("⚠️  Please change this password immediately after first login!");
+      console.log("✅ Owner user created successfully!");
+      console.log(`   Username: ${ownerEmail}`);
+      console.log(`   Password: ${ownerPassword}`);
+    } else {
+      console.log("ℹ️  Owner user already exists — skipping.");
+    }
+
+    // ── 2. Test admin user (admin@cafeteria.com / 123456) ─────────────────────
+    const adminEmail = "admin@cafeteria.com";
+    const existingAdmin = await db.select().from(users).where(eq(users.email, adminEmail));
+
+    if (existingAdmin.length === 0) {
+      const adminPassword = "123456";
+      const adminPasswordHash = await hashPassword(adminPassword);
+      const adminId = nanoid();
+      const adminOpenId = `admin_${adminId}`;
+
+      await db.insert(users).values({
+        id: adminId,
+        openId: adminOpenId,
+        name: "Cafeteria Admin",
+        email: adminEmail,
+        loginUsername: adminEmail,
+        passwordHash: adminPasswordHash,
+        loginMethod: "email",
+        role: "cafeteria_admin",
+        preferredLanguage: "en",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastSignedIn: new Date(),
+      });
+
+      console.log("✅ Test admin user created successfully!");
+      console.log("📝 Test Login Credentials:");
+      console.log(`   Email:    ${adminEmail}`);
+      console.log(`   Password: ${adminPassword}`);
+      console.log(`   Role:     admin (cafeteria_admin)`);
+    } else {
+      console.log("ℹ️  Test admin user (admin@cafeteria.com) already exists — skipping.");
+    }
+
+    console.log("🎉 Seed completed successfully!");
 
   } catch (error) {
     console.error("❌ Seed failed:", error);

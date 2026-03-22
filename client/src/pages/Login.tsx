@@ -30,6 +30,55 @@ function getRouteForRole(role: string): string {
   return ROLE_ROUTES[role] ?? "/dashboard/cafeteria";
 }
 
+/**
+ * Safely extract a human-readable error message from any thrown value.
+ * Handles tRPC errors, plain Error objects, and non-JSON HTTP responses.
+ */
+function extractErrorMessage(error: unknown): string {
+  if (!error) return "Login failed. Please try again.";
+
+  // tRPC wraps errors in a shape like: { message, data: { code, httpStatus } }
+  if (typeof error === "object") {
+    const err = error as Record<string, any>;
+
+    // tRPC client error: err.message is the server message
+    if (typeof err.message === "string" && err.message.trim().length > 0) {
+      // Filter out raw JSON parse noise
+      if (
+        err.message.includes("Unexpected end of JSON") ||
+        err.message.includes("JSON.parse") ||
+        err.message.includes("SyntaxError")
+      ) {
+        return "Server returned an invalid response. Please try again.";
+      }
+      return err.message;
+    }
+
+    // tRPC shape: err.data?.message
+    if (err.data && typeof err.data.message === "string" && err.data.message.trim().length > 0) {
+      return err.data.message;
+    }
+
+    // tRPC shape: err.shape?.message
+    if (err.shape && typeof err.shape.message === "string" && err.shape.message.trim().length > 0) {
+      return err.shape.message;
+    }
+  }
+
+  if (error instanceof Error) {
+    if (
+      error.message.includes("Unexpected end of JSON") ||
+      error.message.includes("JSON.parse") ||
+      error.message.includes("SyntaxError")
+    ) {
+      return "Server returned an invalid response. Please try again.";
+    }
+    return error.message || "Login failed. Please check your credentials.";
+  }
+
+  return "Login failed. Please check your credentials.";
+}
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -60,15 +109,17 @@ export default function Login() {
         password,
       });
 
+      if (!result || !result.success) {
+        setErrorMessage("Login failed. Please check your credentials.");
+        return;
+      }
+
       toast.success(`Welcome, ${result.name ?? "User"}!`);
 
       const destination = getRouteForRole(result.role);
       setLocation(destination);
-    } catch (error: any) {
-      const msg =
-        error?.message ||
-        error?.data?.message ||
-        "Login failed. Please check your credentials.";
+    } catch (error: unknown) {
+      const msg = extractErrorMessage(error);
       setErrorMessage(msg);
     } finally {
       setIsLoading(false);
