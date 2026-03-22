@@ -1,8 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DashboardMetricCard } from "@/components/DashboardMetricCard";
-import { StaffManagement } from "@/components/StaffManagement";
+import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import {
   formatCurrency,
@@ -13,11 +12,14 @@ import {
   getOccupancyColor,
   parseDecimal,
 } from "@/lib/dashboardUtils";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Loader2, TrendingUp, Users, UtensilsCrossed, Table2 } from "lucide-react";
+import { Loader2, TrendingUp, Users, UtensilsCrossed, Table2, ShoppingCart, DollarSign, Settings, LogOut, Plus, ChevronRight } from "lucide-react";
+import { useLocation } from "wouter";
+import { useTranslation } from "@/locales/useTranslation";
 
 export default function ManagerDashboard() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  const { t, language, setLanguage } = useTranslation();
 
   // Ensure cafeteriaId is properly typed
   const cafeteriaId = (user as any)?.cafeteriaId || (user as any)?.id || "";
@@ -54,8 +56,8 @@ export default function ManagerDashboard() {
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="animate-spin" />
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <Loader2 className="animate-spin w-8 h-8 text-blue-600" />
       </div>
     );
   }
@@ -72,152 +74,210 @@ export default function ManagerDashboard() {
   const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Manager Dashboard</h1>
-          <p className="text-gray-600 mt-2">{cafeteriaData?.name || "Cafeteria"}</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pb-20">
+      {/* Header */}
+      <header className="bg-white border-b-4 border-blue-500 sticky top-0 z-40 shadow-lg">
+        <div className="px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-700 p-3 rounded-xl shadow-lg">
+              <ShoppingCart className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black text-slate-900">Manager</h1>
+              <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">
+                {cafeteriaData?.name || "Cafeteria"}
+              </p>
+            </div>
+          </div>
 
-        {/* Top Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <DashboardMetricCard
-            title="Points Balance"
-            value={formatPoints(pointsBalance)}
-            subtitle="Available for operations"
-            icon={<TrendingUp className="w-4 h-4" />}
-          />
-          <DashboardMetricCard
-            title="Table Occupancy"
-            value={formatPercentage(occupancyRate)}
-            subtitle={`${occupancyData?.occupiedTables || 0}/${occupancyData?.totalTables || 0} tables`}
-            icon={<Table2 className="w-4 h-4" />}
-          />
-          <DashboardMetricCard
-            title="Menu Items"
-            value={menuData?.totalItems || 0}
-            subtitle={`${menuData?.availableItems || 0} available`}
-            icon={<UtensilsCrossed className="w-4 h-4" />}
-          />
-          <DashboardMetricCard
-            title="Active Staff"
-            value={shiftStats?.length || 0}
-            subtitle="Currently working"
-            icon={<Users className="w-4 h-4" />}
-          />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={logout}
+              className="h-12 w-12 text-slate-600 hover:text-red-600 hover:bg-red-50"
+            >
+              <LogOut className="w-6 h-6" />
+            </Button>
+          </div>
         </div>
+      </header>
 
-        {/* Sales and Occupancy Details */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Sales Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Today's Sales</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Total Sales</span>
-                  <span className="text-2xl font-bold">{formatCurrency(totalSales)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Total Orders</span>
-                  <span className="text-2xl font-bold">{totalOrders}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Average Order Value</span>
-                  <span className="text-2xl font-bold">{formatCurrency(avgOrderValue)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Points Deducted</span>
-                  <span className="text-2xl font-bold">{formatPoints(report?.totalPointsDeducted || 0)}</span>
-                </div>
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="border-0 shadow-md bg-gradient-to-br from-purple-50 to-purple-100 overflow-hidden">
+            <CardContent className="p-6 text-center">
+              <div className="bg-purple-500 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                <ShoppingCart className="w-6 h-6 text-white" />
               </div>
+              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Total Orders</p>
+              <p className="text-4xl font-black text-purple-600 mt-2">{totalOrders}</p>
             </CardContent>
           </Card>
 
-          {/* Occupancy Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Table Occupancy</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Total Tables</span>
-                  <span className="text-2xl font-bold">{occupancyData?.totalTables || 0}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Occupied</span>
-                  <span className="text-2xl font-bold text-blue-600">{occupancyData?.occupiedTables || 0}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Available</span>
-                  <span className="text-2xl font-bold text-green-600">{occupancyData?.availableTables || 0}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Occupancy Level</span>
-                  <span className={`text-2xl font-bold ${getOccupancyColor(occupancyRate)}`}>
-                    {getOccupancyLevel(occupancyRate)}
-                  </span>
-                </div>
+          <Card className="border-0 shadow-md bg-gradient-to-br from-green-50 to-green-100 overflow-hidden">
+            <CardContent className="p-6 text-center">
+              <div className="bg-green-500 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                <DollarSign className="w-6 h-6 text-white" />
               </div>
+              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Today's Sales</p>
+              <p className="text-4xl font-black text-green-600 mt-2">${totalSales.toFixed(0)}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-md bg-gradient-to-br from-blue-50 to-blue-100 overflow-hidden">
+            <CardContent className="p-6 text-center">
+              <div className="bg-blue-500 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                <Table2 className="w-6 h-6 text-white" />
+              </div>
+              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Occupancy</p>
+              <p className="text-4xl font-black text-blue-600 mt-2">{formatPercentage(occupancyRate)}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-md bg-gradient-to-br from-orange-50 to-orange-100 overflow-hidden">
+            <CardContent className="p-6 text-center">
+              <div className="bg-orange-500 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Active Staff</p>
+              <p className="text-4xl font-black text-orange-600 mt-2">{shiftStats?.length || 0}</p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Sales Summary */}
+        <Card className="border-0 shadow-lg overflow-hidden">
+          <div className="h-3 bg-gradient-to-r from-green-400 to-green-600" />
+          <CardHeader className="bg-gradient-to-r from-green-50 to-green-100 border-b-4 border-green-500">
+            <CardTitle className="text-xl font-black text-slate-900">Today's Sales Details</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border-2 border-green-200">
+              <span className="font-bold text-slate-900">Total Sales</span>
+              <span className="text-2xl font-black text-green-600">{formatCurrency(totalSales)}</span>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border-2 border-green-200">
+              <span className="font-bold text-slate-900">Average Order Value</span>
+              <span className="text-2xl font-black text-green-600">{formatCurrency(avgOrderValue)}</span>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border-2 border-green-200">
+              <span className="font-bold text-slate-900">Points Deducted</span>
+              <span className="text-2xl font-black text-green-600">{formatPoints(report?.totalPointsDeducted || 0)}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Table Occupancy */}
+        <Card className="border-0 shadow-lg overflow-hidden">
+          <div className="h-3 bg-gradient-to-r from-blue-400 to-blue-600" />
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b-4 border-blue-500">
+            <CardTitle className="text-xl font-black text-slate-900">Table Occupancy</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-blue-50 rounded-xl border-2 border-blue-200 text-center">
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Total Tables</p>
+                <p className="text-3xl font-black text-blue-600 mt-2">{occupancyData?.totalTables || 0}</p>
+              </div>
+              <div className="p-4 bg-blue-50 rounded-xl border-2 border-blue-200 text-center">
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Occupied</p>
+                <p className="text-3xl font-black text-blue-600 mt-2">{occupancyData?.occupiedTables || 0}</p>
+              </div>
+              <div className="p-4 bg-blue-50 rounded-xl border-2 border-blue-200 text-center">
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Available</p>
+                <p className="text-3xl font-black text-blue-600 mt-2">{occupancyData?.availableTables || 0}</p>
+              </div>
+              <div className="p-4 bg-blue-50 rounded-xl border-2 border-blue-200 text-center">
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Level</p>
+                <p className={`text-2xl font-black mt-2 ${getOccupancyColor(occupancyRate)}`}>
+                  {getOccupancyLevel(occupancyRate)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Section Breakdown */}
         {occupancyData?.sectionStats && occupancyData.sectionStats.length > 0 && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Occupancy by Section</CardTitle>
+          <Card className="border-0 shadow-lg overflow-hidden">
+            <div className="h-3 bg-gradient-to-r from-purple-400 to-purple-600" />
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100 border-b-4 border-purple-500">
+              <CardTitle className="text-xl font-black text-slate-900">Occupancy by Section</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {occupancyData.sectionStats.map((section) => (
-                  <div key={section.sectionId} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                    <div>
-                      <p className="font-medium">{section.sectionName}</p>
-                      <p className="text-sm text-gray-600">
-                        {section.occupiedTables}/{section.totalTables} tables
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold">{formatPercentage(section.occupancyRate)}</p>
-                    </div>
+            <CardContent className="p-6 space-y-3">
+              {occupancyData.sectionStats.map((section) => (
+                <div key={section.sectionId} className="p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200 flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-slate-900">{section.sectionName}</p>
+                    <p className="text-xs text-slate-600 font-semibold">
+                      {section.occupiedTables}/{section.totalTables} tables
+                    </p>
                   </div>
-                ))}
-              </div>
+                  <Badge className="bg-purple-500 text-white border-none font-bold text-base px-3 py-1">
+                    {formatPercentage(section.occupancyRate)}
+                  </Badge>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}
 
-        {/* Staff Management */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Staff Management</CardTitle>
+        {/* Menu Summary */}
+        <Card className="border-0 shadow-lg overflow-hidden">
+          <div className="h-3 bg-gradient-to-r from-orange-400 to-orange-600" />
+          <CardHeader className="bg-gradient-to-r from-orange-50 to-orange-100 border-b-4 border-orange-500">
+            <CardTitle className="text-xl font-black text-slate-900">Menu Summary</CardTitle>
           </CardHeader>
-          <CardContent>
-            <StaffManagement cafeteriaId={cafeteriaId} />
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
-              <Button variant="default">Manage Menu</Button>
-              <Button variant="outline">Manage Tables</Button>
-              <Button variant="outline">View Reports</Button>
-              <Button variant="outline">Approve Recharges</Button>
+          <CardContent className="p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-orange-50 rounded-xl border-2 border-orange-200 text-center">
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Total Items</p>
+                <p className="text-3xl font-black text-orange-600 mt-2">{menuData?.totalItems || 0}</p>
+              </div>
+              <div className="p-4 bg-orange-50 rounded-xl border-2 border-orange-200 text-center">
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Available</p>
+                <p className="text-3xl font-black text-orange-600 mt-2">{menuData?.availableItems || 0}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
-      </div>
+
+        {/* Points Balance */}
+        <Card className="border-0 shadow-lg overflow-hidden">
+          <div className="h-3 bg-gradient-to-r from-indigo-400 to-indigo-600" />
+          <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100 border-b-4 border-indigo-500">
+            <CardTitle className="text-xl font-black text-slate-900">Points Balance</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="p-6 bg-indigo-50 rounded-xl border-2 border-indigo-200 text-center">
+              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Available for Operations</p>
+              <p className="text-5xl font-black text-indigo-600">{formatPoints(pointsBalance)}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Settings Card */}
+        <Card className="border-0 shadow-lg mb-12 overflow-hidden">
+          <div className="h-3 bg-gradient-to-r from-slate-400 to-slate-600" />
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-4 border-slate-400">
+            <CardTitle className="text-xl font-black text-slate-900 flex items-center gap-2">
+              <Settings className="w-6 h-6" />
+              Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <Button
+              onClick={() => setLocation("/dashboard/cafeteria/settings")}
+              className="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold h-14 text-lg"
+            >
+              <Settings className="w-5 h-5 mr-2" />
+              Full Settings
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
     </div>
   );
 }
