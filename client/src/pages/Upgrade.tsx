@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, X, ArrowLeft } from 'lucide-react';
+import { Check, X, ArrowLeft, Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { trpc } from '@/lib/trpc';
+import { useAuth } from '@/_core/hooks/useAuth';
 
 interface PlanFeature {
   name: string;
@@ -14,6 +16,11 @@ interface PlanFeature {
 
 export default function Upgrade() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const [loadingPlan, setLoadingPlan] = useState<'growth' | 'pro' | null>(null);
+
+  // Create checkout session mutation
+  const checkoutMutation = trpc.billing.createCheckoutSession.useMutation();
 
   const plans = [
     {
@@ -126,16 +133,34 @@ export default function Upgrade() {
 
                   {/* CTA Button */}
                   <Button
-                    onClick={() => {
-                      // TODO: Integrate with billing provider (Stripe, Paddle, etc.)
-                      // For now, show a placeholder alert
-                      alert(`${plan.name} plan upgrade coming soon!`);
+                    onClick={async () => {
+                      if (plan.buttonDisabled || !user?.cafeteriaId) return;
+                      
+                      setLoadingPlan(plan.name.toLowerCase() as 'growth' | 'pro');
+                      try {
+                        const result = await checkoutMutation.mutateAsync({
+                          plan: plan.name.toLowerCase() as 'growth' | 'pro',
+                        });
+                        // Redirect to Stripe Checkout
+                        window.location.href = result.url;
+                      } catch (error) {
+                        console.error('Checkout error:', error);
+                        alert('Failed to start checkout. Please try again.');
+                        setLoadingPlan(null);
+                      }
                     }}
-                    disabled={plan.buttonDisabled}
+                    disabled={plan.buttonDisabled || loadingPlan !== null}
                     variant={plan.buttonVariant}
                     className="w-full font-bold h-10"
                   >
-                    {plan.buttonText}
+                    {loadingPlan === plan.name.toLowerCase() ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      plan.buttonText
+                    )}
                   </Button>
 
                   {/* Features List */}
