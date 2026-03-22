@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS "orderEscalations" (
 ALTER TABLE "users" ALTER COLUMN "role" SET DEFAULT 'cafeteria_admin';--> statement-breakpoint
 ALTER TABLE "cafeteriaStaff" ADD COLUMN "phone" varchar(20);--> statement-breakpoint
 ALTER TABLE "cafeteriaStaff" ADD COLUMN "referenceCode" varchar(50);--> statement-breakpoint
-ALTER TABLE "cafeterias" ADD COLUMN "subscriptionPlan" varchar(50) DEFAULT 'free';--> statement-breakpoint
+ALTER TABLE "cafeterias" ADD COLUMN "subscriptionPlan" varchar(50) DEFAULT 'starter';--> statement-breakpoint
 ALTER TABLE "cafeterias" ADD COLUMN "subscriptionStatus" varchar(50) DEFAULT 'active';--> statement-breakpoint
 ALTER TABLE "commissionDistributions" ADD COLUMN "percentage" numeric(5, 2);--> statement-breakpoint
 ALTER TABLE "commissionDistributions" ADD COLUMN "releasedAt" timestamp;--> statement-breakpoint

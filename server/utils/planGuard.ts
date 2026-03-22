@@ -7,7 +7,7 @@ import { cafeterias } from "../../drizzle/schema.js";
  * unlimited values are null.
  */
 export const PLAN_LIMITS = {
-  free: {
+  starter: {
     maxStaff: 3,
     maxTables: 10,
     features: {
@@ -15,7 +15,7 @@ export const PLAN_LIMITS = {
       sections: false,
     },
   },
-  pro: {
+  growth: {
     maxStaff: 10,
     maxTables: 50,
     features: {
@@ -23,7 +23,7 @@ export const PLAN_LIMITS = {
       sections: true,
     },
   },
-  enterprise: {
+  pro: {
     maxStaff: null, // unlimited
     maxTables: null, // unlimited
     features: {
@@ -60,8 +60,8 @@ export async function getPlanContext(cafeteriaId: string): Promise<PlanContext> 
     throw new Error("Cafeteria not found");
   }
 
-  const plan = (result[0].subscriptionPlan as PlanName) || "free";
-  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+  const plan = (result[0].subscriptionPlan as PlanName) || "starter";
+  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.starter;
 
   return {
     plan,

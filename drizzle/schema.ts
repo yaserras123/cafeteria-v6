@@ -145,7 +145,7 @@ export const cafeterias = pgTable(
     currencyOverrideBy: text("currencyOverrideBy"),
     language: varchar("language", { length: 10 }).default("en"),
     freeOperationEndDate: timestamp("freeOperationEndDate"),
-    subscriptionPlan: varchar("subscriptionPlan", { length: 50 }).default("free"),
+    subscriptionPlan: varchar("subscriptionPlan", { length: 50 }).default("starter"),
     subscriptionStatus: varchar("subscriptionStatus", { length: 50 }).default("active"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   }
