@@ -185,6 +185,12 @@ export default function CafeteriaDashboard() {
     { enabled: !!cafeteriaId }
   );
 
+  // Orders Queries
+  const { data: backendOrders, refetch: refetchOrders } = trpc.orders.getOrders.useQuery(
+    { cafeteriaId },
+    { enabled: !!cafeteriaId, refetchInterval: 5000 }
+  );
+
   // Mutations
   // Menu Mutations
   const createItemMutation = trpc.menu.createMenuItem.useMutation({ onSuccess: () => refetchItems() });
@@ -228,6 +234,10 @@ export default function CafeteriaDashboard() {
   });
   const deleteStaffMutation = trpc.staff.deleteStaff.useMutation({ onSuccess: () => refetchStaff() });
 
+  // Orders Mutations
+  const updateOrderStatusMutation = trpc.orders.updateOrderStatus.useMutation({ onSuccess: () => refetchOrders() });
+  const cancelOrderMutation = trpc.orders.cancelOrder.useMutation({ onSuccess: () => refetchOrders() });
+
   // ── STATE ARCHITECTURE ───────────────────────────────────────────────────
   
   // Menu State
@@ -236,20 +246,20 @@ export default function CafeteriaDashboard() {
   // Tables State
   const [selectedSectionId, setSelectedSectionId] = useState<string>('all');
 
-  // Orders State (Placeholder for now)
-  const [orders, setOrders] = useState<Order[]>([
-    { 
-      id: 'ORD-2040', 
-      tableToken: 'T-10-XYZ', 
-      status: 'preparing', 
-      total: 24.50, 
-      createdAt: '12:45 PM',
-      items: [
-        { menuItemId: 'item-1', name: 'Cappuccino Regular', quantity: 2, price: 4.50 },
-        { menuItemId: 'item-4', name: 'Breakfast Platter', quantity: 1, price: 15.50 }
-      ]
-    }
-  ]);
+  // Orders State - derived from backend data
+  const orders = (backendOrders || []).map((order: any) => ({
+    id: order.id,
+    tableToken: order.table?.tableNumber ? `T-${order.table.tableNumber}` : 'N/A',
+    status: order.status === 'open' ? 'created' : (order.status === 'closed' ? 'paid' : 'cancelled') as Order['status'],
+    total: Number(order.totalAmount) || 0,
+    createdAt: new Date(order.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    items: (order.items || []).map((item: any) => ({
+      menuItemId: item.menuItemId,
+      name: item.menuItem?.name || 'Unknown Item',
+      quantity: item.quantity,
+      price: Number(item.unitPrice) || 0
+    }))
+  }));
 
   // ── HANDLERS ────────────────────────────────────────────────────────────
 
@@ -417,11 +427,16 @@ export default function CafeteriaDashboard() {
   };
 
   // Order Handlers
-  const handleUpdateOrderStatus = (id: string, status: Order['status']) => {
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+  const handleUpdateOrderStatus = async (id: string, status: Order['status']) => {
+    // Map UI status to backend status
+    const backendStatus = status === 'paid' ? 'closed' : (status === 'cancelled' ? 'cancelled' : 'open');
+    await updateOrderStatusMutation.mutateAsync({
+      orderId: id,
+      status: backendStatus as 'open' | 'closed' | 'cancelled'
+    });
   };
-  const handleCancelOrder = (id: string) => {
-    handleUpdateOrderStatus(id, 'cancelled');
+  const handleCancelOrder = async (id: string) => {
+    await cancelOrderMutation.mutateAsync({ orderId: id });
   };
 
   // ── SYSTEM LOGIC ─────────────────────────────────────────────────────────
@@ -944,7 +959,7 @@ export default function CafeteriaDashboard() {
                   </CardHeader>
                   <CardContent className="p-4 space-y-4">
                     <div className="space-y-2">
-                      {order.items.map((item, idx) => (
+                      {order.items.map((item: OrderItem, idx: number) => (
                         <div key={idx} className="flex justify-between text-sm">
                           <span className="text-slate-600 font-medium">{item.quantity}x {item.name}</span>
                           <span className="font-bold text-slate-900">${(item.quantity * item.price).toFixed(2)}</span>
@@ -969,11 +984,8 @@ export default function CafeteriaDashboard() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="created">Created</SelectItem>
-                          <SelectItem value="sent_to_kitchen">Sent to Kitchen</SelectItem>
-                          <SelectItem value="preparing">Preparing</SelectItem>
-                          <SelectItem value="ready">Ready</SelectItem>
-                          <SelectItem value="served">Served</SelectItem>
                           <SelectItem value="paid">Paid</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
                         </SelectContent>
                       </Select>
                       <Button onClick={() => handleCancelOrder(order.id)} variant="outline" className="h-9 text-[10px] font-black uppercase border-slate-200 text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors">{t('cancel')}</Button>

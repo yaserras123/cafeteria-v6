@@ -318,6 +318,54 @@ export const ordersRouter = router({
       }
     }),
 
+  cancelOrder: staffProcedure
+    .input(z.object({ orderId: z.string() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const orderResult = await db
+        .select()
+        .from(orders)
+        .where(eq(orders.id, input.orderId));
+
+      if (orderResult.length === 0) {
+        throw new Error("Order not found");
+      }
+
+      await db
+        .update(orders)
+        .set({ status: "cancelled" })
+        .where(eq(orders.id, input.orderId));
+
+      // Also cancel all items in this order
+      await db
+        .update(orderItems)
+        .set({ status: "cancelled" })
+        .where(eq(orderItems.orderId, input.orderId));
+
+      return { success: true, orderId: input.orderId };
+    }),
+
+  updateOrderStatus: staffProcedure
+    .input(
+      z.object({
+        orderId: z.string(),
+        status: z.enum(["open", "closed", "cancelled"]),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      await db
+        .update(orders)
+        .set({ status: input.status })
+        .where(eq(orders.id, input.orderId));
+
+      return { success: true, orderId: input.orderId, status: input.status };
+    }),
+
   closeOrder: staffProcedure
     .input(
       z.object({
