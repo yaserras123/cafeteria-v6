@@ -24,27 +24,51 @@ function Router() {
       <Route path={"/menu/:tableToken"} component={CustomerMenu} />
       <Route
         path={"/dashboard/owner"}
-        component={() => <ProtectedRoute component={OwnerDashboard} />}
+        component={() => (
+          <ProtectedRoute component={OwnerDashboard} allowedRoles={["owner"]} />
+        )}
       />
       <Route
         path={"/dashboard/marketer"}
-        component={() => <ProtectedRoute component={MarketerDashboard} />}
+        component={() => (
+          <ProtectedRoute
+            component={MarketerDashboard}
+            allowedRoles={["marketer"]}
+          />
+        )}
       />
       <Route
         path={"/dashboard/cafeteria"}
-        component={() => <ProtectedRoute component={CafeteriaDashboard} />}
+        component={() => (
+          <ProtectedRoute
+            component={CafeteriaDashboard}
+            allowedRoles={["admin"]}
+          />
+        )}
       />
       <Route
         path={"/dashboard/manager"}
-        component={() => <ProtectedRoute component={ManagerDashboard} />}
+        component={() => (
+          <ProtectedRoute
+            component={ManagerDashboard}
+            allowedRoles={["manager"]}
+          />
+        )}
       />
       <Route
         path={"/dashboard/waiter"}
-        component={() => <ProtectedRoute component={WaiterDashboard} />}
+        component={() => (
+          <ProtectedRoute
+            component={WaiterDashboard}
+            allowedRoles={["waiter"]}
+          />
+        )}
       />
       <Route
         path={"/dashboard/chef"}
-        component={() => <ProtectedRoute component={ChefDashboard} />}
+        component={() => (
+          <ProtectedRoute component={ChefDashboard} allowedRoles={["chef"]} />
+        )}
       />
       <Route path={"/reports"} component={ReportingDashboard} />
       <Route path={"/404"} component={NotFound} />

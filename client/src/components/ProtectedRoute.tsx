@@ -5,30 +5,61 @@ import { useEffect } from "react";
 
 interface ProtectedRouteProps {
   component: React.ComponentType<any>;
+  allowedRoles: string[];
 }
 
 /**
- * ProtectedRoute wraps a dashboard component and enforces authentication.
+ * Role → dashboard route mapping.
+ * Used to redirect users to their correct dashboard when they lack
+ * permission to access the requested route.
+ */
+const ROLE_ROUTES: Record<string, string> = {
+  owner: "/dashboard/owner",
+  marketer: "/dashboard/marketer",
+  admin: "/dashboard/cafeteria",
+  manager: "/dashboard/manager",
+  waiter: "/dashboard/waiter",
+  chef: "/dashboard/chef",
+};
+
+/**
+ * ProtectedRoute wraps a dashboard component and enforces both
+ * authentication and role-based access control (RBAC).
  *
  * - If loading: shows a spinner
- * - If not authenticated: redirects to /login (via window.location.replace)
- * - If authenticated: renders the component
+ * - If not authenticated: redirects to /login (SPA navigation)
+ * - If authenticated but role not in allowedRoles: redirects to user's
+ *   correct dashboard based on their role (SPA navigation)
+ * - If authenticated and role is allowed: renders the component
  *
- * Uses useAuth() to check session state. The redirect happens via
- * window.location.replace to ensure a hard redirect and prevent
- * back-button issues.
+ * Uses useAuth() to check session state and user role. Redirects use
+ * setLocation() for SPA navigation (wouter) instead of window.location.replace.
  */
-export function ProtectedRoute({ component: Component }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  component: Component,
+  allowedRoles,
+}: ProtectedRouteProps) {
   const { user, loading, isUnauthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
     if (loading) return;
+
+    // Not authenticated → redirect to login
     if (isUnauthenticated) {
-      // Hard redirect to /login to prevent back-button access
-      window.location.replace("/login");
+      setLocation("/login");
+      return;
     }
-  }, [loading, isUnauthenticated]);
+
+    // Authenticated but role not allowed → redirect to user's correct dashboard
+    if (user && user.role) {
+      const userRole = user.role as string;
+      if (!allowedRoles.includes(userRole)) {
+        const correctRoute = ROLE_ROUTES[userRole] ?? "/";
+        setLocation(correctRoute);
+      }
+    }
+  }, [loading, isUnauthenticated, user, allowedRoles, setLocation]);
 
   if (loading) {
     return (
@@ -43,6 +74,14 @@ export function ProtectedRoute({ component: Component }: ProtectedRouteProps) {
 
   if (isUnauthenticated) {
     return null;
+  }
+
+  // Check if user role is allowed
+  if (user && user.role) {
+    const userRole = user.role as string;
+    if (!allowedRoles.includes(userRole)) {
+      return null;
+    }
   }
 
   return <Component />;
