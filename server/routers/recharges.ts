@@ -201,11 +201,12 @@ export const rechargesRouter = router({
       if (!db) throw new Error("Database not available");
 
       return await db.transaction(async (tx) => {
-        // Get the recharge request (transaction provides isolation)
+        // Get the recharge request and LOCK the row (RACE CONDITION PROTECTION)
         const requests = await tx
           .select()
           .from(rechargeRequests)
-          .where(eq(rechargeRequests.id, input.rechargeRequestId));
+          .where(eq(rechargeRequests.id, input.rechargeRequestId))
+          .for("update");
 
         if (requests.length === 0) {
           throw new Error("Recharge request not found");
@@ -213,7 +214,11 @@ export const rechargesRouter = router({
 
         const request = requests[0];
 
-        // Prevent double approval
+        // Prevent double approval (IDEMPOTENCY)
+        if (request.status === "approved") {
+          return { success: true, rechargeId: input.rechargeRequestId, alreadyApproved: true };
+        }
+
         if (request.status !== "pending") {
           throw new Error(`Recharge request has already been processed (status: ${request.status})`);
         }
@@ -323,32 +328,56 @@ export const rechargesRouter = router({
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
-      const now = new Date();
-      await db
-        .update(rechargeRequests)
-        .set({
-          status: "rejected",
-          processedAt: now,
-          processedBy: ctx.user?.name || "admin",
-          notes: input.reason,
-        })
-        .where(eq(rechargeRequests.id, input.rechargeRequestId));
-      // Create ledger entry for rejection
-      const recharge = await db.select({ cafeteriaId: rechargeRequests.cafeteriaId }).from(rechargeRequests).where(eq(rechargeRequests.id, input.rechargeRequestId)).limit(1);
-      const cafeteriaId = recharge[0]?.cafeteriaId || "";
-      
-      await db.insert(ledgerEntries).values({
-        id: nanoid(),
-        type: "recharge_rejected",
-        ledgerType: "points_cancelled",
-        description: `Recharge rejected: ${input.reason}`,
-        cafeteriaId: cafeteriaId,
-        refId: input.rechargeRequestId,
-        createdAt: now,
+
+      return await db.transaction(async (tx) => {
+        // IDEMPOTENCY: Check current status
+        const requests = await tx
+          .select()
+          .from(rechargeRequests)
+          .where(eq(rechargeRequests.id, input.rechargeRequestId))
+          .for("update"); // Lock the row
+
+        if (requests.length === 0) {
+          throw new Error("Recharge request not found");
+        }
+
+        const request = requests[0];
+
+        // If already processed, return safely (Idempotency)
+        if (request.status === "rejected") {
+          return { success: true, rechargeId: input.rechargeRequestId, alreadyProcessed: true };
+        }
+
+        if (request.status !== "pending") {
+          throw new Error(`Recharge request has already been processed (status: ${request.status})`);
+        }
+
+        const now = new Date();
+        await tx
+          .update(rechargeRequests)
+          .set({
+            status: "rejected",
+            processedAt: now,
+            processedBy: ctx.user?.name || "admin",
+            notes: input.reason,
+          })
+          .where(eq(rechargeRequests.id, input.rechargeRequestId));
+
+        // Create ledger entry for rejection
+        await tx.insert(ledgerEntries).values({
+          id: nanoid(),
+          type: "recharge_rejected",
+          ledgerType: "points_cancelled",
+          description: `Recharge rejected: ${input.reason}`,
+          cafeteriaId: request.cafeteriaId,
+          refId: input.rechargeRequestId,
+          createdAt: now,
+        });
+
+        return {
+          success: true,
+          rechargeId: input.rechargeRequestId,
+        };
       });
-      return {
-        success: true,
-        rechargeId: input.rechargeRequestId,
-      };
     }),
 });

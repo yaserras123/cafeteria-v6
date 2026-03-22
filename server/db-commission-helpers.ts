@@ -166,23 +166,25 @@ async function releaseCommissionsForPreviousRecharge(
           lastUpdated: new Date(),
         })
         .where(eq(marketerBalances.marketerId, marketerId));
+
+      // 3. Ledger entry
+      await tx.insert(ledgerEntries).values({
+        id: nanoid(),
+        type: "commission_released",
+        ledgerType: "commission_available",
+        description: `Commission for recharge ${previousRechargeId} released to marketer ${marketerId}`,
+        marketerId,
+        amount: String(amount),
+        balanceBefore: String(balance.availableBalance ?? "0"),
+        balanceAfter: String(newAvailable),
+        refId: commission.id,
+        createdAt: new Date(),
+      });
     } else {
       console.warn(
         `[Commission Release] Marketer balance not found for marketer ${marketerId} during commission release.`
       );
     }
-
-    // 3. Ledger entry
-    await tx.insert(ledgerEntries).values({
-      id: nanoid(),
-      type: "commission_released",
-      ledgerType: "commission_available",
-      description: `Commission for recharge ${previousRechargeId} released to marketer ${marketerId}`,
-      marketerId,
-      amount: String(amount),
-      refId: commission.id,
-      createdAt: new Date(),
-    });
   }
 }
 

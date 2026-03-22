@@ -49,18 +49,25 @@ export const STAFF_ROLE_LETTER: Record<string, string> = {
  * @returns            e.g. "1001P01W03"
  * @throws             If the cafeteria is not found, role is invalid, or limit exceeded.
  */
+/**
+ * Generates the next staff reference code for the given cafeteria and role.
+ *
+ * RACE CONDITION PROTECTION:
+ * This function MUST be called within a DB transaction that holds a lock
+ * on the cafeteria row to prevent duplicate codes under high concurrency.
+ */
 export async function generateStaffReferenceCode(
+  tx: any,
   cafeteriaId: string,
   role: string
 ): Promise<string> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  // 1. Fetch cafeteria referenceCode
-  const cafeteriaResult = await db
+  // 1. Fetch cafeteria referenceCode and LOCK the row
+  // We use a dummy update or a select for update to serialize generation for this cafeteria
+  const cafeteriaResult = await tx
     .select({ referenceCode: cafeterias.referenceCode })
     .from(cafeterias)
-    .where(eq(cafeterias.id, cafeteriaId));
+    .where(eq(cafeterias.id, cafeteriaId))
+    .for("update"); // Row-level lock
 
   if (cafeteriaResult.length === 0) {
     throw new Error(`Cafeteria not found: ${cafeteriaId}`);
@@ -77,12 +84,11 @@ export async function generateStaffReferenceCode(
     throw new Error(`Unknown staff role: ${role}`);
   }
 
-  // 3. Build prefix and count existing staff codes with this prefix
-  //    Pattern: {cafeteriaRefCode}{roleLetter}XX  (exactly 2 trailing digits)
+  // 3. Build prefix and find existing staff codes with this prefix
   const prefix = `${cafeteriaRefCode}${roleLetter}`;
   const expectedLength = prefix.length + 2;
 
-  const existingCodes = await db
+  const existingCodes = await tx
     .select({ referenceCode: cafeteriaStaff.referenceCode })
     .from(cafeteriaStaff)
     .where(

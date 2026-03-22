@@ -97,7 +97,10 @@ export const withdrawalsRouter = router({
           ledgerType: "commission_withdrawn",
           description: `Withdrawal approved: ${amount}`,
           cafeteriaId: "", // Withdrawals are not cafeteria-specific
+          marketerId: request.marketerId,
           amount: String(amount),
+          balanceBefore: String(balance.availableBalance ?? '0'),
+          balanceAfter: String(Math.max(0, newAvailable)),
           refId: input.withdrawalRequestId,
           createdAt: now,
         });

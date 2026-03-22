@@ -66,26 +66,43 @@ export const ordersRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      const id = nanoid();
-      const totalPrice = input.quantity * input.unitPrice;
+      return await db.transaction(async (tx) => {
+        // DATA SAFETY: Ensure order is still open before adding items
+        const orderResult = await tx
+          .select({ status: orders.status })
+          .from(orders)
+          .where(eq(orders.id, input.orderId))
+          .for("update");
 
-      await db.insert(orderItems).values({
-        id,
-        orderId: input.orderId,
-        menuItemId: input.menuItemId,
-        quantity: input.quantity,
-        unitPrice: String(input.unitPrice),
-        totalPrice: String(totalPrice),
-        status: "pending",
-        notes: input.notes,
-        createdAt: new Date(),
+        if (orderResult.length === 0) {
+          throw new Error("Order not found");
+        }
+
+        if (orderResult[0].status !== "open") {
+          throw new Error(`Cannot add items to an order with status '${orderResult[0].status}'`);
+        }
+
+        const id = nanoid();
+        const totalPrice = input.quantity * input.unitPrice;
+
+        await tx.insert(orderItems).values({
+          id,
+          orderId: input.orderId,
+          menuItemId: input.menuItemId,
+          quantity: input.quantity,
+          unitPrice: String(input.unitPrice),
+          totalPrice: String(totalPrice),
+          status: "pending",
+          notes: input.notes,
+          createdAt: new Date(),
+        });
+
+        return {
+          id,
+          status: "pending",
+          totalPrice,
+        };
       });
-
-      return {
-        id,
-        status: "pending",
-        totalPrice,
-      };
     }),
 
   getOrders: protectedProcedure
@@ -324,27 +341,42 @@ export const ordersRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      const orderResult = await db
-        .select()
-        .from(orders)
-        .where(eq(orders.id, input.orderId));
+      return await db.transaction(async (tx) => {
+        const orderResult = await tx
+          .select()
+          .from(orders)
+          .where(eq(orders.id, input.orderId))
+          .for("update");
 
-      if (orderResult.length === 0) {
-        throw new Error("Order not found");
-      }
+        if (orderResult.length === 0) {
+          throw new Error("Order not found");
+        }
 
-      await db
-        .update(orders)
-        .set({ status: "cancelled" })
-        .where(eq(orders.id, input.orderId));
+        const order = orderResult[0];
 
-      // Also cancel all items in this order
-      await db
-        .update(orderItems)
-        .set({ status: "cancelled" })
-        .where(eq(orderItems.orderId, input.orderId));
+        // IDEMPOTENCY: Already cancelled
+        if (order.status === "cancelled") {
+          return { success: true, orderId: input.orderId, alreadyCancelled: true };
+        }
 
-      return { success: true, orderId: input.orderId };
+        // Only open orders can be cancelled
+        if (order.status !== "open") {
+          throw new Error(`Cannot cancel order with status '${order.status}'`);
+        }
+
+        await tx
+          .update(orders)
+          .set({ status: "cancelled" })
+          .where(eq(orders.id, input.orderId));
+
+        // Also cancel all items in this order
+        await tx
+          .update(orderItems)
+          .set({ status: "cancelled" })
+          .where(eq(orderItems.orderId, input.orderId));
+
+        return { success: true, orderId: input.orderId };
+      });
     }),
 
   updateOrderStatus: staffProcedure
@@ -358,12 +390,31 @@ export const ordersRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      await db
-        .update(orders)
-        .set({ status: input.status })
-        .where(eq(orders.id, input.orderId));
+      return await db.transaction(async (tx) => {
+        const orderResult = await tx
+          .select()
+          .from(orders)
+          .where(eq(orders.id, input.orderId))
+          .for("update");
 
-      return { success: true, orderId: input.orderId, status: input.status };
+        if (orderResult.length === 0) {
+          throw new Error("Order not found");
+        }
+
+        const order = orderResult[0];
+
+        // IDEMPOTENCY: Already at this status
+        if (order.status === input.status) {
+          return { success: true, orderId: input.orderId, status: input.status, alreadyUpdated: true };
+        }
+
+        await tx
+          .update(orders)
+          .set({ status: input.status })
+          .where(eq(orders.id, input.orderId));
+
+        return { success: true, orderId: input.orderId, status: input.status };
+      });
     }),
 
   closeOrder: staffProcedure
@@ -378,102 +429,117 @@ export const ordersRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      const orderResult = await db
-        .select()
-        .from(orders)
-        .where(eq(orders.id, input.orderId));
+      return await db.transaction(async (tx) => {
+        const orderResult = await tx
+          .select()
+          .from(orders)
+          .where(eq(orders.id, input.orderId))
+          .for("update");
 
-      if (orderResult.length === 0) {
-        throw new Error("Order not found");
-      }
+        if (orderResult.length === 0) {
+          throw new Error("Order not found");
+        }
 
-      const order = orderResult[0];
-      const totalAmount = Number(order.totalAmount) || 0;
+        const order = orderResult[0];
 
-      const cafeteriaResult = await db
-        .select()
-        .from(cafeterias)
-        .where(eq(cafeterias.id, order.cafeteriaId));
+        // IDEMPOTENCY: Already closed
+        if (order.status === "closed") {
+          return { success: true, orderId: input.orderId, pointsDeducted: Number(order.pointsConsumed), alreadyClosed: true };
+        }
 
-      if (cafeteriaResult.length === 0) {
-        throw new Error("Cafeteria not found");
-      }
+        // Only open orders can be closed
+        if (order.status !== "open") {
+          throw new Error(`Cannot close order with status '${order.status}'`);
+        }
 
-      const cafeteria = cafeteriaResult[0];
-      const currentBalance = Number(cafeteria.pointsBalance) || 0;
-      const now = new Date();
+        const totalAmount = Number(order.totalAmount) || 0;
 
-      // Check if cafeteria is in free operation period
-      const activeFreePeriods = await db
-        .select()
-        .from(freeOperationPeriods)
-        .where(eq(freeOperationPeriods.cafeteriaId, order.cafeteriaId));
-      
-      const isFree = isInFreeOperationPeriod(activeFreePeriods as any);
-      const pointsDeduction = isFree ? 0 : convertBillToPoints(totalAmount, input.exchangeRate);
+        const cafeteriaResult = await tx
+          .select()
+          .from(cafeterias)
+          .where(eq(cafeterias.id, order.cafeteriaId))
+          .for("update"); // LOCK cafeteria row to prevent balance race
 
-      if (!isFree && currentBalance < pointsDeduction) {
-        throw new Error("Insufficient points balance");
-      }
+        if (cafeteriaResult.length === 0) {
+          throw new Error("Cafeteria not found");
+        }
 
-      const newBalance = isFree ? currentBalance : currentBalance - pointsDeduction;
+        const cafeteria = cafeteriaResult[0];
+        const currentBalance = Number(cafeteria.pointsBalance) || 0;
+        const now = new Date();
 
-      await db
-        .update(orders)
-        .set({
-          status: "closed",
-          pointsConsumed: String(pointsDeduction),
-          closedAt: now,
-        })
-        .where(eq(orders.id, input.orderId));
+        // Check if cafeteria is in free operation period
+        const activeFreePeriods = await tx
+          .select()
+          .from(freeOperationPeriods)
+          .where(eq(freeOperationPeriods.cafeteriaId, order.cafeteriaId));
+        
+        const isFree = isInFreeOperationPeriod(activeFreePeriods as any);
+        const pointsDeduction = isFree ? 0 : convertBillToPoints(totalAmount, input.exchangeRate);
 
-      if (!isFree) {
-        await db
-          .update(cafeterias)
-          .set({ pointsBalance: String(newBalance) })
-          .where(eq(cafeterias.id, order.cafeteriaId));
+        if (!isFree && currentBalance < pointsDeduction) {
+          throw new Error("Insufficient points balance");
+        }
 
-        await db.insert(ledgerEntries).values({
-          id: nanoid(),
-          type: "order_closed",
-          ledgerType: "points_deduction",
-          description: `Order ${input.orderId} closed: ${pointsDeduction} points deducted`,
-          cafeteriaId: order.cafeteriaId,
-          amount: String(pointsDeduction),
-          balanceBefore: String(currentBalance),
-          balanceAfter: String(newBalance),
-          refId: input.orderId,
-          createdAt: now,
-        });
-      } else {
-        await db.insert(ledgerEntries).values({
-          id: nanoid(),
-          type: "order_closed_free",
-          ledgerType: "points_deduction",
-          description: `Order ${input.orderId} closed: Free operation period (0 points deducted)`,
-          cafeteriaId: order.cafeteriaId,
-          amount: "0",
-          balanceBefore: String(currentBalance),
-          balanceAfter: String(currentBalance),
-          refId: input.orderId,
-          createdAt: now,
-        });
-      }
+        const newBalance = isFree ? currentBalance : currentBalance - pointsDeduction;
 
-      if (input.shiftId) {
-        await db.insert(shiftSales).values({
-          id: nanoid(),
-          shiftId: input.shiftId,
-          orderId: input.orderId,
-          amount: String(totalAmount),
-          pointsDeducted: String(pointsDeduction),
-          createdAt: now,
-        });
-      }
+        await tx
+          .update(orders)
+          .set({
+            status: "closed",
+            pointsConsumed: String(pointsDeduction),
+            closedAt: now,
+          })
+          .where(eq(orders.id, input.orderId));
 
-      return {
-        success: true,
-        pointsDeducted: pointsDeduction,
-      };
+        if (!isFree) {
+          await tx
+            .update(cafeterias)
+            .set({ pointsBalance: String(newBalance) })
+            .where(eq(cafeterias.id, order.cafeteriaId));
+
+          await tx.insert(ledgerEntries).values({
+            id: nanoid(),
+            type: "order_closed",
+            ledgerType: "points_deduction",
+            description: `Order ${input.orderId} closed: ${pointsDeduction} points deducted`,
+            cafeteriaId: order.cafeteriaId,
+            amount: String(pointsDeduction),
+            balanceBefore: String(currentBalance),
+            balanceAfter: String(newBalance),
+            refId: input.orderId,
+            createdAt: now,
+          });
+        } else {
+          await tx.insert(ledgerEntries).values({
+            id: nanoid(),
+            type: "order_closed_free",
+            ledgerType: "points_deduction",
+            description: `Order ${input.orderId} closed: Free operation period (0 points deducted)`,
+            cafeteriaId: order.cafeteriaId,
+            amount: "0",
+            balanceBefore: String(currentBalance),
+            balanceAfter: String(currentBalance),
+            refId: input.orderId,
+            createdAt: now,
+          });
+        }
+
+        if (input.shiftId) {
+          await tx.insert(shiftSales).values({
+            id: nanoid(),
+            shiftId: input.shiftId,
+            orderId: input.orderId,
+            amount: String(totalAmount),
+            pointsDeducted: String(pointsDeduction),
+            createdAt: now,
+          });
+        }
+
+        return {
+          success: true,
+          pointsDeducted: pointsDeduction,
+        };
+      });
     }),
 });

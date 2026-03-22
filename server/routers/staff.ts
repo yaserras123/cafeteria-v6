@@ -114,41 +114,43 @@ export const staffRouter = router({
         throw new Error("Login username already exists in system");
       }
 
-      const id = nanoid();
-
-      // Generate a deterministic reference code derived from the cafeteria's referenceCode.
-      // Format: {cafeteriaReferenceCode}{roleLetter}{nn}
-      // e.g., 1001P01W03  (3rd waiter in cafeteria whose code is 1001P01)
-      const referenceCode = await generateStaffReferenceCode(input.cafeteriaId, input.role);
-      
-      // Hash the password securely using bcryptjs
       const passwordHash = await hashPassword(input.password);
 
-      await db.insert(cafeteriaStaff).values({
-        id,
-        cafeteriaId: input.cafeteriaId,
-        name: input.name,
-        role: input.role,
-        loginUsername: input.loginUsername,
-        passwordHash,
-        phone: input.phone || null,
-        referenceCode,
-        status: "active",
-        canLogin: true, // Automatically enable login for newly created staff
-        country: input.country,
-        currency: input.currency,
-        createdAt: new Date(),
-      });
+      return await db.transaction(async (tx) => {
+        // Generate a deterministic reference code derived from the cafeteria's referenceCode.
+        // Format: {cafeteriaReferenceCode}{roleLetter}{nn}
+        // e.g., 1001P01W03  (3rd waiter in cafeteria whose code is 1001P01)
+        // RACE CONDITION PROTECTION: generateStaffReferenceCode uses SELECT ... FOR UPDATE
+        const referenceCode = await generateStaffReferenceCode(tx, input.cafeteriaId, input.role);
+        
+        const id = nanoid();
 
-      return {
-        id,
-        name: input.name,
-        role: input.role,
-        loginUsername: input.loginUsername,
-        canLogin: true,
-        referenceCode,
-        permissions: getDefaultPermissionsForRole(input.role),
-      };
+        await tx.insert(cafeteriaStaff).values({
+          id,
+          cafeteriaId: input.cafeteriaId,
+          name: input.name,
+          role: input.role,
+          loginUsername: input.loginUsername,
+          passwordHash,
+          phone: input.phone || null,
+          referenceCode,
+          status: "active",
+          canLogin: true, // Automatically enable login for newly created staff
+          country: input.country,
+          currency: input.currency,
+          createdAt: new Date(),
+        });
+
+        return {
+          id,
+          name: input.name,
+          role: input.role,
+          loginUsername: input.loginUsername,
+          canLogin: true,
+          referenceCode,
+          permissions: getDefaultPermissionsForRole(input.role),
+        };
+      });
     }),
 
   /**
