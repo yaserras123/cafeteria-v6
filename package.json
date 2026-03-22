@@ -59,6 +59,7 @@
     "embla-carousel-react": "^8.5.1",
     "express": "^4.21.2",
     "framer-motion": "^11.15.0",
+    "html5-qrcode": "^2.3.8",
     "input-otp": "^1.4.1",
     "jose": "^5.9.6",
     "lucide-react": "^0.453.0",
