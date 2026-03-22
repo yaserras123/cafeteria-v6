@@ -96,7 +96,7 @@ interface StaffMember {
   name: string;
   email: string;
   phone: string;
-  role: 'waiter' | 'chef';
+  role: 'waiter' | 'chef' | 'manager' | 'cafeteria_admin';
   assignment: string; // section for waiter, category for chef
   loginEnabled: boolean;
   referenceCode: string;
@@ -159,6 +159,12 @@ export default function CafeteriaDashboard() {
     { enabled: !!cafeteriaId }
   );
 
+  // Staff Queries
+  const { data: backendStaff, refetch: refetchStaff } = trpc.staff.getStaff.useQuery(
+    { cafeteriaId },
+    { enabled: !!cafeteriaId }
+  );
+
   // Mutations
   // Menu Mutations
   const createItemMutation = trpc.menu.createMenuItem.useMutation({ onSuccess: () => refetchItems() });
@@ -172,6 +178,13 @@ export default function CafeteriaDashboard() {
   const updateTableStatusMutation = trpc.tables.updateTableStatus.useMutation({ onSuccess: () => refetchTables() });
   const deleteTableMutation = trpc.tables.deleteTable.useMutation({ onSuccess: () => refetchTables() });
 
+  // Staff Mutations
+  const createStaffMutation = trpc.staff.createStaff.useMutation({ onSuccess: () => refetchStaff() });
+  const toggleStaffLoginMutation = trpc.staff.toggleStaffLogin.useMutation({ onSuccess: () => refetchStaff() });
+  const assignStaffToSectionMutation = trpc.staff.assignToSection.useMutation({ onSuccess: () => refetchStaff() });
+  const assignStaffToCategoryMutation = trpc.staff.assignToCategory.useMutation({ onSuccess: () => refetchStaff() });
+  const deleteStaffMutation = trpc.staff.deleteStaff.useMutation({ onSuccess: () => refetchStaff() });
+
   // ── STATE ARCHITECTURE ───────────────────────────────────────────────────
   
   // Menu State
@@ -179,13 +192,6 @@ export default function CafeteriaDashboard() {
 
   // Tables State
   const [selectedSectionId, setSelectedSectionId] = useState<string>('all');
-
-  // Staff State (Placeholder for now)
-  const [staffList, setStaffList] = useState<StaffMember[]>([
-    { id: 's-1', name: 'John Doe', email: 'john@cafe.com', phone: '+90 555 123 4567', role: 'waiter', assignment: 'Terrace', loginEnabled: true, referenceCode: 'W-402', status: 'ACTIVE' },
-    { id: 's-2', name: 'Sarah Cook', email: 'sarah@cafe.com', phone: '+90 555 987 6543', role: 'chef', assignment: 'Breakfast', loginEnabled: true, referenceCode: 'C-901', status: 'ON SHIFT' },
-    { id: 's-3', name: 'Mike Ross', email: 'mike@cafe.com', phone: '+90 555 444 3333', role: 'waiter', assignment: 'Main Hall', loginEnabled: false, referenceCode: 'W-405', status: 'OFFLINE' },
-  ]);
 
   // Orders State (Placeholder for now)
   const [orders, setOrders] = useState<Order[]>([
@@ -289,9 +295,41 @@ export default function CafeteriaDashboard() {
   };
 
   // Staff Handlers
-  const handleCreateStaff = () => console.log('Logic: Create Staff');
-  const handleToggleStaffLogin = (id: string) => {
-    setStaffList(prev => prev.map(s => s.id === id ? { ...s, loginEnabled: !s.loginEnabled } : s));
+  const handleCreateStaff = async () => {
+    const name = prompt("Staff Name:");
+    const email = prompt("Email (for login):");
+    const role = prompt("Role (waiter, chef, manager):", "waiter");
+    if (name && email && role) {
+      await createStaffMutation.mutateAsync({
+        cafeteriaId,
+        name,
+        loginUsername: email,
+        role: role as any
+      });
+    }
+  };
+
+  const handleToggleStaffLogin = async (id: string, current: boolean) => {
+    await toggleStaffLoginMutation.mutateAsync({
+      staffId: id,
+      enable: !current
+    });
+  };
+
+  const handleAssignStaff = async (staff: any) => {
+    if (staff.role === 'waiter') {
+      const sectionId = prompt("Enter Section ID to assign:");
+      if (sectionId) await assignStaffToSectionMutation.mutateAsync({ staffId: staff.id, sectionId });
+    } else if (staff.role === 'chef') {
+      const categoryId = prompt("Enter Category ID to assign:");
+      if (categoryId) await assignStaffToCategoryMutation.mutateAsync({ staffId: staff.id, categoryId });
+    }
+  };
+
+  const handleDeleteStaff = async (id: string) => {
+    if (confirm("Delete this staff member?")) {
+      await deleteStaffMutation.mutateAsync({ staffId: id });
+    }
   };
 
   // Order Handlers
@@ -314,7 +352,7 @@ export default function CafeteriaDashboard() {
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   // Auth Guard
-  if (!authLoading && !['admin', 'manager'].includes(user?.role ?? '')) {
+  if (!authLoading && !['admin', 'manager', 'cafeteria_admin'].includes(user?.role ?? '')) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <Card className="w-full max-w-md border-red-100 shadow-lg">
@@ -339,7 +377,7 @@ export default function CafeteriaDashboard() {
 
   const stats = [
     { label: t('points_balance'), value: cafeteriaInfo?.pointsBalance || '0', icon: Coins, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: t('active_staff'), value: staffList.filter(s => s.status !== 'OFFLINE').length.toString(), icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: t('active_staff'), value: backendStaff?.filter((s: any) => s.status === 'active').length.toString() || '0', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: t('today_sales'), value: '$1,240', icon: DollarSign, color: 'text-green-600', bg: 'bg-green-50' },
     { label: t('total_orders'), value: orders.length.toString(), icon: ShoppingCart, color: 'text-purple-600', bg: 'bg-purple-50' },
     { label: t('tables_status'), value: `${backendTables?.filter((t: any) => t.status === 'occupied').length || 0}/${backendTables?.length || 0}`, icon: TableIcon, color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -714,7 +752,7 @@ export default function CafeteriaDashboard() {
             </div>
           </TabsContent>
 
-          {/* STAFF SECTION (Placeholder UI) */}
+          {/* STAFF SECTION */}
           <TabsContent value="staff" className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
               <div>
@@ -739,7 +777,7 @@ export default function CafeteriaDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {staffList.map((staff) => (
+                  {backendStaff?.map((staff: any) => (
                     <TableRow key={staff.id} className="border-slate-50 hover:bg-slate-50/50 transition-colors group">
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -749,8 +787,8 @@ export default function CafeteriaDashboard() {
                           <div>
                             <p className="text-sm font-bold text-slate-900">{staff.name}</p>
                             <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                              <span className="flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" /> {staff.phone}</span>
-                              <span className="flex items-center gap-0.5"><Hash className="w-2.5 h-2.5" /> {staff.referenceCode}</span>
+                              <span className="flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" /> {staff.phone || 'No phone'}</span>
+                              <span className="flex items-center gap-0.5"><Hash className="w-2.5 h-2.5" /> {staff.id.substring(0, 6)}</span>
                             </div>
                           </div>
                         </div>
@@ -762,28 +800,27 @@ export default function CafeteriaDashboard() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Switch checked={staff.loginEnabled} onCheckedChange={() => handleToggleStaffLogin(staff.id)} />
-                          <Key className="w-3 h-3 text-slate-300" />
+                          <Switch checked={staff.canLogin} onCheckedChange={() => handleToggleStaffLogin(staff.id, staff.canLogin)} />
+                          <Key className={`w-3 h-3 ${staff.loginUsername ? 'text-blue-500' : 'text-slate-300'}`} />
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-700">{staff.assignment}</span>
+                        <div className="flex flex-col cursor-pointer hover:bg-slate-100 p-1 rounded transition-colors" onClick={() => handleAssignStaff(staff)}>
+                          <span className="text-xs font-bold text-slate-700">{staff.assignment || 'Unassigned'}</span>
                           <span className="text-[9px] text-slate-400 font-medium">{staff.role === 'waiter' ? t('section') : t('category')}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <div className={`w-1.5 h-1.5 rounded-full ${staff.status === 'OFFLINE' ? 'bg-slate-300' : 'bg-green-500 animate-pulse'}`} />
-                          <span className={`text-[10px] font-black uppercase ${staff.status === 'OFFLINE' ? 'text-slate-400' : 'text-green-600'}`}>
-                            {t(`status_${staff.status.toLowerCase().replace(' ', '_')}`)}
+                          <div className={`w-1.5 h-1.5 rounded-full ${staff.status === 'inactive' ? 'bg-slate-300' : 'bg-green-500 animate-pulse'}`} />
+                          <span className={`text-[10px] font-black uppercase ${staff.status === 'inactive' ? 'text-slate-400' : 'text-green-600'}`}>
+                            {staff.status}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600"><Edit className="w-3.5 h-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600" onClick={() => handleDeleteStaff(staff.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>

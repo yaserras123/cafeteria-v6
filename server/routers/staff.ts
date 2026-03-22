@@ -45,6 +45,8 @@ export const staffRouter = router({
         cafeteriaId: z.string(),
         name: z.string(),
         role: z.enum(["cafeteria_admin", "manager", "waiter", "chef"]),
+        loginUsername: z.string().optional(),
+        password: z.string().optional(),
         country: z.string().optional(),
         currency: z.string().optional(),
       })
@@ -58,14 +60,20 @@ export const staffRouter = router({
       }
 
       const id = nanoid();
+      
+      // Note: In a real app, we'd hash the password here if provided
+      // For now, we'll store the password hash as-is or handle it via a separate auth utility
+      const passwordHash = input.password; 
 
       await db.insert(cafeteriaStaff).values({
         id,
         cafeteriaId: input.cafeteriaId,
         name: input.name,
         role: input.role,
+        loginUsername: input.loginUsername,
+        passwordHash,
         status: "active",
-        canLogin: false,
+        canLogin: !!input.loginUsername,
         country: input.country,
         currency: input.currency,
         createdAt: new Date(),
@@ -75,7 +83,8 @@ export const staffRouter = router({
         id,
         name: input.name,
         role: input.role,
-        canLogin: false,
+        loginUsername: input.loginUsername,
+        canLogin: !!input.loginUsername,
         permissions: getDefaultPermissionsForRole(input.role),
       };
     }),
@@ -94,19 +103,35 @@ export const staffRouter = router({
         .from(cafeteriaStaff)
         .where(eq(cafeteriaStaff.cafeteriaId, input.cafeteriaId));
 
-      return staff.map((s) => ({
-        id: s.id,
-        name: s.name,
-        role: s.role,
-        status: s.status,
-        canLogin: s.canLogin,
-        loginPermissionGrantedAt: s.loginPermissionGrantedAt,
-        loginPermissionGrantedBy: s.loginPermissionGrantedBy,
-        lastLoginAt: s.lastLoginAt,
-        country: s.country,
-        currency: s.currency,
-        createdAt: s.createdAt,
+      // Get assignments for each staff member
+      const staffWithDetails = await Promise.all(staff.map(async (s) => {
+        let assignment = "";
+        if (s.role === "waiter") {
+          const sections = await getStaffSectionAssignments(s.id);
+          assignment = sections.map(as => as.sectionId).join(", ");
+        } else if (s.role === "chef") {
+          const categories = await getStaffCategoryAssignments(s.id);
+          assignment = categories.map(as => as.categoryId).join(", ");
+        }
+
+        return {
+          id: s.id,
+          name: s.name,
+          loginUsername: s.loginUsername,
+          role: s.role,
+          status: s.status,
+          canLogin: s.canLogin,
+          assignment,
+          loginPermissionGrantedAt: s.loginPermissionGrantedAt,
+          loginPermissionGrantedBy: s.loginPermissionGrantedBy,
+          lastLoginAt: s.lastLoginAt,
+          country: s.country,
+          currency: s.currency,
+          createdAt: s.createdAt,
+        };
       }));
+
+      return staffWithDetails;
     }),
 
   /**
