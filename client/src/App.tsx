@@ -15,6 +15,7 @@ import OwnerDashboard from "./pages/OwnerDashboard";
 import MarketerDashboard from "./pages/MarketerDashboard";
 import CafeteriaDashboard from "./pages/CafeteriaDashboard";
 import CustomerMenu from "./pages/CustomerMenu";
+import Upgrade from "./pages/Upgrade";
 
 function Router() {
   return (
@@ -71,6 +72,7 @@ function Router() {
         )}
       />
       <Route path={"/reports"} component={ReportingDashboard} />
+      <Route path={"/upgrade"} component={Upgrade} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

@@ -3,6 +3,7 @@ import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePlanCheck } from "@/hooks/usePlanCheck";
+import { useLocation } from "wouter";
 
 // ---------------------------------------------------------------------------
 // UpgradeModal
@@ -25,12 +26,15 @@ interface UpgradeModalProps {
  * the payment provider is connected.
  */
 export function UpgradeModal({ open, onClose, reason }: UpgradeModalProps) {
+  const [, setLocation] = useLocation();
+
   if (!open) return null;
 
   const handleUpgrade = () => {
     // TODO: Integrate with billing provider (e.g., Stripe, Paddle)
-    // For now, navigate to the placeholder upgrade route
-    window.location.href = "/upgrade";
+    // For now, navigate to the upgrade page
+    setLocation("/upgrade");
+    onClose();
   };
 
   return (
