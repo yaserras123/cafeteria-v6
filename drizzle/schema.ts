@@ -500,6 +500,8 @@ export const cafeteriaStaff = pgTable(
     lastLoginAt: timestamp("lastLoginAt"),
     country: varchar("country", { length: 2 }),
     currency: varchar("currency", { length: 3 }),
+    phone: varchar("phone", { length: 20 }),
+    referenceCode: varchar("referenceCode", { length: 50 }).unique(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   }
 );

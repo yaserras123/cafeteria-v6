@@ -9,6 +9,9 @@ import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";
 import { getDb } from "../db";
 import {
+  users,
+  marketers,
+  cafeterias,
   cafeteriaStaff,
   sections,
   staffSectionAssignments,
@@ -34,6 +37,16 @@ import {
   createSection,
   getSectionsByCafeteria,
 } from "../db";
+import bcryptjs from "bcryptjs";
+
+const SALT_ROUNDS = 10;
+
+/**
+ * Hash password using bcryptjs
+ */
+async function hashPassword(password: string): Promise<string> {
+  return bcryptjs.hash(password, SALT_ROUNDS);
+}
 
 export const staffRouter = router({
   /**
@@ -43,10 +56,11 @@ export const staffRouter = router({
     .input(
       z.object({
         cafeteriaId: z.string(),
-        name: z.string(),
+        name: z.string().min(2, "Name must be at least 2 characters"),
         role: z.enum(["cafeteria_admin", "manager", "waiter", "chef"]),
-        loginUsername: z.string().optional(),
-        password: z.string().optional(),
+        loginUsername: z.string().min(3, "Login username must be at least 3 characters"),
+        password: z.string().min(6, "Password must be at least 6 characters"),
+        phone: z.string().optional(),
         country: z.string().optional(),
         currency: z.string().optional(),
       })
@@ -59,11 +73,57 @@ export const staffRouter = router({
         throw new Error(`Invalid staff role: ${input.role}`);
       }
 
+      // Check if loginUsername already exists across all account tables (system-wide uniqueness)
+      const existingInStaff = await db
+        .select()
+        .from(cafeteriaStaff)
+        .where(eq(cafeteriaStaff.loginUsername, input.loginUsername));
+
+      if (existingInStaff.length > 0) {
+        throw new Error("Login username already exists");
+      }
+
+      // Check in users table
+      const existingInUsers = await db
+        .select()
+        .from(users)
+        .where(eq(users.loginUsername, input.loginUsername));
+
+      if (existingInUsers.length > 0) {
+        throw new Error("Login username already exists in system");
+      }
+
+      // Check in marketers table
+      const existingInMarketers = await db
+        .select()
+        .from(marketers)
+        .where(eq(marketers.loginUsername, input.loginUsername));
+
+      if (existingInMarketers.length > 0) {
+        throw new Error("Login username already exists in system");
+      }
+
+      // Check in cafeterias table
+      const existingInCafeterias = await db
+        .select()
+        .from(cafeterias)
+        .where(eq(cafeterias.loginUsername, input.loginUsername));
+
+      if (existingInCafeterias.length > 0) {
+        throw new Error("Login username already exists in system");
+      }
+
       const id = nanoid();
       
-      // Note: In a real app, we'd hash the password here if provided
-      // For now, we'll store the password hash as-is or handle it via a separate auth utility
-      const passwordHash = input.password; 
+      // Generate a proper reference code following the project pattern: ROLE_CAFID_RANDOM
+      // e.g., WAITER_ABC123_XYZ789
+      const rolePrefix = input.role.substring(0, 3).toUpperCase(); // WAI, CHE, MAN, CAF
+      const cafeteriaPrefix = input.cafeteriaId.substring(0, 6).toUpperCase();
+      const randomSuffix = id.substring(0, 6).toUpperCase();
+      const referenceCode = `${rolePrefix}_${cafeteriaPrefix}_${randomSuffix}`;
+      
+      // Hash the password securely using bcryptjs
+      const passwordHash = await hashPassword(input.password);
 
       await db.insert(cafeteriaStaff).values({
         id,
@@ -72,8 +132,10 @@ export const staffRouter = router({
         role: input.role,
         loginUsername: input.loginUsername,
         passwordHash,
+        phone: input.phone || null,
+        referenceCode,
         status: "active",
-        canLogin: !!input.loginUsername,
+        canLogin: true, // Automatically enable login for newly created staff
         country: input.country,
         currency: input.currency,
         createdAt: new Date(),
@@ -84,7 +146,8 @@ export const staffRouter = router({
         name: input.name,
         role: input.role,
         loginUsername: input.loginUsername,
-        canLogin: !!input.loginUsername,
+        canLogin: true,
+        referenceCode,
         permissions: getDefaultPermissionsForRole(input.role),
       };
     }),
@@ -118,10 +181,12 @@ export const staffRouter = router({
           id: s.id,
           name: s.name,
           loginUsername: s.loginUsername,
+          phone: s.phone,
           role: s.role,
           status: s.status,
           canLogin: s.canLogin,
           assignment,
+          referenceCode: s.referenceCode,
           loginPermissionGrantedAt: s.loginPermissionGrantedAt,
           loginPermissionGrantedBy: s.loginPermissionGrantedBy,
           lastLoginAt: s.lastLoginAt,
@@ -200,6 +265,15 @@ export const staffRouter = router({
   assignToSection: protectedProcedure
     .input(z.object({ staffId: z.string(), sectionId: z.string() }))
     .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      // Remove existing assignments first
+      await db
+        .delete(staffSectionAssignments)
+        .where(eq(staffSectionAssignments.staffId, input.staffId));
+
+      // Add new assignment
       await assignStaffToSection(input.staffId, input.sectionId);
 
       return {
@@ -225,6 +299,15 @@ export const staffRouter = router({
   assignToCategory: protectedProcedure
     .input(z.object({ staffId: z.string(), categoryId: z.string() }))
     .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      // Remove existing assignments first
+      await db
+        .delete(staffCategoryAssignments)
+        .where(eq(staffCategoryAssignments.staffId, input.staffId));
+
+      // Add new assignment
       await assignStaffToCategory(input.staffId, input.categoryId);
 
       return {

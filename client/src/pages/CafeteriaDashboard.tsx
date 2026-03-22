@@ -44,7 +44,9 @@ import {
   ToggleRight,
   Image as ImageIcon,
   Tag,
-  Layers
+  Layers,
+  EyeOff,
+  Eye as EyeIcon
 } from 'lucide-react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
@@ -97,7 +99,7 @@ interface StaffMember {
   email: string;
   phone: string;
   role: 'waiter' | 'chef' | 'manager' | 'cafeteria_admin';
-  assignment: string; // section for waiter, category for chef
+  assignment: string;
   loginEnabled: boolean;
   referenceCode: string;
   status: 'ACTIVE' | 'ON SHIFT' | 'OFFLINE';
@@ -133,6 +135,24 @@ export default function CafeteriaDashboard() {
 
   const isRTL = language === 'ar';
   const cafeteriaId = user?.cafeteriaId ?? '';
+
+  // ── MODAL STATES ─────────────────────────────────────────────────────────
+  const [showStaffModal, setShowStaffModal] = useState(false);
+  const [staffFormData, setStaffFormData] = useState({
+    name: '',
+    loginUsername: '',
+    password: '',
+    phone: '',
+    role: 'waiter' as const,
+  });
+  const [showPasswordStaff, setShowPasswordStaff] = useState(false);
+  const [staffCreationError, setStaffCreationError] = useState('');
+  const [staffCreationSuccess, setStaffCreationSuccess] = useState(false);
+
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [assignmentStaffId, setAssignmentStaffId] = useState('');
+  const [assignmentStaffRole, setAssignmentStaffRole] = useState<'waiter' | 'chef'>('waiter');
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState('');
 
   // ── BACKEND INTEGRATION ──────────────────────────────────────────────────
   
@@ -179,10 +199,33 @@ export default function CafeteriaDashboard() {
   const deleteTableMutation = trpc.tables.deleteTable.useMutation({ onSuccess: () => refetchTables() });
 
   // Staff Mutations
-  const createStaffMutation = trpc.staff.createStaff.useMutation({ onSuccess: () => refetchStaff() });
+  const createStaffMutation = trpc.staff.createStaff.useMutation({
+    onSuccess: () => {
+      setStaffCreationSuccess(true);
+      setStaffFormData({ name: '', loginUsername: '', password: '', phone: '', role: 'waiter' });
+      setTimeout(() => {
+        setShowStaffModal(false);
+        setStaffCreationSuccess(false);
+      }, 2000);
+      refetchStaff();
+    },
+    onError: (err) => {
+      setStaffCreationError(err.message || 'Failed to create staff');
+    }
+  });
   const toggleStaffLoginMutation = trpc.staff.toggleStaffLogin.useMutation({ onSuccess: () => refetchStaff() });
-  const assignStaffToSectionMutation = trpc.staff.assignToSection.useMutation({ onSuccess: () => refetchStaff() });
-  const assignStaffToCategoryMutation = trpc.staff.assignToCategory.useMutation({ onSuccess: () => refetchStaff() });
+  const assignStaffToSectionMutation = trpc.staff.assignToSection.useMutation({
+    onSuccess: () => {
+      setShowAssignmentModal(false);
+      refetchStaff();
+    }
+  });
+  const assignStaffToCategoryMutation = trpc.staff.assignToCategory.useMutation({
+    onSuccess: () => {
+      setShowAssignmentModal(false);
+      refetchStaff();
+    }
+  });
   const deleteStaffMutation = trpc.staff.deleteStaff.useMutation({ onSuccess: () => refetchStaff() });
 
   // ── STATE ARCHITECTURE ───────────────────────────────────────────────────
@@ -209,6 +252,85 @@ export default function CafeteriaDashboard() {
   ]);
 
   // ── HANDLERS ────────────────────────────────────────────────────────────
+
+  // Staff Handlers
+  const handleOpenStaffModal = () => {
+    setStaffCreationError('');
+    setStaffCreationSuccess(false);
+    setShowStaffModal(true);
+  };
+
+  const handleStaffFormChange = (field: string, value: any) => {
+    setStaffFormData(prev => ({ ...prev, [field]: value }));
+    setStaffCreationError('');
+  };
+
+  const handleCreateStaff = async () => {
+    if (!staffFormData.name.trim()) {
+      setStaffCreationError('Name is required');
+      return;
+    }
+    if (!staffFormData.loginUsername.trim()) {
+      setStaffCreationError('Email/Username is required');
+      return;
+    }
+    if (!staffFormData.password.trim()) {
+      setStaffCreationError('Password is required');
+      return;
+    }
+    if (staffFormData.password.length < 6) {
+      setStaffCreationError('Password must be at least 6 characters');
+      return;
+    }
+
+    await createStaffMutation.mutateAsync({
+      cafeteriaId,
+      name: staffFormData.name,
+      loginUsername: staffFormData.loginUsername,
+      password: staffFormData.password,
+      phone: staffFormData.phone,
+      role: staffFormData.role,
+    });
+  };
+
+  const handleToggleStaffLogin = async (id: string, current: boolean) => {
+    await toggleStaffLoginMutation.mutateAsync({
+      staffId: id,
+      enable: !current
+    });
+  };
+
+  const handleOpenAssignmentModal = (staff: any) => {
+    setAssignmentStaffId(staff.id);
+    setAssignmentStaffRole(staff.role);
+    setSelectedAssignmentId('');
+    setShowAssignmentModal(true);
+  };
+
+  const handleConfirmAssignment = async () => {
+    if (!selectedAssignmentId) {
+      alert('Please select an assignment');
+      return;
+    }
+
+    if (assignmentStaffRole === 'waiter') {
+      await assignStaffToSectionMutation.mutateAsync({
+        staffId: assignmentStaffId,
+        sectionId: selectedAssignmentId
+      });
+    } else if (assignmentStaffRole === 'chef') {
+      await assignStaffToCategoryMutation.mutateAsync({
+        staffId: assignmentStaffId,
+        categoryId: selectedAssignmentId
+      });
+    }
+  };
+
+  const handleDeleteStaff = async (id: string) => {
+    if (confirm("Are you sure you want to delete this staff member?")) {
+      await deleteStaffMutation.mutateAsync({ staffId: id });
+    }
+  };
 
   // Menu Handlers
   const handleAddItem = async () => {
@@ -291,44 +413,6 @@ export default function CafeteriaDashboard() {
   const handleDeleteTable = async (id: string) => {
     if (confirm("Delete this table?")) {
       await deleteTableMutation.mutateAsync({ tableId: id });
-    }
-  };
-
-  // Staff Handlers
-  const handleCreateStaff = async () => {
-    const name = prompt("Staff Name:");
-    const email = prompt("Email (for login):");
-    const role = prompt("Role (waiter, chef, manager):", "waiter");
-    if (name && email && role) {
-      await createStaffMutation.mutateAsync({
-        cafeteriaId,
-        name,
-        loginUsername: email,
-        role: role as any
-      });
-    }
-  };
-
-  const handleToggleStaffLogin = async (id: string, current: boolean) => {
-    await toggleStaffLoginMutation.mutateAsync({
-      staffId: id,
-      enable: !current
-    });
-  };
-
-  const handleAssignStaff = async (staff: any) => {
-    if (staff.role === 'waiter') {
-      const sectionId = prompt("Enter Section ID to assign:");
-      if (sectionId) await assignStaffToSectionMutation.mutateAsync({ staffId: staff.id, sectionId });
-    } else if (staff.role === 'chef') {
-      const categoryId = prompt("Enter Category ID to assign:");
-      if (categoryId) await assignStaffToCategoryMutation.mutateAsync({ staffId: staff.id, categoryId });
-    }
-  };
-
-  const handleDeleteStaff = async (id: string) => {
-    if (confirm("Delete this staff member?")) {
-      await deleteStaffMutation.mutateAsync({ staffId: id });
     }
   };
 
@@ -759,7 +843,7 @@ export default function CafeteriaDashboard() {
                 <h2 className="text-2xl font-black text-slate-900">{t('staff_mgmt')}</h2>
                 <p className="text-slate-500">{t('staff_desc')}</p>
               </div>
-              <Button onClick={handleCreateStaff} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
+              <Button onClick={handleOpenStaffModal} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
                 <UserPlus className="w-4 h-4 mr-2" /> {t('add_staff')}
               </Button>
             </div>
@@ -787,8 +871,8 @@ export default function CafeteriaDashboard() {
                           <div>
                             <p className="text-sm font-bold text-slate-900">{staff.name}</p>
                             <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                              <span className="flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" /> {staff.phone || 'No phone'}</span>
-                              <span className="flex items-center gap-0.5"><Hash className="w-2.5 h-2.5" /> {staff.id.substring(0, 6)}</span>
+                              {staff.phone && <span className="flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" /> {staff.phone}</span>}
+                              <span className="flex items-center gap-0.5"><Hash className="w-2.5 h-2.5" /> {staff.referenceCode}</span>
                             </div>
                           </div>
                         </div>
@@ -805,10 +889,14 @@ export default function CafeteriaDashboard() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col cursor-pointer hover:bg-slate-100 p-1 rounded transition-colors" onClick={() => handleAssignStaff(staff)}>
+                        <Button 
+                          onClick={() => handleOpenAssignmentModal(staff)}
+                          variant="ghost"
+                          className="flex flex-col cursor-pointer hover:bg-slate-100 p-1 rounded transition-colors h-auto"
+                        >
                           <span className="text-xs font-bold text-slate-700">{staff.assignment || 'Unassigned'}</span>
-                          <span className="text-[9px] text-slate-400 font-medium">{staff.role === 'waiter' ? t('section') : t('category')}</span>
-                        </div>
+                          <span className="text-[9px] text-slate-400 font-medium">{staff.role === 'waiter' ? t('section') : staff.role === 'chef' ? t('category') : 'N/A'}</span>
+                        </Button>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -1160,6 +1248,158 @@ export default function CafeteriaDashboard() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Staff Creation Modal */}
+      {showStaffModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md border-none shadow-2xl">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle>{t('create_staff')}</CardTitle>
+              <Button variant="ghost" size="icon" onClick={() => setShowStaffModal(false)} className="h-6 w-6">
+                <X className="w-4 h-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {staffCreationSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-green-900">{t('staff_created')}</p>
+                    <p className="text-xs text-green-700 mt-1">{t('staff_ready_login')}</p>
+                  </div>
+                </div>
+              )}
+
+              {staffCreationError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-red-900">{t('error')}</p>
+                    <p className="text-xs text-red-700 mt-1">{staffCreationError}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-slate-400">{t('name')}</Label>
+                <Input 
+                  placeholder={t('full_name')}
+                  value={staffFormData.name}
+                  onChange={(e) => handleStaffFormChange('name', e.target.value)}
+                  className="border-slate-200"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-slate-400">{t('email_username')}</Label>
+                <Input 
+                  placeholder="john@example.com"
+                  value={staffFormData.loginUsername}
+                  onChange={(e) => handleStaffFormChange('loginUsername', e.target.value)}
+                  className="border-slate-200"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-slate-400">{t('password')}</Label>
+                <div className="relative">
+                  <Input 
+                    type={showPasswordStaff ? "text" : "password"}
+                    placeholder={t('min_6_chars')}
+                    value={staffFormData.password}
+                    onChange={(e) => handleStaffFormChange('password', e.target.value)}
+                    className="border-slate-200 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordStaff(!showPasswordStaff)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPasswordStaff ? <EyeOff className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-slate-400">{t('role')}</Label>
+                <Select value={staffFormData.role} onValueChange={(val) => handleStaffFormChange('role', val)}>
+                  <SelectTrigger className="border-slate-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="waiter">Waiter</SelectItem>
+                    <SelectItem value="chef">Chef</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button variant="outline" onClick={() => setShowStaffModal(false)} className="flex-1 border-slate-200">
+                  {t('cancel')}
+                </Button>
+                <Button onClick={handleCreateStaff} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={createStaffMutation.isPending}>
+                  {createStaffMutation.isPending ? t('creating') : t('create')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Staff Assignment Modal */}
+      {showAssignmentModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md border-none shadow-2xl">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle>
+                {assignmentStaffRole === 'waiter' ? t('assign_section') : t('assign_category')}
+              </CardTitle>
+              <Button variant="ghost" size="icon" onClick={() => setShowAssignmentModal(false)} className="h-6 w-6">
+                <X className="w-4 h-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-slate-400">
+                  {assignmentStaffRole === 'waiter' ? t('select_section') : t('select_category')}
+                </Label>
+                <Select value={selectedAssignmentId} onValueChange={setSelectedAssignmentId}>
+                  <SelectTrigger className="border-slate-200">
+                    <SelectValue placeholder={assignmentStaffRole === 'waiter' ? t('choose_section') : t('choose_category')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assignmentStaffRole === 'waiter' ? (
+                      backendSections?.map((section: any) => (
+                        <SelectItem key={section.id} value={section.id}>
+                          {section.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      backendCategories?.map((category: any) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button variant="outline" onClick={() => setShowAssignmentModal(false)} className="flex-1 border-slate-200">
+                  {t('cancel')}
+                </Button>
+                <Button onClick={handleConfirmAssignment} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={!selectedAssignmentId}>
+                  {t('assign')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Footer / Copyright */}
       <footer className="p-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] pb-24">
