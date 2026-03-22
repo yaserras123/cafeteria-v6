@@ -2,49 +2,77 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+
+/**
+ * Role → dashboard route mapping.
+ * Matches the roles returned by server/routers/auth.ts login mutation.
+ */
+const ROLE_ROUTES: Record<string, string> = {
+  owner: "/dashboard/owner",
+  marketer: "/dashboard/marketer",
+  admin: "/dashboard/cafeteria",
+  manager: "/dashboard/manager",
+  waiter: "/dashboard/waiter",
+  chef: "/dashboard/chef",
+};
+
+function getRouteForRole(role: string): string {
+  return ROLE_ROUTES[role] ?? "/dashboard/cafeteria";
+}
 
 export default function Login() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [, setLocation] = useLocation();
+
   const loginMutation = trpc.auth.login.useMutation();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!username || !password) {
-      toast.error("Please enter username and password");
+    setErrorMessage(null);
+
+    if (!email.trim()) {
+      setErrorMessage("Email is required.");
+      return;
+    }
+    if (!password) {
+      setErrorMessage("Password is required.");
       return;
     }
 
     setIsLoading(true);
     try {
       const result = await loginMutation.mutateAsync({
-        username,
+        email: email.trim(),
         password,
       });
 
-      toast.success(`Welcome, ${result.name}!`);
-      
-      // Redirect based on user type
+      toast.success(`Welcome, ${result.name ?? "User"}!`);
+
+      const destination = getRouteForRole(result.role);
+
       setTimeout(() => {
-        if (result.userType === "marketer") {
-          setLocation("/dashboard/marketer");
-        } else if (result.userType === "cafeteria") {
-          setLocation("/dashboard/cafeteria");
-        } else if (result.userType === "staff") {
-          setLocation("/dashboard/manager");
-        } else {
-          setLocation("/dashboard/owner");
-        }
-      }, 500);
+        setLocation(destination);
+      }, 400);
     } catch (error: any) {
-      toast.error(error.message || "Login failed");
+      const msg =
+        error?.message ||
+        error?.data?.message ||
+        "Login failed. Please check your credentials.";
+      setErrorMessage(msg);
     } finally {
       setIsLoading(false);
     }
@@ -57,65 +85,85 @@ export default function Login() {
           <CardTitle className="text-3xl font-bold">Cafeteria System</CardTitle>
           <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>
+
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4" noValidate>
+            {/* Email field */}
             <div className="space-y-2">
-              <label htmlFor="username" className="text-sm font-medium">
-                Username
+              <label htmlFor="email" className="text-sm font-medium">
+                Email
               </label>
               <Input
-                id="username"
-                type="text"
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
                 disabled={isLoading}
-                autoComplete="username"
+                autoComplete="email"
+                autoFocus
               />
             </div>
 
+            {/* Password field with show/hide toggle */}
             <div className="space-y-2">
               <label htmlFor="password" className="text-sm font-medium">
                 Password
               </label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-                autoComplete="current-password"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  disabled={isLoading}
+                  autoComplete="current-password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
+            {/* Error message area */}
+            {errorMessage && (
+              <div
+                role="alert"
+                className="rounded-md bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive"
+              >
+                {errorMessage}
+              </div>
+            )}
+
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
+                  Signing in…
                 </>
               ) : (
                 "Sign In"
               )}
             </Button>
           </form>
-
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm text-blue-900">
-              <strong>Demo Credentials:</strong>
-            </p>
-            <p className="text-xs text-blue-800 mt-1">
-              Username: yaserras@gmail.com
-            </p>
-            <p className="text-xs text-blue-800">
-              Password: Kamel123321$
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

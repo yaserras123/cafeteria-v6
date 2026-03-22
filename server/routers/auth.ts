@@ -51,14 +51,42 @@ async function generateUniqueUsername(baseName: string): Promise<string> {
   return username;
 }
 
+/**
+ * Map a staff role (from cafeteriaStaff.role) to the canonical user role
+ * used for dashboard routing.
+ */
+function mapStaffRole(staffRole: string): string {
+  switch (staffRole) {
+    case "cafeteria_admin":
+      return "admin";
+    case "manager":
+      return "manager";
+    case "waiter":
+      return "waiter";
+    case "chef":
+      return "chef";
+    default:
+      return "manager";
+  }
+}
+
 export const authRouter = router({
   /**
-   * Login with username and password
+   * Login with email/username and password.
+   *
+   * Lookup order:
+   *   1. users table  (role: owner | marketer | cafeteria_admin | manager | waiter | chef)
+   *   2. marketers table
+   *   3. cafeterias table
+   *   4. cafeteriaStaff table
+   *
+   * Returns: { success, message, role, name, referenceCode? }
+   *   role is one of: "owner" | "marketer" | "admin" | "manager" | "waiter" | "chef"
    */
   login: publicProcedure
     .input(
       z.object({
-        username: z.string().min(1, "Username is required"),
+        email: z.string().min(1, "Email is required"),
         password: z.string().min(1, "Password is required"),
       })
     )
@@ -66,104 +94,44 @@ export const authRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      // Search in users table
-      let user = (await db.select().from(users).where(eq(users.loginUsername, input.username)))[0];
-      let userType = "user";
+      const identifier = input.email.trim();
 
-      // If not found in users, search in marketers
-      if (!user) {
-        const marketer = (await db.select().from(marketers).where(eq(marketers.loginUsername, input.username)))[0];
-        if (marketer && marketer.passwordHash) {
-          const isValid = await verifyPassword(input.password, marketer.passwordHash);
-          if (!isValid) {
-            throw new Error("Invalid username or password");
-          }
+      // ── 1. Check users table (by loginUsername OR email) ──────────────────
+      let userRow = (
+        await db.select().from(users).where(eq(users.loginUsername, identifier))
+      )[0];
 
-          // Create session for marketer
-          const openId = `marketer_${marketer.id}`;
-          const sessionToken = await sdk.createSessionToken(openId, {
-            name: marketer.name,
-            expiresInMs: ONE_YEAR_MS,
-          });
-
-          const cookieOptions = getSessionCookieOptions(ctx.req);
-          ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-          return {
-            success: true,
-            message: "Login successful",
-            userType: "marketer",
-            name: marketer.name,
-          };
-        }
+      if (!userRow) {
+        userRow = (
+          await db.select().from(users).where(eq(users.email, identifier))
+        )[0];
       }
 
-      // If not found in marketers, search in cafeterias
-      if (!user) {
-        const cafeteria = (await db.select().from(cafeterias).where(eq(cafeterias.loginUsername, input.username)))[0];
-        if (cafeteria && cafeteria.passwordHash) {
-          const isValid = await verifyPassword(input.password, cafeteria.passwordHash);
-          if (!isValid) {
-            throw new Error("Invalid username or password");
-          }
+      if (userRow && userRow.passwordHash) {
+        const isValid = await verifyPassword(input.password, userRow.passwordHash);
+        if (!isValid) throw new Error("Invalid email or password");
 
-          // Create session for cafeteria
-          const openId = `cafeteria_${cafeteria.id}`;
-          const sessionToken = await sdk.createSessionToken(openId, {
-            name: cafeteria.name,
-            expiresInMs: ONE_YEAR_MS,
-          });
-
-          const cookieOptions = getSessionCookieOptions(ctx.req);
-          ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-          return {
-            success: true,
-            message: "Login successful",
-            userType: "cafeteria",
-            name: cafeteria.name,
-          };
-        }
-      }
-
-      // If not found in cafeterias, search in cafeteriaStaff
-      if (!user) {
-        const staff = (await db.select().from(cafeteriaStaff).where(eq(cafeteriaStaff.loginUsername, input.username)))[0];
-        if (staff && staff.passwordHash) {
-          const isValid = await verifyPassword(input.password, staff.passwordHash);
-          if (!isValid) {
-            throw new Error("Invalid username or password");
-          }
-
-          // Create session for staff
-          const openId = `staff_${staff.id}`;
-          const sessionToken = await sdk.createSessionToken(openId, {
-            name: staff.name,
-            expiresInMs: ONE_YEAR_MS,
-          });
-
-          const cookieOptions = getSessionCookieOptions(ctx.req);
-          ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-          return {
-            success: true,
-            message: "Login successful",
-            userType: "staff",
-            name: staff.name,
-          };
-        }
-      }
-
-      // If found in users table
-      if (user && user.passwordHash) {
-        const isValid = await verifyPassword(input.password, user.passwordHash);
-        if (!isValid) {
-          throw new Error("Invalid username or password");
+        // Determine canonical role for routing
+        const dbRole = userRow.role ?? "cafeteria_admin";
+        let role: string;
+        if (dbRole === "owner") {
+          role = "owner";
+        } else if (dbRole === "marketer") {
+          role = "marketer";
+        } else if (dbRole === "cafeteria_admin") {
+          role = "admin";
+        } else if (dbRole === "manager") {
+          role = "manager";
+        } else if (dbRole === "waiter") {
+          role = "waiter";
+        } else if (dbRole === "chef") {
+          role = "chef";
+        } else {
+          role = "admin";
         }
 
-        // Create session
-        const sessionToken = await sdk.createSessionToken(user.openId, {
-          name: user.name || "",
+        const sessionToken = await sdk.createSessionToken(userRow.openId, {
+          name: userRow.name || "",
           expiresInMs: ONE_YEAR_MS,
         });
 
@@ -173,12 +141,106 @@ export const authRouter = router({
         return {
           success: true,
           message: "Login successful",
-          userType: "user",
-          name: user.name,
+          role,
+          name: userRow.name,
+          referenceCode: userRow.referenceCode ?? null,
         };
       }
 
-      throw new Error("Invalid username or password");
+      // ── 2. Check marketers table ───────────────────────────────────────────
+      let marketerRow = (
+        await db.select().from(marketers).where(eq(marketers.loginUsername, identifier))
+      )[0];
+
+      if (!marketerRow) {
+        marketerRow = (
+          await db.select().from(marketers).where(eq(marketers.email, identifier))
+        )[0];
+      }
+
+      if (marketerRow && marketerRow.passwordHash) {
+        const isValid = await verifyPassword(input.password, marketerRow.passwordHash);
+        if (!isValid) throw new Error("Invalid email or password");
+
+        const openId = `marketer_${marketerRow.id}`;
+        const sessionToken = await sdk.createSessionToken(openId, {
+          name: marketerRow.name,
+          expiresInMs: ONE_YEAR_MS,
+        });
+
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+        return {
+          success: true,
+          message: "Login successful",
+          role: "marketer",
+          name: marketerRow.name,
+          referenceCode: marketerRow.referenceCode ?? null,
+        };
+      }
+
+      // ── 3. Check cafeterias table ──────────────────────────────────────────
+      let cafeteriaRow = (
+        await db.select().from(cafeterias).where(eq(cafeterias.loginUsername, identifier))
+      )[0];
+
+      if (!cafeteriaRow) {
+        // cafeterias has no email column; skip email fallback
+      }
+
+      if (cafeteriaRow && cafeteriaRow.passwordHash) {
+        const isValid = await verifyPassword(input.password, cafeteriaRow.passwordHash);
+        if (!isValid) throw new Error("Invalid email or password");
+
+        const openId = `cafeteria_${cafeteriaRow.id}`;
+        const sessionToken = await sdk.createSessionToken(openId, {
+          name: cafeteriaRow.name,
+          expiresInMs: ONE_YEAR_MS,
+        });
+
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+        return {
+          success: true,
+          message: "Login successful",
+          role: "admin",
+          name: cafeteriaRow.name,
+          referenceCode: cafeteriaRow.referenceCode ?? null,
+        };
+      }
+
+      // ── 4. Check cafeteriaStaff table ──────────────────────────────────────
+      const staffRow = (
+        await db.select().from(cafeteriaStaff).where(eq(cafeteriaStaff.loginUsername, identifier))
+      )[0];
+
+      if (staffRow && staffRow.passwordHash) {
+        const isValid = await verifyPassword(input.password, staffRow.passwordHash);
+        if (!isValid) throw new Error("Invalid email or password");
+
+        const openId = `staff_${staffRow.id}`;
+        const sessionToken = await sdk.createSessionToken(openId, {
+          name: staffRow.name,
+          expiresInMs: ONE_YEAR_MS,
+        });
+
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+        const role = mapStaffRole(staffRow.role ?? "manager");
+
+        return {
+          success: true,
+          message: "Login successful",
+          role,
+          name: staffRow.name,
+          referenceCode: null,
+        };
+      }
+
+      throw new Error("Invalid email or password");
     }),
 
   /**
@@ -292,7 +354,7 @@ export const authRouter = router({
     }),
 
   /**
-   * Get current user info (from OAuth session)
+   * Get current user info (from session cookie)
    */
   me: publicProcedure.query(opts => opts.ctx.user),
 
