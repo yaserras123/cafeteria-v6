@@ -197,6 +197,17 @@ export default function CafeteriaDashboard() {
     { enabled: !!cafeteriaId, refetchInterval: 10000 }
   );
 
+  // Reports Queries
+  const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
+  const { data: cafeteriaStats } = trpc.reporting.getCafeteriaStats.useQuery(
+    { cafeteriaId, period: reportPeriod },
+    { enabled: !!cafeteriaId && activeTab === 'reports' }
+  );
+  const { data: staffPerformance } = trpc.reporting.getStaffPerformance.useQuery(
+    { cafeteriaId },
+    { enabled: !!cafeteriaId && activeTab === 'reports' }
+  );
+
   // Mutations
   // Menu Mutations
   const createItemMutation = trpc.menu.createMenuItem.useMutation({ onSuccess: () => refetchItems() });
@@ -1156,19 +1167,32 @@ export default function CafeteriaDashboard() {
               </Button>
             </div>
 
+            <div className="flex justify-end gap-2 mb-4">
+              {(['daily', 'weekly', 'monthly'] as const).map((p) => (
+                <Button 
+                  key={p} 
+                  variant={reportPeriod === p ? 'default' : 'outline'} 
+                  size="sm" 
+                  className="text-[10px] font-black uppercase h-8"
+                  onClick={() => setReportPeriod(p)}
+                >
+                  {t(p)}
+                </Button>
+              ))}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: t('monthly_sales'), value: '$12,450', trend: '+12.5%', color: 'text-blue-600' },
-                { label: t('avg_order_val'), value: '$18.20', trend: '+3.2%', color: 'text-purple-600' },
-                { label: t('points_consumed'), value: '8,420', trend: '+8.1%', color: 'text-amber-600' },
-                { label: t('active_waiters'), value: '8', trend: 'Stable', color: 'text-indigo-600' },
+                { label: t(`${reportPeriod}_sales`), value: `$${(cafeteriaStats?.totalSales || 0).toLocaleString()}`, color: 'text-blue-600' },
+                { label: t('avg_order_val'), value: `$${(cafeteriaStats?.averageOrderValue || 0).toFixed(2)}`, color: 'text-purple-600' },
+                { label: t('points_consumed'), value: (cafeteriaStats?.totalPointsDeducted || 0).toLocaleString(), color: 'text-amber-600' },
+                { label: t('active_staff'), value: (cafeteriaStats?.activeStaffCount || 0).toString(), color: 'text-indigo-600' },
               ].map((report, i) => (
                 <Card key={i} className="border-none shadow-sm">
                   <CardContent className="p-6">
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">{report.label}</p>
                     <div className="flex items-end justify-between">
                       <h3 className={`text-2xl font-black ${report.color}`}>{report.value}</h3>
-                      <span className="text-[10px] font-black text-green-500">{report.trend}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -1177,17 +1201,41 @@ export default function CafeteriaDashboard() {
 
             <Card className="border-none shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg">{t('sales_performance')}</CardTitle>
-                <CardDescription>{t('sales_performance_desc')}</CardDescription>
+                <CardTitle className="text-lg">{t('staff_performance')}</CardTitle>
+                <CardDescription>{t('staff_performance_desc')}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px] w-full bg-slate-50 rounded-2xl flex items-center justify-center border border-dashed border-slate-200">
-                  <div className="text-center">
-                    <BarChart3 className="w-12 h-12 text-slate-200 mx-auto mb-2" />
-                    <p className="text-sm font-bold text-slate-400">{t('chart_placeholder')}</p>
-                    <p className="text-[10px] text-slate-300">{t('chart_tech')}</p>
-                  </div>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-50 hover:bg-transparent">
+                      <TableHead className="text-[10px] font-black uppercase text-slate-400">{t('staff_name')}</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase text-slate-400">{t('role')}</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase text-slate-400 text-right">{t('total_sales')}</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase text-slate-400 text-right">{t('orders')}</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase text-slate-400 text-right">{t('hours')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(staffPerformance || []).slice(0, 5).map((staff: any) => (
+                      <TableRow key={staff.staffId} className="border-slate-50 group hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="font-bold text-slate-900">{staff.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[9px] font-black uppercase border-slate-200">{staff.role}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-black text-blue-600">${staff.totalSales.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-bold text-slate-600">{staff.totalOrders}</TableCell>
+                        <TableCell className="text-right font-bold text-slate-600">{staff.totalHoursWorked}h</TableCell>
+                      </TableRow>
+                    ))}
+                    {(!staffPerformance || staffPerformance.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-slate-400 text-xs font-medium">
+                          {t('no_performance_data') || 'No performance data available'}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </TabsContent>

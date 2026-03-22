@@ -280,4 +280,90 @@ export const reportingRouter = router({
         averageOrderValue: calculateAverageOrderValue(totalSales, totalOrders),
       };
     }),
+
+  getCafeteriaStats: protectedProcedure
+    .input(z.object({ cafeteriaId: z.string(), period: z.enum(["daily", "weekly", "monthly"]) }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const now = new Date();
+      let startDate = new Date();
+      if (input.period === "daily") startDate.setHours(0, 0, 0, 0);
+      else if (input.period === "weekly") startDate.setDate(now.getDate() - 7);
+      else if (input.period === "monthly") startDate.setMonth(now.getMonth() - 1);
+
+      const ordersData = await db
+        .select()
+        .from(orders)
+        .where(
+          and(
+            eq(orders.cafeteriaId, input.cafeteriaId),
+            gte(orders.closedAt, startDate),
+            eq(orders.status, "closed")
+          )
+        );
+
+      const totalSales = calculateTotalSales(ordersData);
+      const totalOrders = ordersData.length;
+      const totalPointsDeducted = ordersData.reduce((sum, o) => sum + (Number(o.pointsConsumed) || 0), 0);
+      const averageOrderValue = calculateAverageOrderValue(totalSales, totalOrders);
+
+      // Get active staff count
+      const activeStaff = await db
+        .select()
+        .from(cafeteriaStaff)
+        .where(and(eq(cafeteriaStaff.cafeteriaId, input.cafeteriaId), eq(cafeteriaStaff.status, "active")));
+
+      return {
+        totalSales,
+        totalOrders,
+        totalPointsDeducted,
+        averageOrderValue,
+        activeStaffCount: activeStaff.length,
+      };
+    }),
+
+  getStaffPerformance: protectedProcedure
+    .input(z.object({ cafeteriaId: z.string() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const staffList = await db
+        .select()
+        .from(cafeteriaStaff)
+        .where(eq(cafeteriaStaff.cafeteriaId, input.cafeteriaId));
+
+      const performance = await Promise.all(staffList.map(async (staff) => {
+        const staffShifts = await db
+          .select()
+          .from(shifts)
+          .where(eq(shifts.staffId, staff.id));
+
+        const totalSales = staffShifts.reduce((sum, s) => sum + (Number(s.totalSales) || 0), 0);
+        const totalOrders = staffShifts.reduce((sum, s) => sum + (s.totalOrders || 0), 0);
+        const totalItemsSold = staffShifts.reduce((sum, s) => sum + (s.totalItemsSold || 0), 0);
+        
+        let totalHours = 0;
+        staffShifts.forEach(s => {
+          if (s.startTime && s.endTime) {
+            totalHours += (new Date(s.endTime).getTime() - new Date(s.startTime).getTime()) / (1000 * 60 * 60);
+          }
+        });
+
+        return {
+          staffId: staff.id,
+          name: staff.name,
+          role: staff.role,
+          totalSales,
+          totalOrders,
+          totalItemsSold,
+          totalHoursWorked: Number(totalHours.toFixed(2)),
+          averageOrderValue: totalOrders > 0 ? Number((totalSales / totalOrders).toFixed(2)) : 0,
+        };
+      }));
+
+      return performance.sort((a, b) => b.totalSales - a.totalSales);
+    }),
 });
