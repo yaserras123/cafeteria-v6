@@ -235,6 +235,15 @@ export default function CafeteriaDashboard() {
     onSuccess: () => {
       setStaffCreationSuccess(true);
       setStaffFormData({ name: '', loginUsername: '', password: '', phone: '', role: 'waiter' });
+      
+      // Revenue Nudge: Suggest upgrade after growing staff
+      if (backendStaff && backendStaff.length >= 2 && plan === 'starter') {
+        setTimeout(() => {
+          setUpgradeReason("You're growing fast! Upgrade to Growth to manage up to 10 staff members and unlock detailed performance analytics.");
+          setShowUpgradeModal(true);
+        }, 2500);
+      }
+
       setTimeout(() => {
         setShowStaffModal(false);
         setStaffCreationSuccess(false);
@@ -269,6 +278,14 @@ export default function CafeteriaDashboard() {
     onSuccess: () => {
       refetchRecharges();
       setRechargeAmount('');
+
+      // Revenue Nudge: Suggest upgrade after recharge
+      if (plan === 'starter') {
+        setTimeout(() => {
+          setUpgradeReason("Scale faster with the Growth plan! Unlock premium reports and unlimited analytics for your operations.");
+          setShowUpgradeModal(true);
+        }, 1500);
+      }
     } 
   });
 
@@ -568,8 +585,33 @@ export default function CafeteriaDashboard() {
     { label: t('points_deducted'), value: '320', icon: BarChart3, color: 'text-rose-600', bg: 'bg-rose-50' },
   ];
 
+  // ── REVENUE OPTIMIZATION NUDGES ─────────────────────────────────────────
+  const staffUsagePercent = limits?.maxStaff ? (currentStaffCount / limits.maxStaff) * 100 : 0;
+  const tableUsagePercent = limits?.maxTables ? (currentTableCount / limits.maxTables) * 100 : 0;
+  const showStaffWarning = plan === 'starter' && staffUsagePercent >= 80;
+  const showTableWarning = plan === 'starter' && tableUsagePercent >= 80;
+
   return (
     <div className={`min-h-screen bg-slate-50/50 font-sans ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+      {/* Revenue Conversion Banners */}
+      {plan === 'starter' && (
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-2 px-4 text-center text-xs font-bold flex items-center justify-center gap-4 shadow-md sticky top-0 z-[40]">
+          <div className="flex items-center gap-2">
+            <Zap className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400 animate-pulse" />
+            <span className="uppercase tracking-widest">Growth Plan Offer:</span>
+            <span className="font-medium opacity-90">Unlock full reporting and manage up to 10 staff members.</span>
+          </div>
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            className="h-7 px-3 text-[10px] font-black uppercase tracking-tighter bg-white text-blue-700 hover:bg-blue-50 border-none"
+            onClick={() => setLocation('/upgrade')}
+          >
+            Upgrade Now
+          </Button>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm backdrop-blur-md bg-white/90">
         <div className="flex items-center gap-3">
@@ -604,6 +646,56 @@ export default function CafeteriaDashboard() {
       </header>
 
       <main className="max-w-[1600px] mx-auto p-4 lg:p-8">
+        {/* Smart Limit Warnings */}
+        {(showStaffWarning || showTableWarning) && (
+          <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-top duration-500">
+            {showStaffWarning && (
+              <Card className="border-amber-200 bg-amber-50/50 shadow-sm overflow-hidden">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Staff Limit Warning</p>
+                      <p className="text-xs text-slate-600 font-medium">You've used {currentStaffCount}/{limits?.maxStaff} staff slots. Upgrade to continue growing.</p>
+                    </div>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] uppercase tracking-wider h-8"
+                    onClick={() => setLocation('/upgrade')}
+                  >
+                    Expand Limit
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+            {showTableWarning && (
+              <Card className="border-blue-200 bg-blue-50/50 shadow-sm overflow-hidden">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                      <TableIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Table Limit Warning</p>
+                      <p className="text-xs text-slate-600 font-medium">You've used {currentTableCount}/{limits?.maxTables} table slots. Don't stop now!</p>
+                    </div>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] uppercase tracking-wider h-8"
+                    onClick={() => setLocation('/upgrade')}
+                  >
+                    Unlock Tables
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
           {/* Navigation */}
           <div className="overflow-x-auto pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 scrollbar-hide">
@@ -884,6 +976,7 @@ export default function CafeteriaDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
               <div className="lg:col-span-1 space-y-4">
+                <FeatureGate feature="sections" showPreview={true}>
                 <Card className="border-none shadow-sm">
                   <CardHeader>
                     <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-400">{t('zones')}</CardTitle>
@@ -916,6 +1009,7 @@ export default function CafeteriaDashboard() {
                     ))}
                   </CardContent>
                 </Card>
+                </FeatureGate>
               </div>
 
               <div className="lg:col-span-3">
