@@ -16,6 +16,52 @@ async function hashPassword(password: string): Promise<string> {
   return bcryptjs.hash(password, SALT_ROUNDS);
 }
 
+interface TestUser {
+  email: string;
+  password: string;
+  name: string;
+  role: "owner" | "marketer" | "cafeteria_admin" | "manager" | "waiter" | "chef";
+}
+
+const TEST_USERS: TestUser[] = [
+  {
+    email: "owner@cafeteria.com",
+    password: "123456",
+    name: "System Owner",
+    role: "owner",
+  },
+  {
+    email: "admin@cafeteria.com",
+    password: "123456",
+    name: "Cafeteria Admin",
+    role: "cafeteria_admin",
+  },
+  {
+    email: "manager@cafeteria.com",
+    password: "123456",
+    name: "Cafeteria Manager",
+    role: "manager",
+  },
+  {
+    email: "waiter@cafeteria.com",
+    password: "123456",
+    name: "Waiter Staff",
+    role: "waiter",
+  },
+  {
+    email: "chef@cafeteria.com",
+    password: "123456",
+    name: "Chef Staff",
+    role: "chef",
+  },
+  {
+    email: "marketer@cafeteria.com",
+    password: "123456",
+    name: "Marketing Manager",
+    role: "marketer",
+  },
+];
+
 export async function ensureTestUsers(): Promise<void> {
   const db = await getDb();
   if (!db) {
@@ -23,36 +69,43 @@ export async function ensureTestUsers(): Promise<void> {
     return;
   }
 
-  // ── Test admin: admin@cafeteria.com / 123456 ────────────────────────────────
-  const adminEmail = "admin@cafeteria.com";
-  const existing = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, adminEmail));
+  console.log("[ensureTestUsers] Starting test user provisioning...");
 
-  if (existing.length === 0) {
-    const adminPassword = "123456";
-    const adminPasswordHash = await hashPassword(adminPassword);
-    const adminId = nanoid();
-    const adminOpenId = `admin_${adminId}`;
+  for (const testUser of TEST_USERS) {
+    const existing = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, testUser.email));
 
-    await db.insert(users).values({
-      id: adminId,
-      openId: adminOpenId,
-      name: "Cafeteria Admin",
-      email: adminEmail,
-      loginUsername: adminEmail,
-      passwordHash: adminPasswordHash,
-      loginMethod: "email",
-      role: "cafeteria_admin",
-      preferredLanguage: "en",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      lastSignedIn: new Date(),
-    });
+    if (existing.length === 0) {
+      const passwordHash = await hashPassword(testUser.password);
+      const userId = nanoid();
+      const openId = `${testUser.role}_${userId}`;
 
-    console.log("[ensureTestUsers] ✅ Test admin user created: admin@cafeteria.com");
-  } else {
-    console.log("[ensureTestUsers] ℹ️  Test admin user already exists — skipping.");
+      await db.insert(users).values({
+        id: userId,
+        openId: openId,
+        name: testUser.name,
+        email: testUser.email,
+        loginUsername: testUser.email,
+        passwordHash: passwordHash,
+        loginMethod: "email",
+        role: testUser.role,
+        preferredLanguage: "en",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastSignedIn: new Date(),
+      });
+
+      console.log(
+        `[ensureTestUsers] ✅ Test user created: ${testUser.email} (${testUser.role})`
+      );
+    } else {
+      console.log(
+        `[ensureTestUsers] ℹ️  Test user already exists: ${testUser.email} — skipping.`
+      );
+    }
   }
+
+  console.log("[ensureTestUsers] ✅ Test user provisioning completed.");
 }
