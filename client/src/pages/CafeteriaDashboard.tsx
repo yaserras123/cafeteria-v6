@@ -694,11 +694,36 @@ export default function CafeteriaDashboard() {
               </Card>
             )}
           </div>
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        {/* Launch Onboarding Hints */}
+        {backendStaff?.length === 0 && (
+          <div className="mb-8 p-6 bg-white border border-blue-100 rounded-3xl shadow-xl shadow-blue-50 flex flex-col md:flex-row items-center justify-between gap-6 animate-in slide-in-from-top duration-700">
+            <div className="flex items-center gap-5">
+              <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                <Zap className="w-7 h-7 fill-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Welcome to Cafeteria v1.1</h2>
+                <div className="flex flex-wrap gap-4 mt-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-blue-600">
+                    <span className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">1</span> Add Staff
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+                    <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center">2</span> Create Tables
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+                    <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center">3</span> Take Orders
+                  </div>
+                </div>
+              </div>
+            </div>
+            <Button onClick={() => setActiveTab('staff')} className="bg-blue-600 hover:bg-blue-700 h-12 px-8 font-black uppercase tracking-widest shadow-lg shadow-blue-200">
+              Get Started
+            </Button>
+          </div>
         )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          {/* Navigation */}
-          <div className="overflow-x-auto pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 scrollbar-hide">
+        {/* Smart Limit Warnings */}       <div className="overflow-x-auto pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 scrollbar-hide">
             <TabsList className="bg-white border border-slate-200 p-1 h-auto inline-flex shadow-sm rounded-xl">
               <TabsTrigger value="overview" className="flex items-center gap-2 py-2.5 px-4 rounded-lg data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
                 <LayoutDashboard className="w-4 h-4" /> {t('nav_overview')}
@@ -758,6 +783,15 @@ export default function CafeteriaDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
+                    {orders.length === 0 && (
+                      <div className="text-center py-12 border-2 border-dashed border-slate-100 rounded-2xl animate-in fade-in duration-700">
+                        <div className="mx-auto w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                          <ShoppingCart className="w-6 h-6 text-slate-300" />
+                        </div>
+                        <p className="text-sm font-bold text-slate-900">No orders yet</p>
+                        <p className="text-xs text-slate-400 mt-1">Start serving customers to see your activity here.</p>
+                      </div>
+                    )}
                     {orders.slice(0, 5).map((order, i) => (
                       <div key={order.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
                         <div className="flex items-center gap-4">
@@ -1014,6 +1048,21 @@ export default function CafeteriaDashboard() {
 
               <div className="lg:col-span-3">
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
+                  {(!backendTables || backendTables.length === 0) && (
+                    <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-100 rounded-3xl animate-in fade-in duration-1000">
+                      <div className="mx-auto w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                        <TableIcon className="w-8 h-8 text-slate-300" />
+                      </div>
+                      <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Create your first table</h3>
+                      <p className="text-sm text-slate-500 mt-2">Add tables to your zones to start accepting customer orders.</p>
+                      <Button 
+                        onClick={handleCreateTable}
+                        className="mt-6 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200"
+                      >
+                        <Plus className="w-4 h-4 mr-2" /> Create Table
+                      </Button>
+                    </div>
+                  )}
                   {backendTables
                     ?.filter((table: any) => selectedSectionId === 'all' || table.sectionId === selectedSectionId)
                     .map((table: any) => (
@@ -1101,6 +1150,27 @@ export default function CafeteriaDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {(!backendStaff || backendStaff.length === 0) && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-20 text-center">
+                        <div className="flex flex-col items-center animate-in zoom-in-95 duration-500">
+                          <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                            <UserPlus className="w-8 h-8 text-blue-500" />
+                          </div>
+                          <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Add your first staff member</h3>
+                          <p className="text-sm text-slate-500 mt-2 max-w-xs mx-auto">
+                            Start building your team to begin managing your cafeteria operations efficiently.
+                          </p>
+                          <Button 
+                            onClick={handleOpenStaffModal}
+                            className="mt-6 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200"
+                          >
+                            <Plus className="w-4 h-4 mr-2" /> Add Staff Member
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
                   {backendStaff?.map((staff: any) => (
                     <TableRow key={staff.id} className="border-slate-50 hover:bg-slate-50/50 transition-colors group">
                       <TableCell>
@@ -1171,6 +1241,15 @@ export default function CafeteriaDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {orders.length === 0 && (
+                <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-100 rounded-3xl animate-in fade-in duration-1000">
+                  <div className="mx-auto w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                    <ShoppingCart className="w-8 h-8 text-slate-300" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">No active orders</h3>
+                  <p className="text-sm text-slate-500 mt-2">When customers place orders at their tables, they will appear here in real-time.</p>
+                </div>
+              )}
               {orders.map((order) => (
                 <Card key={order.id} className="border-none shadow-sm overflow-hidden group hover:shadow-md transition-all">
                   <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-3">

@@ -45,18 +45,18 @@ function isUpgrade(current: string, incoming: string): boolean {
  *   - checkout.session.completed
  */
 export async function handleStripeWebhook(req: Request, res: Response) {
-  console.log("[Stripe Webhook] Received event");
+  console.log("[BILLING] [Stripe Webhook] Received event");
 
   // ── Signature verification ────────────────────────────────────────────────
   const sig = req.headers["stripe-signature"];
 
   if (!sig) {
-    console.warn("[Stripe Webhook] Missing stripe-signature header");
+    console.warn("[BILLING] [Stripe Webhook] Missing stripe-signature header");
     return res.status(400).json({ error: "Missing signature" });
   }
 
   if (!STRIPE_WEBHOOK_SECRET) {
-    console.error("[Stripe Webhook] STRIPE_WEBHOOK_SECRET is not configured");
+    console.error("[BILLING] [Stripe Webhook] STRIPE_WEBHOOK_SECRET is not configured");
     return res.status(500).json({ error: "Webhook secret not configured" });
   }
 
@@ -69,11 +69,11 @@ export async function handleStripeWebhook(req: Request, res: Response) {
       STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error("[Stripe Webhook] Signature verification failed:", err);
+    console.error("[BILLING] [Stripe Webhook] Signature verification failed:", err);
     return res.status(400).json({ error: "Invalid signature" });
   }
 
-  console.log(`[Stripe Webhook] Event verified: type=${event.type} id=${event.id}`);
+  console.log(`[BILLING] [Stripe Webhook] Event verified: type=${event.type} id=${event.id}`);
 
   // ── Event dispatch ────────────────────────────────────────────────────────
   try {
@@ -86,7 +86,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
 
       if (!cafeteriaId || !plan) {
         console.error(
-          "[Stripe Webhook] Missing metadata — cafeteriaId or plan absent",
+          "[BILLING] [Stripe Webhook] Missing metadata — cafeteriaId or plan absent",
           { sessionId: session.id, cafeteriaId, plan }
         );
         // Return 200 so Stripe does not retry; this is a data issue, not a
@@ -95,7 +95,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
       }
 
       if (!["growth", "pro"].includes(plan)) {
-        console.error("[Stripe Webhook] Invalid plan value in metadata", {
+        console.error("[BILLING] [Stripe Webhook] Invalid plan value in metadata", {
           sessionId: session.id,
           plan,
         });
@@ -105,7 +105,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
       // ── Database access ───────────────────────────────────────────────────
       const db = await getDb();
       if (!db) {
-        console.error("[Stripe Webhook] Database not available");
+        console.error("[BILLING] [Stripe Webhook] Database not available");
         return res.status(500).json({ error: "Database error" });
       }
 
@@ -117,7 +117,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
         .limit(1);
 
       if (rows.length === 0) {
-        console.error("[Stripe Webhook] Cafeteria not found", { cafeteriaId });
+        console.error("[BILLING] [Stripe Webhook] Cafeteria not found", { cafeteriaId });
         // Return 200 — retrying will not help if the record does not exist.
         return res.status(200).json({ received: true, skipped: "cafeteria_not_found" });
       }
@@ -127,7 +127,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
       // ── Idempotency guard ─────────────────────────────────────────────────
       if (currentPlan === plan) {
         console.log(
-          `[Stripe Webhook] Idempotency: cafeteria ${cafeteriaId} already on plan '${plan}' — skipping update`
+          `[BILLING] [Stripe Webhook] Idempotency: cafeteria ${cafeteriaId} already on plan '${plan}' — skipping update`
         );
         return res.status(200).json({ received: true, skipped: "already_active" });
       }
@@ -135,7 +135,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
       // ── Forward-only guard ────────────────────────────────────────────────
       if (!isUpgrade(currentPlan, plan)) {
         console.warn(
-          `[Stripe Webhook] Downgrade blocked: cafeteria ${cafeteriaId} is on '${currentPlan}', refusing to set '${plan}'`
+          `[BILLING] [Stripe Webhook] Downgrade blocked: cafeteria ${cafeteriaId} is on '${currentPlan}', refusing to set '${plan}'`
         );
         return res.status(200).json({ received: true, skipped: "downgrade_blocked" });
       }
@@ -151,20 +151,20 @@ export async function handleStripeWebhook(req: Request, res: Response) {
           .where(eq(cafeterias.id, cafeteriaId));
 
         console.log(
-          `[Stripe Webhook] Processed: cafeteria ${cafeteriaId} upgraded ${currentPlan} → ${plan}`
+          `[BILLING] [Stripe Webhook] Processed: cafeteria ${cafeteriaId} upgraded ${currentPlan} → ${plan}`
         );
         return res.status(200).json({ received: true });
       } catch (dbError) {
-        console.error("[Stripe Webhook] Database update failed:", dbError);
+        console.error("[BILLING] [Stripe Webhook] Database update failed:", dbError);
         return res.status(500).json({ error: "Database update failed" });
       }
     }
 
     // Acknowledge all other event types without processing
-    console.log(`[Stripe Webhook] Unhandled event type '${event.type}' — acknowledged`);
+    console.log(`[BILLING] [Stripe Webhook] Unhandled event type '${event.type}' — acknowledged`);
     return res.status(200).json({ received: true });
   } catch (err) {
-    console.error("[Stripe Webhook] Unexpected error:", err);
+    console.error("[BILLING] [Stripe Webhook] Unexpected error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 }

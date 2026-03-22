@@ -74,7 +74,7 @@ export const billingRouter = router({
           url: session.url,
         };
       } catch (error) {
-        console.error("Stripe checkout session creation error:", error);
+        console.error("[BILLING] Stripe checkout session creation error:", error);
         throw new Error("Failed to create checkout session");
       }
     }),
