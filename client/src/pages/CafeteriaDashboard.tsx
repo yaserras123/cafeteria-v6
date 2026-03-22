@@ -86,7 +86,9 @@ interface TableData {
   id: string;
   tableToken: string;
   status: 'available' | 'occupied' | 'reserved' | 'cleaning';
-  section: string;
+  sectionId: string;
+  tableNumber: number;
+  capacity: number;
 }
 
 interface StaffMember {
@@ -137,46 +139,46 @@ export default function CafeteriaDashboard() {
   // Queries
   const { data: cafeteriaInfo } = trpc.cafeterias.getCafeteriaDetails.useQuery({ cafeteriaId }, { enabled: !!cafeteriaId });
   
+  // Menu Queries
   const { data: backendCategories, refetch: refetchCategories } = trpc.menu.getCategories.useQuery(
     { cafeteriaId },
     { enabled: !!cafeteriaId }
   );
-
   const { data: backendItems, refetch: refetchItems } = trpc.menu.getMenuItems.useQuery(
     { cafeteriaId },
     { enabled: !!cafeteriaId }
   );
 
+  // Tables Queries
+  const { data: backendSections, refetch: refetchSections } = trpc.tables.getSections.useQuery(
+    { cafeteriaId },
+    { enabled: !!cafeteriaId }
+  );
+  const { data: backendTables, refetch: refetchTables } = trpc.tables.getTables.useQuery(
+    { cafeteriaId },
+    { enabled: !!cafeteriaId }
+  );
+
   // Mutations
-  const createItemMutation = trpc.menu.createMenuItem.useMutation({
-    onSuccess: () => refetchItems()
-  });
+  // Menu Mutations
+  const createItemMutation = trpc.menu.createMenuItem.useMutation({ onSuccess: () => refetchItems() });
+  const updateItemMutation = trpc.menu.updateMenuItem.useMutation({ onSuccess: () => refetchItems() });
+  const toggleAvailabilityMutation = trpc.menu.updateItemAvailability.useMutation({ onSuccess: () => refetchItems() });
+  const deleteItemMutation = trpc.menu.deleteMenuItem.useMutation({ onSuccess: () => refetchItems() });
 
-  const updateItemMutation = trpc.menu.updateMenuItem.useMutation({
-    onSuccess: () => refetchItems()
-  });
-
-  const toggleAvailabilityMutation = trpc.menu.updateItemAvailability.useMutation({
-    onSuccess: () => refetchItems()
-  });
-
-  const deleteItemMutation = trpc.menu.deleteMenuItem.useMutation({
-    onSuccess: () => refetchItems()
-  });
+  // Tables Mutations
+  const createSectionMutation = trpc.tables.createSection.useMutation({ onSuccess: () => refetchSections() });
+  const createTableMutation = trpc.tables.createTable.useMutation({ onSuccess: () => refetchTables() });
+  const updateTableStatusMutation = trpc.tables.updateTableStatus.useMutation({ onSuccess: () => refetchTables() });
+  const deleteTableMutation = trpc.tables.deleteTable.useMutation({ onSuccess: () => refetchTables() });
 
   // ── STATE ARCHITECTURE ───────────────────────────────────────────────────
   
   // Menu State
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
 
-  // Tables State (Placeholder for now)
-  const [tables, setTables] = useState<TableData[]>([
-    { id: 't-1', tableToken: 'T-01-XYZ', status: 'available', section: 'Main Hall' },
-    { id: 't-2', tableToken: 'T-02-ABC', status: 'available', section: 'Main Hall' },
-    { id: 't-3', tableToken: 'T-03-QWE', status: 'occupied', section: 'Terrace' },
-    { id: 't-4', tableToken: 'T-04-RTY', status: 'reserved', section: 'VIP Room' },
-    { id: 't-5', tableToken: 'T-05-UIO', status: 'cleaning', section: 'Main Hall' },
-  ]);
+  // Tables State
+  const [selectedSectionId, setSelectedSectionId] = useState<string>('all');
 
   // Staff State (Placeholder for now)
   const [staffList, setStaffList] = useState<StaffMember[]>([
@@ -249,9 +251,41 @@ export default function CafeteriaDashboard() {
   };
 
   // Table Handlers
-  const handleCreateTable = () => console.log('Logic: Create Table');
-  const handleChangeTableStatus = (id: string, status: TableData['status']) => {
-    setTables(prev => prev.map(t => t.id === id ? { ...t, status } : t));
+  const handleCreateSection = async () => {
+    const name = prompt("Section Name (e.g., Terrace, Main Hall):");
+    if (name) {
+      await createSectionMutation.mutateAsync({ cafeteriaId, name });
+    }
+  };
+
+  const handleCreateTable = async () => {
+    if (!selectedSectionId || selectedSectionId === 'all') {
+      alert("Please select a section first");
+      return;
+    }
+    const numberStr = prompt("Table Number:");
+    const capacityStr = prompt("Capacity (People):", "4");
+    if (numberStr && capacityStr) {
+      await createTableMutation.mutateAsync({
+        cafeteriaId,
+        sectionId: selectedSectionId,
+        tableNumber: parseInt(numberStr),
+        capacity: parseInt(capacityStr)
+      });
+    }
+  };
+
+  const handleChangeTableStatus = async (id: string, status: TableData['status']) => {
+    await updateTableStatusMutation.mutateAsync({
+      tableId: id,
+      status
+    });
+  };
+
+  const handleDeleteTable = async (id: string) => {
+    if (confirm("Delete this table?")) {
+      await deleteTableMutation.mutateAsync({ tableId: id });
+    }
   };
 
   // Staff Handlers
@@ -308,7 +342,7 @@ export default function CafeteriaDashboard() {
     { label: t('active_staff'), value: staffList.filter(s => s.status !== 'OFFLINE').length.toString(), icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: t('today_sales'), value: '$1,240', icon: DollarSign, color: 'text-green-600', bg: 'bg-green-50' },
     { label: t('total_orders'), value: orders.length.toString(), icon: ShoppingCart, color: 'text-purple-600', bg: 'bg-purple-50' },
-    { label: t('tables_status'), value: `${tables.filter(t => t.status === 'occupied').length}/${tables.length}`, icon: TableIcon, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { label: t('tables_status'), value: `${backendTables?.filter((t: any) => t.status === 'occupied').length || 0}/${backendTables?.length || 0}`, icon: TableIcon, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { label: t('points_deducted'), value: '320', icon: BarChart3, color: 'text-rose-600', bg: 'bg-rose-50' },
   ];
 
@@ -578,16 +612,21 @@ export default function CafeteriaDashboard() {
             </div>
           </TabsContent>
 
-          {/* TABLES SECTION (Placeholder UI) */}
+          {/* TABLES SECTION */}
           <TabsContent value="tables" className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-black text-slate-900">{t('tables_zones')}</h2>
                 <p className="text-slate-500">{t('tables_desc')}</p>
               </div>
-              <Button onClick={handleCreateTable} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
-                <Plus className="w-4 h-4 mr-2" /> {t('add_table')}
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleCreateSection} className="border-slate-200 shadow-sm">
+                  <PlusCircle className="w-4 h-4 mr-2" /> {t('add_section')}
+                </Button>
+                <Button onClick={handleCreateTable} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
+                  <Plus className="w-4 h-4 mr-2" /> {t('add_table')}
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -597,13 +636,30 @@ export default function CafeteriaDashboard() {
                     <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-400">{t('zones')}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {Array.from(new Set(tables.map(t => t.section))).map((zone, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors group">
-                        <span className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">{zone}</span>
+                    <button
+                      onClick={() => setSelectedSectionId('all')}
+                      className={`w-full flex items-center justify-between p-3 rounded-xl border transition-colors group ${
+                        selectedSectionId === 'all' ? 'bg-blue-50 border-blue-100 text-blue-700' : 'border-slate-100 hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <span className="text-sm font-bold">All Sections</span>
+                      <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px]">
+                        {backendTables?.length || 0}
+                      </Badge>
+                    </button>
+                    {backendSections?.map((section: any) => (
+                      <button
+                        key={section.id}
+                        onClick={() => setSelectedSectionId(section.id)}
+                        className={`w-full flex items-center justify-between p-3 rounded-xl border transition-colors group ${
+                          selectedSectionId === section.id ? 'bg-blue-50 border-blue-100 text-blue-700' : 'border-slate-100 hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <span className="text-sm font-bold">{section.name}</span>
                         <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px]">
-                          {tables.filter(t => t.section === zone).length} {t('tables')}
+                          {backendTables?.filter((t: any) => t.sectionId === section.id).length || 0}
                         </Badge>
-                      </div>
+                      </button>
                     ))}
                   </CardContent>
                 </Card>
@@ -611,7 +667,9 @@ export default function CafeteriaDashboard() {
 
               <div className="lg:col-span-3">
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
-                  {tables.map((table) => (
+                  {backendTables
+                    ?.filter((table: any) => selectedSectionId === 'all' || table.sectionId === selectedSectionId)
+                    .map((table: any) => (
                     <Card key={table.id} className={`border-none shadow-sm group hover:shadow-md transition-all cursor-pointer overflow-hidden relative ${table.status === 'occupied' ? 'ring-2 ring-amber-400' : ''}`}>
                       <div className={`h-2 ${
                         table.status === 'available' ? 'bg-green-400' : 
@@ -619,17 +677,24 @@ export default function CafeteriaDashboard() {
                         table.status === 'reserved' ? 'bg-red-400' : 'bg-blue-400'
                       }`} />
                       <CardContent className="p-6 text-center">
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button onClick={() => handleDeleteTable(table.id)} size="icon" variant="ghost" className="h-6 w-6 text-slate-300 hover:text-red-500">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                         <div className="mb-4 mx-auto w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors">
                           <TableIcon className="w-6 h-6" />
                         </div>
-                        <h4 className="text-lg font-black text-slate-900">{table.tableToken.split('-')[0]}-{table.tableToken.split('-')[1]}</h4>
+                        <h4 className="text-lg font-black text-slate-900">Table {table.tableNumber}</h4>
                         <div className="flex flex-col gap-0.5 mt-1">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{table.section}</p>
-                          <p className="text-[8px] font-mono text-slate-300">TOKEN: {table.tableToken}</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            {backendSections?.find((s: any) => s.id === table.sectionId)?.name || 'Unknown'}
+                          </p>
+                          <p className="text-[8px] font-mono text-slate-300">TOKEN: {table.tableToken.substring(0, 8)}...</p>
                         </div>
                         
                         <div className="mt-6 flex flex-col gap-2">
-                          <Select value={table.status} onValueChange={(val) => handleChangeTableStatus(table.id, val as TableData['status'])}>
+                          <Select value={table.status} onValueChange={(val) => handleChangeTableStatus(table.id, val as any)}>
                             <SelectTrigger className="text-[9px] h-8 font-bold border-slate-200 bg-white">
                               <SelectValue />
                             </SelectTrigger>
