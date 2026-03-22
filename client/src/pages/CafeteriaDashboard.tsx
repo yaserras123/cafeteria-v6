@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ChevronUp, 
   Store, 
@@ -77,7 +77,7 @@ interface MenuItem {
   name: string;
   description: string;
   price: number;
-  availability: boolean;
+  available: boolean;
   categoryId: string;
   image?: string;
 }
@@ -129,25 +129,47 @@ export default function CafeteriaDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [showScrollTop, setShowScrollTop] = useState(false);
 
+  const isRTL = language === 'ar';
+  const cafeteriaId = user?.cafeteriaId ?? '';
+
+  // ── BACKEND INTEGRATION ──────────────────────────────────────────────────
+  
+  // Queries
+  const { data: cafeteriaInfo } = trpc.cafeterias.getCafeteriaDetails.useQuery({ cafeteriaId }, { enabled: !!cafeteriaId });
+  
+  const { data: backendCategories, refetch: refetchCategories } = trpc.menu.getCategories.useQuery(
+    { cafeteriaId },
+    { enabled: !!cafeteriaId }
+  );
+
+  const { data: backendItems, refetch: refetchItems } = trpc.menu.getMenuItems.useQuery(
+    { cafeteriaId },
+    { enabled: !!cafeteriaId }
+  );
+
+  // Mutations
+  const createItemMutation = trpc.menu.createMenuItem.useMutation({
+    onSuccess: () => refetchItems()
+  });
+
+  const updateItemMutation = trpc.menu.updateMenuItem.useMutation({
+    onSuccess: () => refetchItems()
+  });
+
+  const toggleAvailabilityMutation = trpc.menu.updateItemAvailability.useMutation({
+    onSuccess: () => refetchItems()
+  });
+
+  const deleteItemMutation = trpc.menu.deleteMenuItem.useMutation({
+    onSuccess: () => refetchItems()
+  });
+
   // ── STATE ARCHITECTURE ───────────────────────────────────────────────────
   
   // Menu State
-  const [categories, setCategories] = useState<MenuCategory[]>([
-    { id: 'cat-1', name: 'Hot Drinks', type: 'customer' },
-    { id: 'cat-2', name: 'Cold Drinks', type: 'customer' },
-    { id: 'cat-3', name: 'Breakfast', type: 'customer' },
-    { id: 'cat-4', name: 'Main Dishes', type: 'customer' },
-    { id: 'cat-5', name: 'Desserts', type: 'customer' },
-    { id: 'cat-6', name: 'Barista Prep', type: 'admin' },
-  ]);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([
-    { id: 'item-1', name: 'Cappuccino Regular', description: 'Classic espresso with steamed milk foam.', price: 4.50, availability: true, categoryId: 'cat-1' },
-    { id: 'item-2', name: 'Latte Macchiato', description: 'Layered espresso and milk.', price: 5.00, availability: true, categoryId: 'cat-1' },
-    { id: 'item-3', name: 'Orange Juice', description: 'Freshly squeezed oranges.', price: 3.50, availability: true, categoryId: 'cat-2' },
-  ]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
 
-  // Tables State
+  // Tables State (Placeholder for now)
   const [tables, setTables] = useState<TableData[]>([
     { id: 't-1', tableToken: 'T-01-XYZ', status: 'available', section: 'Main Hall' },
     { id: 't-2', tableToken: 'T-02-ABC', status: 'available', section: 'Main Hall' },
@@ -156,14 +178,14 @@ export default function CafeteriaDashboard() {
     { id: 't-5', tableToken: 'T-05-UIO', status: 'cleaning', section: 'Main Hall' },
   ]);
 
-  // Staff State
+  // Staff State (Placeholder for now)
   const [staffList, setStaffList] = useState<StaffMember[]>([
     { id: 's-1', name: 'John Doe', email: 'john@cafe.com', phone: '+90 555 123 4567', role: 'waiter', assignment: 'Terrace', loginEnabled: true, referenceCode: 'W-402', status: 'ACTIVE' },
     { id: 's-2', name: 'Sarah Cook', email: 'sarah@cafe.com', phone: '+90 555 987 6543', role: 'chef', assignment: 'Breakfast', loginEnabled: true, referenceCode: 'C-901', status: 'ON SHIFT' },
     { id: 's-3', name: 'Mike Ross', email: 'mike@cafe.com', phone: '+90 555 444 3333', role: 'waiter', assignment: 'Main Hall', loginEnabled: false, referenceCode: 'W-405', status: 'OFFLINE' },
   ]);
 
-  // Orders State
+  // Orders State (Placeholder for now)
   const [orders, setOrders] = useState<Order[]>([
     { 
       id: 'ORD-2040', 
@@ -181,10 +203,49 @@ export default function CafeteriaDashboard() {
   // ── HANDLERS ────────────────────────────────────────────────────────────
 
   // Menu Handlers
-  const handleAddItem = () => console.log('Logic: Add Item');
-  const handleEditItem = (id: string) => console.log('Logic: Edit Item', id);
-  const handleToggleAvailability = (id: string) => {
-    setMenuItems(prev => prev.map(item => item.id === id ? { ...item, availability: !item.availability } : item));
+  const handleAddItem = async () => {
+    if (!selectedCategoryId || selectedCategoryId === 'all') {
+      alert("Please select a category first");
+      return;
+    }
+    const name = prompt("Item Name:");
+    const priceStr = prompt("Price:");
+    if (name && priceStr) {
+      const price = parseFloat(priceStr);
+      await createItemMutation.mutateAsync({
+        cafeteriaId,
+        categoryId: selectedCategoryId,
+        name,
+        price,
+        description: ""
+      });
+    }
+  };
+
+  const handleEditItem = async (item: MenuItem) => {
+    const name = prompt("Update Name:", item.name);
+    const priceStr = prompt("Update Price:", item.price.toString());
+    if (name && priceStr) {
+      const price = parseFloat(priceStr);
+      await updateItemMutation.mutateAsync({
+        itemId: item.id,
+        name,
+        price
+      });
+    }
+  };
+
+  const handleToggleAvailability = async (id: string, current: boolean) => {
+    await toggleAvailabilityMutation.mutateAsync({
+      itemId: id,
+      available: !current
+    });
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    if (confirm("Delete this item?")) {
+      await deleteItemMutation.mutateAsync({ itemId: id });
+    }
   };
 
   // Table Handlers
@@ -210,7 +271,7 @@ export default function CafeteriaDashboard() {
   // ── SYSTEM LOGIC ─────────────────────────────────────────────────────────
 
   // Scroll logic
-  React.useEffect(() => {
+  useEffect(() => {
     const handleScroll = () => setShowScrollTop(window.scrollY > 300);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -242,12 +303,6 @@ export default function CafeteriaDashboard() {
     );
   }
 
-  const isRTL = language === 'ar';
-  const cafeteriaId = user?.cafeteriaId ?? '';
-
-  // Data Fetching
-  const { data: cafeteriaInfo } = trpc.cafeterias.getCafeteriaDetails.useQuery({ cafeteriaId }, { enabled: !!cafeteriaId });
-  
   const stats = [
     { label: t('points_balance'), value: cafeteriaInfo?.pointsBalance || '0', icon: Coins, color: 'text-amber-600', bg: 'bg-amber-50' },
     { label: t('active_staff'), value: staffList.filter(s => s.status !== 'OFFLINE').length.toString(), icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -453,15 +508,16 @@ export default function CafeteriaDashboard() {
                       >
                         All Items
                       </button>
-                      {categories.map((cat) => (
+                      {backendCategories?.map((cat: any) => (
                         <button
                           key={cat.id}
                           onClick={() => setSelectedCategoryId(cat.id)}
-                          className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-bold transition-colors ${
+                          className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-bold transition-colors flex justify-between items-center ${
                             selectedCategoryId === cat.id ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                           }`}
                         >
-                          {cat.name}
+                          <span>{cat.name}</span>
+                          {cat.type === 'admin' && <Badge variant="outline" className="text-[8px] scale-75 border-blue-200 text-blue-500 uppercase">Admin</Badge>}
                         </button>
                       ))}
                     </div>
@@ -476,28 +532,28 @@ export default function CafeteriaDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {menuItems
-                    .filter(item => selectedCategoryId === 'all' || item.categoryId === selectedCategoryId)
-                    .map((item) => (
+                  {backendItems
+                    ?.filter((item: any) => selectedCategoryId === 'all' || item.categoryId === selectedCategoryId)
+                    .map((item: any) => (
                     <Card key={item.id} className="border-none shadow-sm group hover:shadow-md transition-shadow overflow-hidden">
                       <div className="aspect-video bg-slate-100 relative group-hover:brightness-95 transition-all">
                         <div className="absolute inset-0 flex items-center justify-center text-slate-300">
                           <ImageIcon className="w-12 h-12" />
                         </div>
                         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button onClick={() => handleEditItem(item.id)} size="icon" variant="secondary" className="h-8 w-8 rounded-lg shadow-md"><Edit className="w-3.5 h-3.5" /></Button>
-                          <Button size="icon" variant="destructive" className="h-8 w-8 rounded-lg shadow-md"><Trash2 className="w-3.5 h-3.5" /></Button>
+                          <Button onClick={() => handleEditItem(item)} size="icon" variant="secondary" className="h-8 w-8 rounded-lg shadow-md"><Edit className="w-3.5 h-3.5" /></Button>
+                          <Button onClick={() => handleDeleteItem(item.id)} size="icon" variant="destructive" className="h-8 w-8 rounded-lg shadow-md"><Trash2 className="w-3.5 h-3.5" /></Button>
                         </div>
                         <div className="absolute bottom-2 left-2 flex gap-1">
                           <Badge className="bg-white/90 text-slate-900 border-none backdrop-blur-sm text-[8px] font-bold uppercase">
-                            {categories.find(c => c.id === item.categoryId)?.name}
+                            {backendCategories?.find((c: any) => c.id === item.categoryId)?.name}
                           </Badge>
                         </div>
                       </div>
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start mb-1">
                           <h4 className="font-bold text-slate-900">{item.name}</h4>
-                          <span className="font-black text-blue-600">${item.price.toFixed(2)}</span>
+                          <span className="font-black text-blue-600">${Number(item.price).toFixed(2)}</span>
                         </div>
                         <p className="text-[11px] text-slate-500 line-clamp-2 mb-4 leading-relaxed">
                           {item.description}
@@ -505,10 +561,14 @@ export default function CafeteriaDashboard() {
                         
                         <div className="flex items-center justify-between pt-3 border-t border-slate-50">
                           <div className="flex items-center gap-2">
-                            <Switch checked={item.availability} onCheckedChange={() => handleToggleAvailability(item.id)} id={`avail-${item.id}`} />
+                            <Switch 
+                              checked={item.available} 
+                              onCheckedChange={() => handleToggleAvailability(item.id, item.available)} 
+                              id={`avail-${item.id}`} 
+                            />
                             <Label htmlFor={`avail-${item.id}`} className="text-[10px] font-bold text-slate-400 uppercase">{t('available')}</Label>
                           </div>
-                          <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-400 font-mono">ID: {item.id}</Badge>
+                          <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-400 font-mono">ID: {item.id.substring(0, 6)}</Badge>
                         </div>
                       </CardContent>
                     </Card>
@@ -518,7 +578,7 @@ export default function CafeteriaDashboard() {
             </div>
           </TabsContent>
 
-          {/* TABLES SECTION */}
+          {/* TABLES SECTION (Placeholder UI) */}
           <TabsContent value="tables" className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
               <div>
@@ -589,7 +649,7 @@ export default function CafeteriaDashboard() {
             </div>
           </TabsContent>
 
-          {/* STAFF SECTION */}
+          {/* STAFF SECTION (Placeholder UI) */}
           <TabsContent value="staff" className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
               <div>
@@ -668,7 +728,7 @@ export default function CafeteriaDashboard() {
             </Card>
           </TabsContent>
 
-          {/* ORDERS SECTION */}
+          {/* ORDERS SECTION (Placeholder UI) */}
           <TabsContent value="orders" className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
               <div>
@@ -734,7 +794,7 @@ export default function CafeteriaDashboard() {
             </div>
           </TabsContent>
 
-          {/* RECHARGE SECTION */}
+          {/* RECHARGE SECTION (Placeholder UI) */}
           <TabsContent value="recharge" className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
               <div>
@@ -838,7 +898,7 @@ export default function CafeteriaDashboard() {
             </div>
           </TabsContent>
 
-          {/* REPORTS SECTION */}
+          {/* REPORTS SECTION (Placeholder UI) */}
           <TabsContent value="reports" className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
               <div>
@@ -886,7 +946,7 @@ export default function CafeteriaDashboard() {
             </Card>
           </TabsContent>
 
-          {/* SETTINGS SECTION */}
+          {/* SETTINGS SECTION (Placeholder UI) */}
           <TabsContent value="settings" className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div>
               <h2 className="text-2xl font-black text-slate-900">{t('cafeteria_settings')}</h2>
