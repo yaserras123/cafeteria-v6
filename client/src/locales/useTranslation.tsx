@@ -28,7 +28,7 @@ export const TranslationProvider = ({ children, defaultLanguage = 'en' }: Transl
   useEffect(() => {
     const loadMessages = async () => {
       try {
-        const response = await fetch(`/src/locales/${language}.json`);
+        const response = await fetch(`/locales/${language}.json`);
         if (!response.ok) {
           throw new Error(`Could not load translation file for ${language}`);
         }
