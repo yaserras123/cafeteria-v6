@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDb } from "../db";
 import { cafeterias } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
+import { getPlanContext } from "../utils/planGuard.js";
 
 export const cafeteriasRouter = router({
   getCafeteriaDetails: protectedProcedure
@@ -19,5 +20,15 @@ export const cafeteriasRouter = router({
         throw new Error("Cafeteria not found");
       }
       return cafeteria;
+    }),
+
+  /**
+   * Returns the subscription plan and feature limits for a cafeteria.
+   * Used by the frontend to enforce plan-based UI restrictions.
+   */
+  getPlanContext: protectedProcedure
+    .input(z.object({ cafeteriaId: z.string() }))
+    .query(async ({ input }) => {
+      return getPlanContext(input.cafeteriaId);
     }),
 });

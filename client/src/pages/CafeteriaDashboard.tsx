@@ -46,8 +46,12 @@ import {
   Tag,
   Layers,
   EyeOff,
-  Eye as EyeIcon
+  Eye as EyeIcon,
+  Lock
 } from 'lucide-react';
+import { usePlanCheck } from '@/hooks/usePlanCheck';
+import { UpgradeModal, FeatureGate } from '@/components/SubscriptionGating';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
 import { trpc } from '@/lib/trpc';
@@ -135,6 +139,11 @@ export default function CafeteriaDashboard() {
 
   const isRTL = language === 'ar';
   const cafeteriaId = user?.cafeteriaId ?? '';
+
+  // ── SUBSCRIPTION / PLAN ENFORCEMENT ─────────────────────────────────────
+  const { canCreateStaff, canCreateTable, hasFeature, limits, plan } = usePlanCheck();
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState('');
 
   // ── MODAL STATES ─────────────────────────────────────────────────────────
   const [showStaffModal, setShowStaffModal] = useState(false);
@@ -293,6 +302,16 @@ export default function CafeteriaDashboard() {
 
   // Staff Handlers
   const handleOpenStaffModal = () => {
+    const currentStaffCount = backendStaff?.length ?? 0;
+    if (!canCreateStaff(currentStaffCount)) {
+      setUpgradeReason(
+        limits?.maxStaff
+          ? `Your current ${plan} plan allows up to ${limits.maxStaff} staff members. Upgrade to add more.`
+          : 'Upgrade your plan to add more staff members.'
+      );
+      setShowUpgradeModal(true);
+      return;
+    }
     setStaffCreationError('');
     setStaffCreationSuccess(false);
     setShowStaffModal(true);
@@ -418,6 +437,13 @@ export default function CafeteriaDashboard() {
 
   // Table Handlers
   const handleCreateSection = async () => {
+    if (!hasFeature('sections')) {
+      setUpgradeReason(
+        `Multiple sections require a higher subscription plan. Your current ${plan} plan does not support this feature.`
+      );
+      setShowUpgradeModal(true);
+      return;
+    }
     const name = prompt("Section Name (e.g., Terrace, Main Hall):");
     if (name) {
       await createSectionMutation.mutateAsync({ cafeteriaId, name });
@@ -425,6 +451,16 @@ export default function CafeteriaDashboard() {
   };
 
   const handleCreateTable = async () => {
+    const currentTableCount = backendTables?.length ?? 0;
+    if (!canCreateTable(currentTableCount)) {
+      setUpgradeReason(
+        limits?.maxTables
+          ? `Your current ${plan} plan allows up to ${limits.maxTables} tables. Upgrade to add more.`
+          : 'Upgrade your plan to add more tables.'
+      );
+      setShowUpgradeModal(true);
+      return;
+    }
     if (!selectedSectionId || selectedSectionId === 'all') {
       alert("Please select a section first");
       return;
@@ -514,6 +550,14 @@ export default function CafeteriaDashboard() {
       </div>
     );
   }
+
+  // ── DERIVED LIMIT FLAGS ──────────────────────────────────────────────────
+  const currentStaffCount = backendStaff?.length ?? 0;
+  const currentTableCount = backendTables?.length ?? 0;
+  const isStaffLimitReached = !canCreateStaff(currentStaffCount);
+  const isTableLimitReached = !canCreateTable(currentTableCount);
+  const isSectionsAllowed = hasFeature('sections');
+  const isPremiumReportsAllowed = hasFeature('premiumReports');
 
   const stats = [
     { label: t('points_balance'), value: cafeteriaInfo?.pointsBalance || '0', icon: Coins, color: 'text-amber-600', bg: 'bg-amber-50' },
@@ -798,12 +842,43 @@ export default function CafeteriaDashboard() {
                 <p className="text-slate-500">{t('tables_desc')}</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleCreateSection} className="border-slate-200 shadow-sm">
-                  <PlusCircle className="w-4 h-4 mr-2" /> {t('add_section')}
-                </Button>
-                <Button onClick={handleCreateTable} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
-                  <Plus className="w-4 h-4 mr-2" /> {t('add_table')}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button
+                        variant="outline"
+                        onClick={handleCreateSection}
+                        disabled={!isSectionsAllowed}
+                        className="border-slate-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {!isSectionsAllowed && <Lock className="w-3.5 h-3.5 mr-2 text-amber-500" />}
+                        {isSectionsAllowed && <PlusCircle className="w-4 h-4 mr-2" />}
+                        {t('add_section')}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  {!isSectionsAllowed && (
+                    <TooltipContent>Upgrade required — Multiple sections not available on your plan</TooltipContent>
+                  )}
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button
+                        onClick={handleCreateTable}
+                        disabled={isTableLimitReached}
+                        className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isTableLimitReached && <Lock className="w-3.5 h-3.5 mr-2 text-amber-300" />}
+                        {!isTableLimitReached && <Plus className="w-4 h-4 mr-2" />}
+                        {t('add_table')}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  {isTableLimitReached && (
+                    <TooltipContent>Upgrade required — Table limit reached for your plan</TooltipContent>
+                  )}
+                </Tooltip>
               </div>
             </div>
 
@@ -899,9 +974,24 @@ export default function CafeteriaDashboard() {
                 <h2 className="text-2xl font-black text-slate-900">{t('staff_mgmt')}</h2>
                 <p className="text-slate-500">{t('staff_desc')}</p>
               </div>
-              <Button onClick={handleOpenStaffModal} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
-                <UserPlus className="w-4 h-4 mr-2" /> {t('add_staff')}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      onClick={handleOpenStaffModal}
+                      disabled={isStaffLimitReached}
+                      className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isStaffLimitReached && <Lock className="w-3.5 h-3.5 mr-2 text-amber-300" />}
+                      {!isStaffLimitReached && <UserPlus className="w-4 h-4 mr-2" />}
+                      {t('add_staff')}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {isStaffLimitReached && (
+                  <TooltipContent>Upgrade required — Staff limit reached for your plan</TooltipContent>
+                )}
+              </Tooltip>
             </div>
 
             <Card className="border-none shadow-sm overflow-hidden">
@@ -1155,8 +1245,9 @@ export default function CafeteriaDashboard() {
             </div>
           </TabsContent>
 
-          {/* REPORTS SECTION (Placeholder UI) */}
+          {/* REPORTS SECTION */}
           <TabsContent value="reports" className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            <FeatureGate feature="premiumReports">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-black text-slate-900">{t('analytics_reports')}</h2>
@@ -1238,6 +1329,7 @@ export default function CafeteriaDashboard() {
                 </Table>
               </CardContent>
             </Card>
+            </FeatureGate>
           </TabsContent>
 
           {/* SETTINGS SECTION (Placeholder UI) */}
@@ -1504,6 +1596,13 @@ export default function CafeteriaDashboard() {
           </Card>
         </div>
       )}
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        reason={upgradeReason}
+      />
 
       {/* Footer / Copyright */}
       <footer className="p-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] pb-24">
