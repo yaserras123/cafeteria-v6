@@ -63,10 +63,7 @@ export default function Login() {
       toast.success(`Welcome, ${result.name ?? "User"}!`);
 
       const destination = getRouteForRole(result.role);
-
-      setTimeout(() => {
-        setLocation(destination);
-      }, 400);
+      setLocation(destination);
     } catch (error: any) {
       const msg =
         error?.message ||

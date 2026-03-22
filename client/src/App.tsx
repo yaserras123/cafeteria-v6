@@ -3,8 +3,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import Login from "./pages/Login";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import WaiterDashboard from "./pages/WaiterDashboard";
 import ChefDashboard from "./pages/ChefDashboard";
@@ -15,17 +17,35 @@ import CafeteriaDashboard from "./pages/CafeteriaDashboard";
 import CustomerMenu from "./pages/CustomerMenu";
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/login"} component={Login} />
       <Route path={"/menu/:tableToken"} component={CustomerMenu} />
-      <Route path={"/dashboard/owner"} component={OwnerDashboard} />
-      <Route path={"/dashboard/marketer"} component={MarketerDashboard} />
-      <Route path={"/dashboard/cafeteria"} component={CafeteriaDashboard} />
-      <Route path={"/dashboard/manager"} component={ManagerDashboard} />
-      <Route path={"/dashboard/waiter"} component={WaiterDashboard} />
-      <Route path={"/dashboard/chef"} component={ChefDashboard} />
+      <Route
+        path={"/dashboard/owner"}
+        component={() => <ProtectedRoute component={OwnerDashboard} />}
+      />
+      <Route
+        path={"/dashboard/marketer"}
+        component={() => <ProtectedRoute component={MarketerDashboard} />}
+      />
+      <Route
+        path={"/dashboard/cafeteria"}
+        component={() => <ProtectedRoute component={CafeteriaDashboard} />}
+      />
+      <Route
+        path={"/dashboard/manager"}
+        component={() => <ProtectedRoute component={ManagerDashboard} />}
+      />
+      <Route
+        path={"/dashboard/waiter"}
+        component={() => <ProtectedRoute component={WaiterDashboard} />}
+      />
+      <Route
+        path={"/dashboard/chef"}
+        component={() => <ProtectedRoute component={ChefDashboard} />}
+      />
       <Route path={"/reports"} component={ReportingDashboard} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
