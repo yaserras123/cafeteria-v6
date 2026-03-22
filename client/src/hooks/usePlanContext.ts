@@ -12,7 +12,7 @@ export function usePlanContext() {
   const { user } = useAuth();
   const cafeteriaId = (user as any)?.cafeteriaId ?? "";
 
-  const { data, isLoading, error } = trpc.cafeterias.getPlanContext.useQuery(
+  const { data, isLoading, error, refetch } = trpc.cafeterias.getPlanContext.useQuery(
     { cafeteriaId },
     { enabled: !!cafeteriaId }
   );
@@ -22,5 +22,6 @@ export function usePlanContext() {
     limits: data?.limits,
     isLoading,
     error,
+    refetch,
   };
 }

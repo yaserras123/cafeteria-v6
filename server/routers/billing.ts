@@ -4,7 +4,7 @@ import Stripe from "stripe";
 
 // Initialize Stripe with API key from environment
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-12-18.acpi",
+  apiVersion: "2026-02-25.clover",
 });
 
 // Map plan names to Stripe price IDs (test mode)
@@ -63,7 +63,7 @@ export const billingRouter = router({
           },
           // Redirect URLs
           success_url: `${process.env.APP_URL || "http://localhost:5173"}/upgrade/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${process.env.APP_URL || "http://localhost:5173"}/upgrade`,
+          cancel_url: `${process.env.APP_URL || "http://localhost:5173"}/upgrade/cancel`,
         });
 
         if (!session.url) {

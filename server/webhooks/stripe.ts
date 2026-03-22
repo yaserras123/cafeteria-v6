@@ -5,74 +5,142 @@ import { cafeterias } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-12-18.acpi",
+  apiVersion: "2026-02-25.clover",
 });
 
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
 
 /**
- * Stripe Webhook Handler
+ * Plan hierarchy for forward-only upgrade enforcement.
+ * A higher index means a higher-tier plan.
+ */
+const PLAN_RANK: Record<string, number> = {
+  starter: 0,
+  growth: 1,
+  pro: 2,
+};
+
+/**
+ * Returns true if `incoming` plan is strictly higher than `current` plan.
+ * Prevents accidental downgrades via webhook replay or misconfiguration.
+ */
+function isUpgrade(current: string, incoming: string): boolean {
+  const currentRank = PLAN_RANK[current] ?? 0;
+  const incomingRank = PLAN_RANK[incoming] ?? 0;
+  return incomingRank > currentRank;
+}
+
+/**
+ * Stripe Webhook Handler — Production-Hardened
  *
- * Handles Stripe events and updates the cafeteria subscription plan in the database.
+ * Safety guarantees:
+ *   1. Idempotency  — if cafeteria already has the requested plan (or higher),
+ *                     the event is acknowledged without a DB write.
+ *   2. Forward-only — plan can only move starter → growth → pro; never backward.
+ *   3. Logging      — every significant step is logged to console.
+ *   4. Safe metadata — missing/invalid metadata is logged and rejected gracefully
+ *                      without crashing the process.
  *
  * Events handled:
- *   - checkout.session.completed: Update cafeteria plan when checkout is successful
+ *   - checkout.session.completed
  */
 export async function handleStripeWebhook(req: Request, res: Response) {
-  // Get the raw body for signature verification
+  console.log("[Stripe Webhook] Received event");
+
+  // ── Signature verification ────────────────────────────────────────────────
   const sig = req.headers["stripe-signature"];
 
   if (!sig) {
-    console.warn("Stripe webhook: Missing signature");
+    console.warn("[Stripe Webhook] Missing stripe-signature header");
     return res.status(400).json({ error: "Missing signature" });
   }
 
   if (!STRIPE_WEBHOOK_SECRET) {
-    console.warn("Stripe webhook: STRIPE_WEBHOOK_SECRET not configured");
+    console.error("[Stripe Webhook] STRIPE_WEBHOOK_SECRET is not configured");
     return res.status(500).json({ error: "Webhook secret not configured" });
   }
 
   let event: Stripe.Event;
 
   try {
-    // Verify the webhook signature
     event = stripe.webhooks.constructEvent(
-      req.body, // This must be the raw body, not parsed JSON
+      req.body, // Must be raw body — express.raw() is applied at route level
       sig,
       STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error("Stripe webhook signature verification failed:", err);
+    console.error("[Stripe Webhook] Signature verification failed:", err);
     return res.status(400).json({ error: "Invalid signature" });
   }
 
+  console.log(`[Stripe Webhook] Event verified: type=${event.type} id=${event.id}`);
+
+  // ── Event dispatch ────────────────────────────────────────────────────────
   try {
-    // Handle checkout.session.completed event
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
 
-      // Extract cafeteriaId and plan from metadata
+      // ── Metadata validation ───────────────────────────────────────────────
       const cafeteriaId = session.metadata?.cafeteriaId;
-      const plan = session.metadata?.plan as "growth" | "pro";
+      const plan = session.metadata?.plan as string | undefined;
 
       if (!cafeteriaId || !plan) {
-        console.warn("Stripe webhook: Missing metadata", { cafeteriaId, plan });
-        return res.status(400).json({ error: "Missing metadata" });
+        console.error(
+          "[Stripe Webhook] Missing metadata — cafeteriaId or plan absent",
+          { sessionId: session.id, cafeteriaId, plan }
+        );
+        // Return 200 so Stripe does not retry; this is a data issue, not a
+        // transient error.
+        return res.status(200).json({ received: true, skipped: "missing_metadata" });
       }
 
-      // Validate plan
       if (!["growth", "pro"].includes(plan)) {
-        console.warn("Stripe webhook: Invalid plan", { plan });
-        return res.status(400).json({ error: "Invalid plan" });
+        console.error("[Stripe Webhook] Invalid plan value in metadata", {
+          sessionId: session.id,
+          plan,
+        });
+        return res.status(200).json({ received: true, skipped: "invalid_plan" });
       }
 
-      // Update the cafeteria subscription plan in the database
+      // ── Database access ───────────────────────────────────────────────────
       const db = await getDb();
       if (!db) {
-        console.error("Stripe webhook: Database not available");
+        console.error("[Stripe Webhook] Database not available");
         return res.status(500).json({ error: "Database error" });
       }
 
+      // Fetch current plan for idempotency + forward-only check
+      const rows = await db
+        .select({ subscriptionPlan: cafeterias.subscriptionPlan })
+        .from(cafeterias)
+        .where(eq(cafeterias.id, cafeteriaId))
+        .limit(1);
+
+      if (rows.length === 0) {
+        console.error("[Stripe Webhook] Cafeteria not found", { cafeteriaId });
+        // Return 200 — retrying will not help if the record does not exist.
+        return res.status(200).json({ received: true, skipped: "cafeteria_not_found" });
+      }
+
+      const currentPlan = rows[0].subscriptionPlan ?? "starter";
+
+      // ── Idempotency guard ─────────────────────────────────────────────────
+      if (currentPlan === plan) {
+        console.log(
+          `[Stripe Webhook] Idempotency: cafeteria ${cafeteriaId} already on plan '${plan}' — skipping update`
+        );
+        return res.status(200).json({ received: true, skipped: "already_active" });
+      }
+
+      // ── Forward-only guard ────────────────────────────────────────────────
+      if (!isUpgrade(currentPlan, plan)) {
+        console.warn(
+          `[Stripe Webhook] Downgrade blocked: cafeteria ${cafeteriaId} is on '${currentPlan}', refusing to set '${plan}'`
+        );
+        return res.status(200).json({ received: true, skipped: "downgrade_blocked" });
+      }
+
+      // ── Apply upgrade ─────────────────────────────────────────────────────
       try {
         await db
           .update(cafeterias)
@@ -82,18 +150,21 @@ export async function handleStripeWebhook(req: Request, res: Response) {
           })
           .where(eq(cafeterias.id, cafeteriaId));
 
-        console.log(`Stripe webhook: Updated cafeteria ${cafeteriaId} to plan ${plan}`);
+        console.log(
+          `[Stripe Webhook] Processed: cafeteria ${cafeteriaId} upgraded ${currentPlan} → ${plan}`
+        );
         return res.status(200).json({ received: true });
       } catch (dbError) {
-        console.error("Stripe webhook: Database update error:", dbError);
+        console.error("[Stripe Webhook] Database update failed:", dbError);
         return res.status(500).json({ error: "Database update failed" });
       }
     }
 
-    // For other events, just acknowledge receipt
+    // Acknowledge all other event types without processing
+    console.log(`[Stripe Webhook] Unhandled event type '${event.type}' — acknowledged`);
     return res.status(200).json({ received: true });
   } catch (err) {
-    console.error("Stripe webhook: Unexpected error:", err);
+    console.error("[Stripe Webhook] Unexpected error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 }
