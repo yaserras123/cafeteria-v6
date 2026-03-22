@@ -7,6 +7,7 @@ import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";
+import { generateStaffReferenceCode } from "../utils/staffReferenceCodeGenerator";
 import { getDb } from "../db";
 import {
   users,
@@ -114,13 +115,11 @@ export const staffRouter = router({
       }
 
       const id = nanoid();
-      
-      // Generate a proper reference code following the project pattern: ROLE_CAFID_RANDOM
-      // e.g., WAITER_ABC123_XYZ789
-      const rolePrefix = input.role.substring(0, 3).toUpperCase(); // WAI, CHE, MAN, CAF
-      const cafeteriaPrefix = input.cafeteriaId.substring(0, 6).toUpperCase();
-      const randomSuffix = id.substring(0, 6).toUpperCase();
-      const referenceCode = `${rolePrefix}_${cafeteriaPrefix}_${randomSuffix}`;
+
+      // Generate a deterministic reference code derived from the cafeteria's referenceCode.
+      // Format: {cafeteriaReferenceCode}{roleLetter}{nn}
+      // e.g., 1001P01W03  (3rd waiter in cafeteria whose code is 1001P01)
+      const referenceCode = await generateStaffReferenceCode(input.cafeteriaId, input.role);
       
       // Hash the password securely using bcryptjs
       const passwordHash = await hashPassword(input.password);
