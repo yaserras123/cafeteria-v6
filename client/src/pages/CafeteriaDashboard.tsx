@@ -63,10 +63,64 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
 /**
+ * ── DATA STRUCTURES ────────────────────────────────────────────────────────
+ */
+
+interface MenuCategory {
+  id: string;
+  name: string;
+  type: 'customer' | 'admin';
+}
+
+interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  availability: boolean;
+  categoryId: string;
+  image?: string;
+}
+
+interface TableData {
+  id: string;
+  tableToken: string;
+  status: 'available' | 'occupied' | 'reserved' | 'cleaning';
+  section: string;
+}
+
+interface StaffMember {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: 'waiter' | 'chef';
+  assignment: string; // section for waiter, category for chef
+  loginEnabled: boolean;
+  referenceCode: string;
+  status: 'ACTIVE' | 'ON SHIFT' | 'OFFLINE';
+}
+
+interface OrderItem {
+  menuItemId: string;
+  name: string;
+  quantity: number;
+  price: number;
+}
+
+interface Order {
+  id: string;
+  tableToken: string;
+  status: 'created' | 'sent_to_kitchen' | 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled';
+  items: OrderItem[];
+  total: number;
+  createdAt: string;
+}
+
+/**
  * CAFETERIA DASHBOARD - CAFETERIA V2
  * Role: Cafeteria Admin / Manager
  * Features: Comprehensive Admin Operations (Menu, Tables, Staff, Orders, Recharge, Reports)
- * Updated: Proper access rules, bilingual support, and detailed management fields.
  */
 
 export default function CafeteriaDashboard() {
@@ -74,6 +128,86 @@ export default function CafeteriaDashboard() {
   const { language, setLanguage, t } = useTranslation();
   const [activeTab, setActiveTab] = useState('overview');
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // ── STATE ARCHITECTURE ───────────────────────────────────────────────────
+  
+  // Menu State
+  const [categories, setCategories] = useState<MenuCategory[]>([
+    { id: 'cat-1', name: 'Hot Drinks', type: 'customer' },
+    { id: 'cat-2', name: 'Cold Drinks', type: 'customer' },
+    { id: 'cat-3', name: 'Breakfast', type: 'customer' },
+    { id: 'cat-4', name: 'Main Dishes', type: 'customer' },
+    { id: 'cat-5', name: 'Desserts', type: 'customer' },
+    { id: 'cat-6', name: 'Barista Prep', type: 'admin' },
+  ]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([
+    { id: 'item-1', name: 'Cappuccino Regular', description: 'Classic espresso with steamed milk foam.', price: 4.50, availability: true, categoryId: 'cat-1' },
+    { id: 'item-2', name: 'Latte Macchiato', description: 'Layered espresso and milk.', price: 5.00, availability: true, categoryId: 'cat-1' },
+    { id: 'item-3', name: 'Orange Juice', description: 'Freshly squeezed oranges.', price: 3.50, availability: true, categoryId: 'cat-2' },
+  ]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+
+  // Tables State
+  const [tables, setTables] = useState<TableData[]>([
+    { id: 't-1', tableToken: 'T-01-XYZ', status: 'available', section: 'Main Hall' },
+    { id: 't-2', tableToken: 'T-02-ABC', status: 'available', section: 'Main Hall' },
+    { id: 't-3', tableToken: 'T-03-QWE', status: 'occupied', section: 'Terrace' },
+    { id: 't-4', tableToken: 'T-04-RTY', status: 'reserved', section: 'VIP Room' },
+    { id: 't-5', tableToken: 'T-05-UIO', status: 'cleaning', section: 'Main Hall' },
+  ]);
+
+  // Staff State
+  const [staffList, setStaffList] = useState<StaffMember[]>([
+    { id: 's-1', name: 'John Doe', email: 'john@cafe.com', phone: '+90 555 123 4567', role: 'waiter', assignment: 'Terrace', loginEnabled: true, referenceCode: 'W-402', status: 'ACTIVE' },
+    { id: 's-2', name: 'Sarah Cook', email: 'sarah@cafe.com', phone: '+90 555 987 6543', role: 'chef', assignment: 'Breakfast', loginEnabled: true, referenceCode: 'C-901', status: 'ON SHIFT' },
+    { id: 's-3', name: 'Mike Ross', email: 'mike@cafe.com', phone: '+90 555 444 3333', role: 'waiter', assignment: 'Main Hall', loginEnabled: false, referenceCode: 'W-405', status: 'OFFLINE' },
+  ]);
+
+  // Orders State
+  const [orders, setOrders] = useState<Order[]>([
+    { 
+      id: 'ORD-2040', 
+      tableToken: 'T-10-XYZ', 
+      status: 'preparing', 
+      total: 24.50, 
+      createdAt: '12:45 PM',
+      items: [
+        { menuItemId: 'item-1', name: 'Cappuccino Regular', quantity: 2, price: 4.50 },
+        { menuItemId: 'item-4', name: 'Breakfast Platter', quantity: 1, price: 15.50 }
+      ]
+    }
+  ]);
+
+  // ── HANDLERS ────────────────────────────────────────────────────────────
+
+  // Menu Handlers
+  const handleAddItem = () => console.log('Logic: Add Item');
+  const handleEditItem = (id: string) => console.log('Logic: Edit Item', id);
+  const handleToggleAvailability = (id: string) => {
+    setMenuItems(prev => prev.map(item => item.id === id ? { ...item, availability: !item.availability } : item));
+  };
+
+  // Table Handlers
+  const handleCreateTable = () => console.log('Logic: Create Table');
+  const handleChangeTableStatus = (id: string, status: TableData['status']) => {
+    setTables(prev => prev.map(t => t.id === id ? { ...t, status } : t));
+  };
+
+  // Staff Handlers
+  const handleCreateStaff = () => console.log('Logic: Create Staff');
+  const handleToggleStaffLogin = (id: string) => {
+    setStaffList(prev => prev.map(s => s.id === id ? { ...s, loginEnabled: !s.loginEnabled } : s));
+  };
+
+  // Order Handlers
+  const handleUpdateOrderStatus = (id: string, status: Order['status']) => {
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+  };
+  const handleCancelOrder = (id: string) => {
+    handleUpdateOrderStatus(id, 'cancelled');
+  };
+
+  // ── SYSTEM LOGIC ─────────────────────────────────────────────────────────
 
   // Scroll logic
   React.useEffect(() => {
@@ -84,9 +218,7 @@ export default function CafeteriaDashboard() {
 
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // ── 1. REFINED ACCESS CONTROL ──────────────────────────────────────────
-  // Primary access: admin (cafeteria_admin)
-  // Secondary access: manager (cafeteria_manager)
+  // Auth Guard
   if (!authLoading && !['admin', 'manager'].includes(user?.role ?? '')) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -118,10 +250,10 @@ export default function CafeteriaDashboard() {
   
   const stats = [
     { label: t('points_balance'), value: cafeteriaInfo?.pointsBalance || '0', icon: Coins, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: t('active_staff'), value: '12', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: t('active_staff'), value: staffList.filter(s => s.status !== 'OFFLINE').length.toString(), icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: t('today_sales'), value: '$1,240', icon: DollarSign, color: 'text-green-600', bg: 'bg-green-50' },
-    { label: t('total_orders'), value: '48', icon: ShoppingCart, color: 'text-purple-600', bg: 'bg-purple-50' },
-    { label: t('tables_status'), value: '14/25', icon: TableIcon, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { label: t('total_orders'), value: orders.length.toString(), icon: ShoppingCart, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { label: t('tables_status'), value: `${tables.filter(t => t.status === 'occupied').length}/${tables.length}`, icon: TableIcon, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { label: t('points_deducted'), value: '320', icon: BarChart3, color: 'text-rose-600', bg: 'bg-rose-50' },
   ];
 
@@ -162,7 +294,7 @@ export default function CafeteriaDashboard() {
 
       <main className="max-w-[1600px] mx-auto p-4 lg:p-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          {/* ── 2. BILINGUAL NAVIGATION ──────────────────────────────────────── */}
+          {/* Navigation */}
           <div className="overflow-x-auto pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 scrollbar-hide">
             <TabsList className="bg-white border border-slate-200 p-1 h-auto inline-flex shadow-sm rounded-xl">
               <TabsTrigger value="overview" className="flex items-center gap-2 py-2.5 px-4 rounded-lg data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
@@ -223,25 +355,27 @@ export default function CafeteriaDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {[1, 2, 3, 4, 5].map((_, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                    {orders.slice(0, 5).map((order, i) => (
+                      <div key={order.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs">
                             #{i + 1}
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-slate-900">{t('order_num')} #ORD-2024-{1000 + i}</p>
-                            <p className="text-xs text-slate-500">{t('order_summary')}</p>
+                            <p className="text-sm font-bold text-slate-900">{t('order_num')} #{order.id}</p>
+                            <p className="text-xs text-slate-500">{order.tableToken} • {order.items.length} items • {order.createdAt}</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-black text-slate-900">$24.50</p>
-                          <Badge className="bg-green-50 text-green-600 border-none text-[10px] h-5">{t('status_paid')}</Badge>
+                          <p className="text-sm font-black text-slate-900">${order.total.toFixed(2)}</p>
+                          <Badge className={`border-none text-[10px] h-5 uppercase ${order.status === 'paid' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                            {t(`status_${order.status}`)}
+                          </Badge>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <Button variant="ghost" className="w-full mt-6 text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-bold">
+                  <Button variant="ghost" onClick={() => setActiveTab('orders')} className="w-full mt-6 text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-bold">
                     {t('view_all_orders')}
                   </Button>
                 </CardContent>
@@ -276,23 +410,12 @@ export default function CafeteriaDashboard() {
                       <span className="text-xs text-amber-600 font-bold uppercase">{t('status_syncing')}</span>
                     </div>
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 border border-slate-100 rounded-2xl">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter mb-1">{t('avg_prep_time')}</p>
-                      <p className="text-xl font-black text-slate-900">12m 45s</p>
-                    </div>
-                    <div className="p-4 border border-slate-100 rounded-2xl">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter mb-1">{t('peak_hour')}</p>
-                      <p className="text-xl font-black text-slate-900">1:00 PM</p>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
-          {/* ── 3. IMPROVED MENU SECTION ───────────────────────────────────── */}
+          {/* MENU SECTION */}
           <TabsContent value="menu" className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
@@ -303,14 +426,13 @@ export default function CafeteriaDashboard() {
                 <Button variant="outline" className="flex-1 md:flex-none border-slate-200 shadow-sm">
                   <Filter className="w-4 h-4 mr-2" /> {t('filter')}
                 </Button>
-                <Button className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
+                <Button onClick={handleAddItem} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
                   <Plus className="w-4 h-4 mr-2" /> {t('add_item')}
                 </Button>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-              {/* Categories Sidebar */}
               <div className="lg:col-span-1 space-y-4">
                 <Card className="border-none shadow-sm">
                   <CardHeader className="pb-3">
@@ -323,38 +445,30 @@ export default function CafeteriaDashboard() {
                   </CardHeader>
                   <CardContent className="px-2">
                     <div className="space-y-1">
-                      {['All Items', 'Hot Drinks', 'Cold Drinks', 'Breakfast', 'Main Dishes', 'Desserts'].map((cat, i) => (
+                      <button
+                        onClick={() => setSelectedCategoryId('all')}
+                        className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-bold transition-colors ${
+                          selectedCategoryId === 'all' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                      >
+                        All Items
+                      </button>
+                      {categories.map((cat) => (
                         <button
-                          key={i}
+                          key={cat.id}
+                          onClick={() => setSelectedCategoryId(cat.id)}
                           className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-bold transition-colors ${
-                            i === 0 ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            selectedCategoryId === cat.id ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                           }`}
                         >
-                          {cat}
+                          {cat.name}
                         </button>
                       ))}
                     </div>
                   </CardContent>
                 </Card>
-                
-                <Card className="border-none shadow-sm bg-blue-50/30 border border-blue-100">
-                  <CardContent className="p-4">
-                    <p className="text-[10px] font-black text-blue-600 uppercase mb-2 tracking-widest">{t('category_types')}</p>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500">{t('customer_visible')}</span>
-                        <Badge className="bg-blue-100 text-blue-700 border-none h-4 px-1.5 text-[8px]">ACTIVE</Badge>
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500">{t('internal_admin')}</span>
-                        <Badge className="bg-slate-100 text-slate-600 border-none h-4 px-1.5 text-[8px]">PRIVATE</Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
 
-              {/* Items Grid */}
               <div className="lg:col-span-3 space-y-6">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -362,49 +476,39 @@ export default function CafeteriaDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {[1, 2, 3].map((_, i) => (
-                    <Card key={i} className="border-none shadow-sm group hover:shadow-md transition-shadow overflow-hidden">
+                  {menuItems
+                    .filter(item => selectedCategoryId === 'all' || item.categoryId === selectedCategoryId)
+                    .map((item) => (
+                    <Card key={item.id} className="border-none shadow-sm group hover:shadow-md transition-shadow overflow-hidden">
                       <div className="aspect-video bg-slate-100 relative group-hover:brightness-95 transition-all">
                         <div className="absolute inset-0 flex items-center justify-center text-slate-300">
                           <ImageIcon className="w-12 h-12" />
                         </div>
                         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button size="icon" variant="secondary" className="h-8 w-8 rounded-lg shadow-md"><Edit className="w-3.5 h-3.5" /></Button>
+                          <Button onClick={() => handleEditItem(item.id)} size="icon" variant="secondary" className="h-8 w-8 rounded-lg shadow-md"><Edit className="w-3.5 h-3.5" /></Button>
                           <Button size="icon" variant="destructive" className="h-8 w-8 rounded-lg shadow-md"><Trash2 className="w-3.5 h-3.5" /></Button>
                         </div>
                         <div className="absolute bottom-2 left-2 flex gap-1">
-                          <Badge className="bg-white/90 text-slate-900 border-none backdrop-blur-sm text-[8px] font-bold uppercase">HOT DRINKS</Badge>
-                          <Badge className="bg-blue-600/90 text-white border-none backdrop-blur-sm text-[8px] font-bold uppercase">DRINKS</Badge>
+                          <Badge className="bg-white/90 text-slate-900 border-none backdrop-blur-sm text-[8px] font-bold uppercase">
+                            {categories.find(c => c.id === item.categoryId)?.name}
+                          </Badge>
                         </div>
                       </div>
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-bold text-slate-900">Cappuccino Regular</h4>
-                          <span className="font-black text-blue-600">$4.50</span>
+                          <h4 className="font-bold text-slate-900">{item.name}</h4>
+                          <span className="font-black text-blue-600">${item.price.toFixed(2)}</span>
                         </div>
                         <p className="text-[11px] text-slate-500 line-clamp-2 mb-4 leading-relaxed">
-                          Classic espresso with steamed milk foam and a dash of chocolate powder. Perfectly balanced.
+                          {item.description}
                         </p>
                         
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                              <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter mb-0.5">{t('customer_cat')}</p>
-                              <p className="text-[10px] font-bold text-slate-700">Beverages</p>
-                            </div>
-                            <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                              <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter mb-0.5">{t('admin_cat')}</p>
-                              <p className="text-[10px] font-bold text-slate-700">Barista Prep</p>
-                            </div>
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                          <div className="flex items-center gap-2">
+                            <Switch checked={item.availability} onCheckedChange={() => handleToggleAvailability(item.id)} id={`avail-${item.id}`} />
+                            <Label htmlFor={`avail-${item.id}`} className="text-[10px] font-bold text-slate-400 uppercase">{t('available')}</Label>
                           </div>
-                          
-                          <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                            <div className="flex items-center gap-2">
-                              <Switch checked={true} id={`avail-${i}`} />
-                              <Label htmlFor={`avail-${i}`} className="text-[10px] font-bold text-slate-400 uppercase">{t('available')}</Label>
-                            </div>
-                            <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-400 font-mono">ID: #402{i}</Badge>
-                          </div>
+                          <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-400 font-mono">ID: {item.id}</Badge>
                         </div>
                       </CardContent>
                     </Card>
@@ -414,14 +518,14 @@ export default function CafeteriaDashboard() {
             </div>
           </TabsContent>
 
-          {/* ── 4. IMPROVED TABLES SECTION ─────────────────────────────────── */}
+          {/* TABLES SECTION */}
           <TabsContent value="tables" className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-black text-slate-900">{t('tables_zones')}</h2>
                 <p className="text-slate-500">{t('tables_desc')}</p>
               </div>
-              <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
+              <Button onClick={handleCreateTable} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
                 <Plus className="w-4 h-4 mr-2" /> {t('add_table')}
               </Button>
             </div>
@@ -433,64 +537,49 @@ export default function CafeteriaDashboard() {
                     <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-400">{t('zones')}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {['Main Hall', 'Terrace', 'VIP Room', 'Window Side'].map((zone, i) => (
+                    {Array.from(new Set(tables.map(t => t.section))).map((zone, i) => (
                       <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors group">
                         <span className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">{zone}</span>
-                        <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px]">{5 + i} {t('tables')}</Badge>
+                        <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-bold text-[10px]">
+                          {tables.filter(t => t.section === zone).length} {t('tables')}
+                        </Badge>
                       </div>
                     ))}
-                    <Button variant="ghost" className="w-full text-blue-600 text-xs font-bold border border-dashed border-blue-200 rounded-xl py-4 mt-2">
-                      <Plus className="w-3 h-3 mr-1" /> {t('add_zone')}
-                    </Button>
-                  </CardContent>
-                </Card>
-                
-                <Card className="border-none shadow-sm bg-amber-50/30 border border-amber-100">
-                  <CardContent className="p-4">
-                    <p className="text-[10px] font-black text-amber-600 uppercase mb-3 tracking-widest">{t('status_legend')}</p>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-600">
-                        <div className="w-2.5 h-2.5 bg-green-400 rounded-full" /> {t('available')}
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-600">
-                        <div className="w-2.5 h-2.5 bg-amber-400 rounded-full" /> {t('occupied')}
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-600">
-                        <div className="w-2.5 h-2.5 bg-red-400 rounded-full" /> {t('reserved')}
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-600">
-                        <div className="w-2.5 h-2.5 bg-blue-400 rounded-full" /> {t('cleaning')}
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
               </div>
 
               <div className="lg:col-span-3">
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                    <Card key={num} className={`border-none shadow-sm group hover:shadow-md transition-all cursor-pointer overflow-hidden relative ${num === 3 || num === 7 ? 'ring-2 ring-amber-400' : ''}`}>
-                      <div className={`h-2 ${num === 3 || num === 7 ? 'bg-amber-400' : num === 5 ? 'bg-red-400' : 'bg-green-400'}`} />
+                  {tables.map((table) => (
+                    <Card key={table.id} className={`border-none shadow-sm group hover:shadow-md transition-all cursor-pointer overflow-hidden relative ${table.status === 'occupied' ? 'ring-2 ring-amber-400' : ''}`}>
+                      <div className={`h-2 ${
+                        table.status === 'available' ? 'bg-green-400' : 
+                        table.status === 'occupied' ? 'bg-amber-400' : 
+                        table.status === 'reserved' ? 'bg-red-400' : 'bg-blue-400'
+                      }`} />
                       <CardContent className="p-6 text-center">
-                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <MoreVertical className="w-4 h-4 text-slate-300" />
-                        </div>
                         <div className="mb-4 mx-auto w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors">
                           <TableIcon className="w-6 h-6" />
                         </div>
-                        <h4 className="text-lg font-black text-slate-900">T-{num.toString().padStart(2, '0')}</h4>
+                        <h4 className="text-lg font-black text-slate-900">{table.tableToken.split('-')[0]}-{table.tableToken.split('-')[1]}</h4>
                         <div className="flex flex-col gap-0.5 mt-1">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('main_hall')}</p>
-                          <p className="text-[8px] font-mono text-slate-300">REF: {Math.random().toString(36).substring(7).toUpperCase()}</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{table.section}</p>
+                          <p className="text-[8px] font-mono text-slate-300">TOKEN: {table.tableToken}</p>
                         </div>
                         
                         <div className="mt-6 flex flex-col gap-2">
-                          <Button size="sm" variant="outline" className="text-[9px] h-8 font-bold border-slate-200 bg-white hover:bg-slate-50">
-                            <Hash className="w-3 h-3 mr-1" /> {t('view_qr')}
-                          </Button>
-                          <span className={`text-[10px] font-black uppercase ${num === 3 || num === 7 ? 'text-amber-600' : num === 5 ? 'text-red-600' : 'text-green-600'}`}>
-                            {num === 3 || num === 7 ? t('status_occupied') : num === 5 ? t('status_reserved') : t('status_available')}
-                          </span>
+                          <Select value={table.status} onValueChange={(val) => handleChangeTableStatus(table.id, val as TableData['status'])}>
+                            <SelectTrigger className="text-[9px] h-8 font-bold border-slate-200 bg-white">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="available">Available</SelectItem>
+                              <SelectItem value="occupied">Occupied</SelectItem>
+                              <SelectItem value="reserved">Reserved</SelectItem>
+                              <SelectItem value="cleaning">Cleaning</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </CardContent>
                     </Card>
@@ -500,14 +589,14 @@ export default function CafeteriaDashboard() {
             </div>
           </TabsContent>
 
-          {/* ── 5. IMPROVED STAFF SECTION ──────────────────────────────────── */}
+          {/* STAFF SECTION */}
           <TabsContent value="staff" className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-black text-slate-900">{t('staff_mgmt')}</h2>
                 <p className="text-slate-500">{t('staff_desc')}</p>
               </div>
-              <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
+              <Button onClick={handleCreateStaff} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
                 <UserPlus className="w-4 h-4 mr-2" /> {t('add_staff')}
               </Button>
             </div>
@@ -525,12 +614,8 @@ export default function CafeteriaDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {[
-                    { name: 'John Doe', email: 'john@cafe.com', phone: '+90 555 123 4567', role: 'WAITER', assign: 'Terrace', status: 'ACTIVE', ref: 'W-402' },
-                    { name: 'Sarah Cook', email: 'sarah@cafe.com', phone: '+90 555 987 6543', role: 'CHEF', assign: 'Breakfast', status: 'ON SHIFT', ref: 'C-901' },
-                    { name: 'Mike Ross', email: 'mike@cafe.com', phone: '+90 555 444 3333', role: 'WAITER', assign: 'Main Hall', status: 'OFFLINE', ref: 'W-405' },
-                  ].map((staff, i) => (
-                    <TableRow key={i} className="border-slate-50 hover:bg-slate-50/50 transition-colors group">
+                  {staffList.map((staff) => (
+                    <TableRow key={staff.id} className="border-slate-50 hover:bg-slate-50/50 transition-colors group">
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs border border-slate-200 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
@@ -540,33 +625,33 @@ export default function CafeteriaDashboard() {
                             <p className="text-sm font-bold text-slate-900">{staff.name}</p>
                             <div className="flex items-center gap-2 text-[10px] text-slate-400">
                               <span className="flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" /> {staff.phone}</span>
-                              <span className="flex items-center gap-0.5"><Hash className="w-2.5 h-2.5" /> {staff.ref}</span>
+                              <span className="flex items-center gap-0.5"><Hash className="w-2.5 h-2.5" /> {staff.referenceCode}</span>
                             </div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`text-[9px] font-black border-none px-2 py-0.5 ${staff.role === 'CHEF' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                        <Badge variant="outline" className={`text-[9px] font-black border-none px-2 py-0.5 uppercase ${staff.role === 'chef' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
                           {staff.role}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Switch checked={true} />
+                          <Switch checked={staff.loginEnabled} onCheckedChange={() => handleToggleStaffLogin(staff.id)} />
                           <Key className="w-3 h-3 text-slate-300" />
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-700">{staff.assign}</span>
-                          <span className="text-[9px] text-slate-400 font-medium">{staff.role === 'WAITER' ? t('section') : t('category')}</span>
+                          <span className="text-xs font-bold text-slate-700">{staff.assignment}</span>
+                          <span className="text-[9px] text-slate-400 font-medium">{staff.role === 'waiter' ? t('section') : t('category')}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className={`w-1.5 h-1.5 rounded-full ${staff.status === 'OFFLINE' ? 'bg-slate-300' : 'bg-green-500 animate-pulse'}`} />
                           <span className={`text-[10px] font-black uppercase ${staff.status === 'OFFLINE' ? 'text-slate-400' : 'text-green-600'}`}>
-                            {staff.status === 'ON SHIFT' ? t('status_on_shift') : staff.status === 'ACTIVE' ? t('status_active') : t('status_offline')}
+                            {t(`status_${staff.status.toLowerCase().replace(' ', '_')}`)}
                           </span>
                         </div>
                       </TableCell>
@@ -581,13 +666,6 @@ export default function CafeteriaDashboard() {
                 </TableBody>
               </Table>
             </Card>
-            
-            {/* Quick Add Placeholder Info */}
-            <div className="p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
-              <p className="text-xs text-slate-400 font-medium">
-                {t('staff_creds_info')}
-              </p>
-            </div>
           </TabsContent>
 
           {/* ORDERS SECTION */}
@@ -598,33 +676,30 @@ export default function CafeteriaDashboard() {
                 <p className="text-slate-500">{t('orders_desc')}</p>
               </div>
               <div className="flex gap-2">
-                <Badge className="bg-blue-100 text-blue-700 border-none px-3 py-1 font-bold">12 {t('active')}</Badge>
-                <Badge className="bg-amber-100 text-amber-700 border-none px-3 py-1 font-bold">4 {t('preparing')}</Badge>
+                <Badge className="bg-blue-100 text-blue-700 border-none px-3 py-1 font-bold">{orders.filter(o => o.status !== 'paid' && o.status !== 'cancelled').length} {t('active')}</Badge>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((_, i) => (
-                <Card key={i} className="border-none shadow-sm overflow-hidden group hover:shadow-md transition-all">
+              {orders.map((order) => (
+                <Card key={order.id} className="border-none shadow-sm overflow-hidden group hover:shadow-md transition-all">
                   <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-3">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-black text-slate-900">#ORD-{2040 + i}</span>
-                        <Badge className="bg-white text-blue-600 border-blue-100 text-[9px] font-black uppercase">TABLE {10 + i}</Badge>
+                        <span className="text-sm font-black text-slate-900">#{order.id}</span>
+                        <Badge className="bg-white text-blue-600 border-blue-100 text-[9px] font-black uppercase">{order.tableToken}</Badge>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-400">12:45 PM</span>
+                      <span className="text-[10px] font-bold text-slate-400">{order.createdAt}</span>
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 space-y-4">
                     <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-600 font-medium">2x Cappuccino Regular</span>
-                        <span className="font-bold text-slate-900">$9.00</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-600 font-medium">1x Breakfast Platter</span>
-                        <span className="font-bold text-slate-900">$15.50</span>
-                      </div>
+                      {order.items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between text-sm">
+                          <span className="text-slate-600 font-medium">{item.quantity}x {item.name}</span>
+                          <span className="font-bold text-slate-900">${(item.quantity * item.price).toFixed(2)}</span>
+                        </div>
+                      ))}
                     </div>
                     
                     <Separator className="bg-slate-50" />
@@ -632,14 +707,26 @@ export default function CafeteriaDashboard() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3 text-amber-500" />
-                        <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter">PREPARING (8m)</span>
+                        <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter">{order.status.replace('_', ' ')}</span>
                       </div>
-                      <p className="text-lg font-black text-slate-900">$24.50</p>
+                      <p className="text-lg font-black text-slate-900">${order.total.toFixed(2)}</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 pt-2">
-                      <Button variant="outline" className="h-9 text-[10px] font-black uppercase border-slate-200 hover:bg-blue-50 hover:text-blue-600 transition-colors">{t('update_status')}</Button>
-                      <Button variant="outline" className="h-9 text-[10px] font-black uppercase border-slate-200 text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors">{t('cancel')}</Button>
+                      <Select value={order.status} onValueChange={(val) => handleUpdateOrderStatus(order.id, val as Order['status'])}>
+                        <SelectTrigger className="h-9 text-[10px] font-black uppercase border-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="created">Created</SelectItem>
+                          <SelectItem value="sent_to_kitchen">Sent to Kitchen</SelectItem>
+                          <SelectItem value="preparing">Preparing</SelectItem>
+                          <SelectItem value="ready">Ready</SelectItem>
+                          <SelectItem value="served">Served</SelectItem>
+                          <SelectItem value="paid">Paid</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button onClick={() => handleCancelOrder(order.id)} variant="outline" className="h-9 text-[10px] font-black uppercase border-slate-200 text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors">{t('cancel')}</Button>
                     </div>
                   </CardContent>
                 </Card>
