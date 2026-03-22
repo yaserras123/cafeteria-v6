@@ -4,6 +4,7 @@ import { nanoid } from "nanoid";
 import { eq, and } from "drizzle-orm";
 import { getDb } from "../db";
 import { cafeteriaTables, sections } from "../../drizzle/schema";
+import { getPlanContext, assertLimit, assertFeature } from "../utils/planGuard.js";
 import {
   getTablesBySection,
   getAvailableTablesInSection,
@@ -27,6 +28,14 @@ export const tablesRouter = router({
     .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
+
+      // Enforce plan limits for sections
+      const planContext = await getPlanContext(input.cafeteriaId);
+      assertFeature(
+        planContext, 
+        "sections", 
+        `Multiple sections is a premium feature. Your current ${planContext.plan} plan does not support this.`
+      );
 
       const validation = validateSectionData(input.name);
       if (!validation.valid) {
@@ -84,6 +93,20 @@ export const tablesRouter = router({
     .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
+
+      // Enforce plan limits for tables
+      const planContext = await getPlanContext(input.cafeteriaId);
+      const currentTables = await db
+        .select()
+        .from(cafeteriaTables)
+        .where(eq(cafeteriaTables.cafeteriaId, input.cafeteriaId));
+      
+      assertLimit(
+        planContext, 
+        "maxTables", 
+        currentTables.length, 
+        `Your current ${planContext.plan} plan only allows up to ${planContext.limits.maxTables} tables.`
+      );
 
       const validation = validateTableData(input.tableNumber, input.capacity, input.sectionId);
       if (!validation.valid) {

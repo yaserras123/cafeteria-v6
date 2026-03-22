@@ -9,20 +9,26 @@ import { cafeterias } from "../../drizzle/schema.js";
 export const PLAN_LIMITS = {
   free: {
     maxStaff: 3,
+    maxTables: 10,
     features: {
       premiumReports: false,
+      sections: false,
     },
   },
   pro: {
     maxStaff: 10,
+    maxTables: 50,
     features: {
       premiumReports: true,
+      sections: true,
     },
   },
   enterprise: {
     maxStaff: null, // unlimited
+    maxTables: null, // unlimited
     features: {
       premiumReports: true,
+      sections: true,
     },
   },
 } as const;
