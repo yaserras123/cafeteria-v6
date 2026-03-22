@@ -156,7 +156,8 @@ export const splitBillRouter = router({
           throw new Error(`Bill split is already ${split.status}`);
         }
 
-        const newPaidAmount = (parseFloat(split.paidAmount) + amount).toString();
+        const currentPaidAmount = split.paidAmount ? parseFloat(split.paidAmount) : 0;
+        const newPaidAmount = (currentPaidAmount + amount).toString();
         const newStatus = parseFloat(newPaidAmount) >= parseFloat(split.totalAmount) ? "fully_paid" : "partially_paid";
 
         await db.update(billSplits).set({
