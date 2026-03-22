@@ -296,6 +296,14 @@ export const reportingRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
+      // Enforce plan limits for reporting
+      const planContext = await getPlanContext(input.cafeteriaId);
+      assertFeature(
+        planContext, 
+        "premiumReports", 
+        `Cafeteria statistics is a premium feature. Your current ${planContext.plan} plan does not support this.`
+      );
+
       const now = new Date();
       let startDate = new Date();
       if (input.period === "daily") startDate.setHours(0, 0, 0, 0);
@@ -338,6 +346,14 @@ export const reportingRouter = router({
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
+
+      // Enforce plan limits for reporting
+      const planContext = await getPlanContext(input.cafeteriaId);
+      assertFeature(
+        planContext, 
+        "premiumReports", 
+        `Staff performance reporting is a premium feature. Your current ${planContext.plan} plan does not support this.`
+      );
 
       const staffList = await db
         .select()
