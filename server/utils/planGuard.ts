@@ -46,7 +46,7 @@ export interface PlanContext {
  */
 export async function getPlanContext(cafeteriaId: string): Promise<PlanContext> {
   const db = await getDb();
-  if (!d    throw new Error("[PLAN] Database not available");
+  if (!db) throw new Error("[PLAN] Database not available");
   const result = await db
     .select({
       subscriptionPlan: cafeterias.subscriptionPlan,

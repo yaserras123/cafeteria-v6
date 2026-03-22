@@ -56,7 +56,7 @@ export default function CafeteriaDashboard() {
   const { plan, limits } = usePlanCheck();
 
   // Queries
-  const { data: cafeteriaInfo } = trpc.cafeterias.getInfo.useQuery(
+  const { data: cafeteriaInfo } = trpc.cafeterias.getCafeteriaDetails.useQuery(
     { cafeteriaId: cafeteriaId! },
     { enabled: !!cafeteriaId }
   );
@@ -165,7 +165,7 @@ export default function CafeteriaDashboard() {
                 {(cafeteriaInfo as any)?.name || 'Cafeteria'}
               </h1>
               <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">
-                {plan.toUpperCase()} Plan
+                {(plan ?? 'starter').toUpperCase()} Plan
               </p>
             </div>
           </div>
@@ -494,7 +494,7 @@ export default function CafeteriaDashboard() {
 
       {/* Upgrade Modal */}
       <UpgradeModal
-        isOpen={showUpgradeModal}
+        open={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         reason={upgradeReason}
       />
