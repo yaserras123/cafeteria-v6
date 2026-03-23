@@ -48,7 +48,7 @@ export async function getDb() {
       });
       _db = drizzle(_pool, { schema }) as any;
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      console.error("[Database] Failed to connect:", error); logger.error("DATABASE_CONNECTION_FAILED", error.message);
       _db = null;
       _pool = null;
     }
