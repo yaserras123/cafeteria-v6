@@ -3,9 +3,19 @@ import { protectedProcedure, router } from "../_core/trpc.js";
 import Stripe from "stripe";
 
 // Initialize Stripe with API key from environment
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2026-02-25.clover",
-});
+let stripe: Stripe | null = null;
+try {
+  if (process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2026-02-25.clover" as any,
+    });
+    console.log("[BILLING] [Stripe] Client initialized");
+  } else {
+    console.warn("[BILLING] [Stripe] STRIPE_SECRET_KEY is not set — Stripe functionality will be disabled");
+  }
+} catch (err) {
+  console.error("[BILLING] [Stripe] Failed to initialize Stripe client:", err);
+}
 
 // Map plan names to Stripe price IDs (test mode)
 const STRIPE_PRICE_IDS: Record<"growth" | "pro", string> = {
@@ -38,6 +48,10 @@ export const billingRouter = router({
       // Ensure user is authenticated and has a cafeteriaId
       if (!ctx.user?.cafeteriaId) {
         throw new Error("User must have an associated cafeteria");
+      }
+
+      if (!stripe) {
+        throw new Error("Stripe is not configured on this server");
       }
 
       const priceId = STRIPE_PRICE_IDS[input.plan];
