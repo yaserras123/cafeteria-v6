@@ -4,9 +4,20 @@ import { getDb } from "../db";
 import { cafeterias } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2026-02-25.clover",
-});
+// Lazy-initialize Stripe to prevent startup crashes if the key is missing or invalid
+let stripe: Stripe | null = null;
+try {
+  if (process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2026-02-25.clover" as any,
+    });
+    console.log("[BILLING] [Stripe] Client initialized");
+  } else {
+    console.warn("[BILLING] [Stripe] STRIPE_SECRET_KEY is not set — Stripe functionality will be disabled");
+  }
+} catch (err) {
+  console.error("[BILLING] [Stripe] Failed to initialize Stripe client:", err);
+}
 
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
 
@@ -32,17 +43,6 @@ function isUpgrade(current: string, incoming: string): boolean {
 
 /**
  * Stripe Webhook Handler — Production-Hardened
- *
- * Safety guarantees:
- *   1. Idempotency  — if cafeteria already has the requested plan (or higher),
- *                     the event is acknowledged without a DB write.
- *   2. Forward-only — plan can only move starter → growth → pro; never backward.
- *   3. Logging      — every significant step is logged to console.
- *   4. Safe metadata — missing/invalid metadata is logged and rejected gracefully
- *                      without crashing the process.
- *
- * Events handled:
- *   - checkout.session.completed
  */
 export async function handleStripeWebhook(req: Request, res: Response) {
   console.log("[BILLING] [Stripe Webhook] Received event");
@@ -60,12 +60,17 @@ export async function handleStripeWebhook(req: Request, res: Response) {
     return res.status(500).json({ error: "Webhook secret not configured" });
   }
 
+  if (!stripe) {
+    console.error("[BILLING] [Stripe Webhook] Stripe client not initialized");
+    return res.status(500).json({ error: "Stripe client not initialized" });
+  }
+
   let event: Stripe.Event;
 
   try {
     event = stripe.webhooks.constructEvent(
       req.body, // Must be raw body — express.raw() is applied at route level
-      sig,
+      sig as string,
       STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
@@ -89,8 +94,6 @@ export async function handleStripeWebhook(req: Request, res: Response) {
           "[BILLING] [Stripe Webhook] Missing metadata — cafeteriaId or plan absent",
           { sessionId: session.id, cafeteriaId, plan }
         );
-        // Return 200 so Stripe does not retry; this is a data issue, not a
-        // transient error.
         return res.status(200).json({ received: true, skipped: "missing_metadata" });
       }
 
@@ -118,7 +121,6 @@ export async function handleStripeWebhook(req: Request, res: Response) {
 
       if (rows.length === 0) {
         console.error("[BILLING] [Stripe Webhook] Cafeteria not found", { cafeteriaId });
-        // Return 200 — retrying will not help if the record does not exist.
         return res.status(200).json({ received: true, skipped: "cafeteria_not_found" });
       }
 
