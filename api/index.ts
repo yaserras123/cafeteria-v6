@@ -15,6 +15,11 @@ import { ensureTestUsers } from "../server/utils/ensureTestUsers.js";
 
 const app = express();
 
+app.use((req, res, next) => {
+  console.log(`API HIT: ${req.method} ${req.url}`);
+  next();
+});
+
 // Stripe webhook handler (must be before JSON parsing for signature verification)
 app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), handleStripeWebhook);
 
