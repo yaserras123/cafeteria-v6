@@ -20,7 +20,11 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // OAuth callback under /api/oauth/callback
-registerOAuthRoutes(app);
+try {
+  registerOAuthRoutes(app);
+} catch (err) {
+  console.error("[OAuth Registration Error]", err);
+}
 
 // tRPC API
 app.use(
@@ -37,6 +41,17 @@ if (process.env.NODE_ENV === "development") {
 } else {
   serveStatic(app);
 }
+
+// Root-level error handler — MUST be registered AFTER all routes
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("[SERVER CRITICAL ERROR]", err);
+  res.status(500).json({
+    success: false,
+    error: "Internal Server Error",
+    message: err.message,
+    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+  });
+});
 
 // Export the app for Vercel
 export default app;
@@ -62,7 +77,7 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   const server = createServer(app);
-  
+
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   }
@@ -84,7 +99,7 @@ async function startServer() {
   );
 }
 
-// Only start the server if we're not in a serverless environment
-if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
+// Only start the server if we're NOT in a serverless (Vercel) environment
+if (!process.env.VERCEL && process.env.NODE_ENV !== "production") {
   startServer().catch(console.error);
 }

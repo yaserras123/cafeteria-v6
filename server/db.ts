@@ -33,6 +33,7 @@ import {
 } from "../drizzle/schema.js";
 import { ENV } from './_core/env.js';
 import { addPrecise, subtractPrecise, roundTo } from "./utils/precision.js";
+import { logger } from "./utils/logger.js";
 
 import { nanoid } from "nanoid";
 
@@ -41,19 +42,26 @@ let _pool: Pool | null = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
+  try {
+    if (!_db && process.env.DATABASE_URL) {
       _pool = new Pool({
         connectionString: process.env.DATABASE_URL,
+        max: 10, // Avoid connection limits on serverless
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000,
       });
       _db = drizzle(_pool, { schema }) as any;
-    } catch (error) {
-      console.error("[Database] Failed to connect:", error); logger.error("DATABASE_CONNECTION_FAILED", error.message);
-      _db = null;
-      _pool = null;
     }
+    return _db;
+  } catch (error: any) {
+    console.error("[Database] Failed to connect:", error);
+    if (logger) {
+      logger.error("DATABASE_CONNECTION_FAILED", error.message);
+    }
+    _db = null;
+    _pool = null;
+    return null;
   }
-  return _db;
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {

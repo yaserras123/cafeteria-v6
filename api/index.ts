@@ -23,17 +23,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Root-level error handler for the entire app
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error("[API CRITICAL ERROR]", err);
-  res.status(500).json({
-    success: false,
-    error: "Internal Server Error",
-    message: err.message,
-    stack: process.env.NODE_ENV === "development" ? err.stack : undefined
-  });
-});
-
 // Stripe webhook handler (must be before JSON parsing for signature verification)
 app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), (req, res, next) => {
   try {
@@ -55,21 +44,45 @@ try {
   console.error("[OAuth Registration Error]", err);
 }
 
-// tRPC API
+// tRPC API — wrapped in per-request try/catch for global error safety
 app.use(
   "/api/trpc",
-  (req, res, next) => {
+  (req: express.Request, res: express.Response, next: express.NextFunction) => {
     try {
       createExpressMiddleware({
         router: appRouter,
         createContext,
+        onError: ({ error, path }) => {
+          console.error(`[tRPC ERROR] path=${path}`, error);
+        },
       })(req, res, next);
-    } catch (err) {
+    } catch (err: any) {
       console.error("[tRPC Middleware Error]", err);
-      next(err);
+      // Ensure we always return JSON, never crash the function
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          error: "Server crashed",
+          message: err?.message ?? "Unknown error",
+        });
+      }
     }
   }
 );
+
+// Root-level error handler — MUST be registered AFTER all routes
+// This catches any error passed via next(err) from route handlers
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("[API CRITICAL ERROR]", err);
+  if (!res.headersSent) {
+    res.status(500).json({
+      success: false,
+      error: "Server crashed",
+      message: err?.message ?? "Internal Server Error",
+      stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+    });
+  }
+});
 
 // Ensure test users exist (non-blocking, runs once per cold start)
 // Wrapped in try-catch to prevent startup crash

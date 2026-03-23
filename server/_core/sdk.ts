@@ -182,6 +182,10 @@ class SDKServer {
     payload: SessionPayload,
     options: { expiresInMs?: number } = {}
   ): Promise<string> {
+    if (!ENV.cookieSecret) {
+      console.error("[SDK] CRITICAL: JWT_SECRET is not set — cannot sign session token");
+      throw new Error("JWT_SECRET is not configured. Cannot create session.");
+    }
     const issuedAt = Date.now();
     const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
     const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1000);
