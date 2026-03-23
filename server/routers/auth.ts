@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "../db.js";
 import { users, marketers, cafeterias, cafeteriaStaff } from "../../drizzle/schema.js";
 import bcryptjs from "bcryptjs";
-import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const.js";
+import { COOKIE_NAME, ONE_YEAR_MS } from "../../shared/const.js";
 import { getSessionCookieOptions } from "../_core/cookies.js";
 import { sdk } from "../_core/sdk.js";
 
