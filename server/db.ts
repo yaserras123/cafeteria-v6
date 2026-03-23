@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
-import * as schema from "../drizzle/schema";
+import * as schema from "../drizzle/schema.js";
 import {
   InsertUser,
   users,
@@ -30,9 +30,9 @@ import {
   type Marketer,
   type WithdrawalRequest,
   type InsertWithdrawalRequest,
-} from "../drizzle/schema";
-import { ENV } from './_core/env';
-import { addPrecise, subtractPrecise, roundTo } from "./utils/precision";
+} from "../drizzle/schema.js";
+import { ENV } from './_core/env.js';
+import { addPrecise, subtractPrecise, roundTo } from "./utils/precision.js";
 
 import { nanoid } from "nanoid";
 
