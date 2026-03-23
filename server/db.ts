@@ -44,11 +44,18 @@ let _pool: Pool | null = null;
 export async function getDb() {
   try {
     if (!_db && process.env.DATABASE_URL) {
+      const connectionString = process.env.DATABASE_URL;
+      // Detect if this is a Supabase/pooler connection (requires SSL)
+      const isSupabase = connectionString?.includes('supabase') ||
+        connectionString?.includes('.pooler.') ||
+        connectionString?.includes('6543') ||
+        connectionString?.includes('5432');
       _pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        max: 10, // Avoid connection limits on serverless
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000,
+        connectionString,
+        max: 3, // Keep low for serverless — avoid connection exhaustion
+        idleTimeoutMillis: 20000,
+        connectionTimeoutMillis: 10000,
+        ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
       });
       _db = drizzle(_pool, { schema }) as any;
     }
