@@ -1,4 +1,4 @@
-import { router, staffProcedure, publicProcedure } from "../_core/trpc";
+import { router, staffProcedure, publicProcedure } from "../_core/trpc.js";
 import { z } from "zod";
 
 /**

@@ -1,7 +1,7 @@
-import { router, staffProcedure, protectedProcedure as chefProcedure, protectedProcedure as managerProcedure } from "../_core/trpc";
+import { router, staffProcedure, protectedProcedure as chefProcedure, protectedProcedure as managerProcedure } from "../_core/trpc.js";
 import { z } from "zod";
-import { getDb } from "../db";
-import { orders, orderItems, staffCategoryAssignments, menuItems, kitchenLocks } from "../../drizzle/schema";
+import { getDb } from "../db.js";
+import { orders, orderItems, staffCategoryAssignments, menuItems, kitchenLocks } from "../../drizzle/schema.js";
 import { eq, and, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 

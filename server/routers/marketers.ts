@@ -4,11 +4,11 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, adminProcedure, marketerProcedure, router } from "../_core/trpc";
+import { protectedProcedure, adminProcedure, marketerProcedure, router } from "../_core/trpc.js";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { getDb, getMarketerBalance } from "../db";
-import { marketers, cafeterias, systemConfigs, freeOperationPeriods } from "../../drizzle/schema";
+import { getDb, getMarketerBalance } from "../db.js";
+import { marketers, cafeterias, systemConfigs, freeOperationPeriods } from "../../drizzle/schema.js";
 import {
   generateInitialReferenceCode,
   generateChildReferenceCode,
@@ -16,7 +16,7 @@ import {
   canMarketerCreateChild,
   EntityType,
   ReferenceCodePrefix,
-} from "../utils/referenceCodeGenerator";
+} from "../utils/referenceCodeGenerator.js";
 
 export const marketersRouter = router({
   /**

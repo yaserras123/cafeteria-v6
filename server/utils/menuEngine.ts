@@ -3,7 +3,7 @@
  * Handles menu item organization, pricing, and availability
  */
 
-import type { MenuItem, MenuCategory } from "../../drizzle/schema";
+import type { MenuItem, MenuCategory } from "../../drizzle/schema.js";
 
 /**
  * Get default category for cafeteria

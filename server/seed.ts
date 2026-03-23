@@ -4,8 +4,8 @@
  * Safe to run multiple times — uses INSERT ... ON CONFLICT DO NOTHING.
  */
 import "dotenv/config";
-import { getDb } from "./db";
-import { users } from "../drizzle/schema";
+import { getDb } from "./db.js";
+import { users } from "../drizzle/schema.js";
 import bcryptjs from "bcryptjs";
 import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";

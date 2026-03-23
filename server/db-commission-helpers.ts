@@ -16,7 +16,7 @@
  */
 
 import { eq, and, desc, ne } from "drizzle-orm";
-import { getDb } from "./db";
+import { getDb } from "./db.js";
 import {
   marketers,
   commissionConfigs,
@@ -25,10 +25,10 @@ import {
   freeOperationPeriods,
   marketerBalances,
   ledgerEntries,
-} from "../drizzle/schema";
-import { calculateCommissionDistributions } from "./utils/commissionEngine";
-import { shouldGenerateCommissions } from "./utils/freeOperationEngine";
-import { addPrecise, subtractPrecise, roundTo } from "./utils/precision";
+} from "../drizzle/schema.js";
+import { calculateCommissionDistributions } from "./utils/commissionEngine.js";
+import { shouldGenerateCommissions } from "./utils/freeOperationEngine.js";
+import { addPrecise, subtractPrecise, roundTo } from "./utils/precision.js";
 import { nanoid } from "nanoid";
 
 // Define a type for the transaction object

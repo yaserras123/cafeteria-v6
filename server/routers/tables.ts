@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "../_core/trpc.js";
 import { nanoid } from "nanoid";
 import { eq, and } from "drizzle-orm";
-import { getDb } from "../db";
-import { cafeteriaTables, sections } from "../../drizzle/schema";
+import { getDb } from "../db.js";
+import { cafeteriaTables, sections } from "../../drizzle/schema.js";
 import { getPlanContext, assertLimit, assertFeature } from "../utils/planGuard.js";
 import {
   getTablesBySection,
@@ -14,8 +14,8 @@ import {
   validateTableData,
   validateSectionData,
   getTableStatusDistribution,
-} from "../utils/tableEngine";
-import { generateQRPrintLayout } from "../utils/qrPrintKit";
+} from "../utils/tableEngine.js";
+import { generateQRPrintLayout } from "../utils/qrPrintKit.js";
 
 export const tablesRouter = router({
   createSection: protectedProcedure

@@ -3,7 +3,7 @@
  * Handles order processing, bill calculation, and points conversion
  */
 
-import { addPrecise, multiplyPrecise, dividePrecise, subtractPrecise, roundTo, areEqualPrecise } from "./precision";
+import { addPrecise, multiplyPrecise, dividePrecise, subtractPrecise, roundTo, areEqualPrecise } from "./precision.js";
 
 /**
  * Order item structure

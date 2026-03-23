@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import Stripe from "stripe";
-import { getDb } from "../db";
-import { cafeterias } from "../../drizzle/schema";
+import { getDb } from "../db.js";
+import { cafeterias } from "../../drizzle/schema.js";
 import { eq } from "drizzle-orm";
 
 // Lazy-initialize Stripe to prevent startup crashes if the key is missing or invalid

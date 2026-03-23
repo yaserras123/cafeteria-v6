@@ -21,8 +21,8 @@
  */
 
 import { and, eq, like, sql } from "drizzle-orm";
-import { getDb } from "../db";
-import { cafeterias, cafeteriaStaff } from "../../drizzle/schema";
+import { getDb } from "../db.js";
+import { cafeterias, cafeteriaStaff } from "../../drizzle/schema.js";
 
 // ─── Role letter mapping ──────────────────────────────────────────────────────
 

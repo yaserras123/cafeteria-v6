@@ -1,14 +1,14 @@
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "../_core/trpc.js";
 import { nanoid } from "nanoid";
 import { eq, and, gte, lte } from "drizzle-orm";
-import { getDb } from "../db";
+import { getDb } from "../db.js";
 import {
   shifts,
   shiftSales,
   staffPerformance,
   cafeteriaStaff,
-} from "../../drizzle/schema";
+} from "../../drizzle/schema.js";
 import {
   calculateShiftDuration,
   calculateShiftDurationHours,
@@ -17,7 +17,7 @@ import {
   buildShiftSummary,
   buildStaffPerformanceMetrics,
   validateShiftData,
-} from "../utils/shiftEngine";
+} from "../utils/shiftEngine.js";
 
 export const shiftsRouter = router({
   startShift: protectedProcedure

@@ -1,8 +1,8 @@
 // New endpoints to add to orders router for waiter and chef flow
-import { protectedProcedure } from "../_core/trpc";
+import { protectedProcedure } from "../_core/trpc.js";
 import { z } from "zod";
-import { getDb } from "../db";
-import { orders, orderItems } from "../../drizzle/schema";
+import { getDb } from "../db.js";
+import { orders, orderItems } from "../../drizzle/schema.js";
 import { eq, and } from "drizzle-orm";
 
 export const waiterOrdersEndpoint = protectedProcedure

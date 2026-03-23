@@ -4,8 +4,8 @@
  * Idempotently creates required seed / test users on server startup.
  * Safe to call multiple times — skips insertion if the user already exists.
  */
-import { getDb } from "../db";
-import { users } from "../../drizzle/schema";
+import { getDb } from "../db.js";
+import { users } from "../../drizzle/schema.js";
 import bcryptjs from "bcryptjs";
 import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";

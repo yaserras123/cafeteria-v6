@@ -3,16 +3,16 @@
  * Handles login, logout, password change, and user creation
  */
 import { z } from "zod";
-import { publicProcedure, protectedProcedure, adminProcedure, marketerProcedure, router } from "../_core/trpc";
+import { publicProcedure, protectedProcedure, adminProcedure, marketerProcedure, router } from "../_core/trpc.js";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";
-import { getDb } from "../db";
-import { users, marketers, cafeterias, cafeteriaStaff } from "../../drizzle/schema";
+import { getDb } from "../db.js";
+import { users, marketers, cafeterias, cafeteriaStaff } from "../../drizzle/schema.js";
 import bcryptjs from "bcryptjs";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
-import { getSessionCookieOptions } from "../_core/cookies";
-import { sdk } from "../_core/sdk";
+import { getSessionCookieOptions } from "../_core/cookies.js";
+import { sdk } from "../_core/sdk.js";
 
 const SALT_ROUNDS = 10;
 

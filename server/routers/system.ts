@@ -1,11 +1,11 @@
-import { publicProcedure, adminProcedure, ownerProcedure, router } from "../_core/trpc";
-import { getDb } from "../db";
-import { cafeteriaTables, orders, systemConfigs, cafeterias, freeOperationPeriods } from "../../drizzle/schema";
+import { publicProcedure, adminProcedure, ownerProcedure, router } from "../_core/trpc.js";
+import { getDb } from "../db.js";
+import { cafeteriaTables, orders, systemConfigs, cafeterias, freeOperationPeriods } from "../../drizzle/schema.js";
 import { eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { logger } from "../utils/logger";
-import { closeDay } from "../utils/dailyClosing";
-import { exportDailyBackup } from "../utils/backupExport";
+import { logger } from "../utils/logger.js";
+import { closeDay } from "../utils/dailyClosing.js";
+import { exportDailyBackup } from "../utils/backupExport.js";
 import { z } from "zod";
 
 const startTime = new Date();
