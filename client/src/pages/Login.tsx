@@ -61,12 +61,13 @@ export default function Login() {
       });
 
       if (error) {
-        setErrorMessage(error.message || "Invalid email or password.");
+        console.error("Supabase login error:", error);
+        setErrorMessage(`Login Error: ${error.message}`);
         return;
       }
 
       if (!data.user) {
-        setErrorMessage("Login failed. Please check your credentials.");
+        setErrorMessage("Login failed: No user returned from Supabase.");
         return;
       }
 
