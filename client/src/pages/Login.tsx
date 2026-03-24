@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "sonner";
-import { trpc } from "@/lib/trpc";
+import { supabase } from "@/lib/supabaseClient";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 /**
@@ -21,62 +21,15 @@ const ROLE_ROUTES: Record<string, string> = {
   owner: "/dashboard/owner",
   marketer: "/dashboard/marketer",
   admin: "/dashboard/cafeteria",
+  cafeteria_admin: "/dashboard/manager",
   manager: "/dashboard/manager",
   waiter: "/dashboard/waiter",
   chef: "/dashboard/chef",
 };
 
-function getRouteForRole(role: string): string {
-  return ROLE_ROUTES[role] ?? "/dashboard/cafeteria";
-}
-
-/**
- * Safely extract a human-readable error message from any thrown value.
- * Handles tRPC errors, plain Error objects, and non-JSON HTTP responses.
- */
-function extractErrorMessage(error: unknown): string {
-  if (!error) return "Login failed. Please try again.";
-
-  // tRPC wraps errors in a shape like: { message, data: { code, httpStatus } }
-  if (typeof error === "object") {
-    const err = error as Record<string, any>;
-
-    // tRPC client error: err.message is the server message
-    if (typeof err.message === "string" && err.message.trim().length > 0) {
-      // Filter out raw JSON parse noise
-      if (
-        err.message.includes("Unexpected end of JSON") ||
-        err.message.includes("JSON.parse") ||
-        err.message.includes("SyntaxError")
-      ) {
-        return "Server returned an invalid response. Please try again.";
-      }
-      return err.message;
-    }
-
-    // tRPC shape: err.data?.message
-    if (err.data && typeof err.data.message === "string" && err.data.message.trim().length > 0) {
-      return err.data.message;
-    }
-
-    // tRPC shape: err.shape?.message
-    if (err.shape && typeof err.shape.message === "string" && err.shape.message.trim().length > 0) {
-      return err.shape.message;
-    }
-  }
-
-  if (error instanceof Error) {
-    if (
-      error.message.includes("Unexpected end of JSON") ||
-      error.message.includes("JSON.parse") ||
-      error.message.includes("SyntaxError")
-    ) {
-      return "Server returned an invalid response. Please try again.";
-    }
-    return error.message || "Login failed. Please check your credentials.";
-  }
-
-  return "Login failed. Please check your credentials.";
+function getRouteForRole(role?: string): string {
+  if (!role) return "/dashboard/manager";
+  return ROLE_ROUTES[role] ?? "/dashboard/manager";
 }
 
 export default function Login() {
@@ -86,8 +39,6 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [, setLocation] = useLocation();
-
-  const loginMutation = trpc.auth.login.useMutation();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,22 +55,36 @@ export default function Login() {
 
     setIsLoading(true);
     try {
-      const result = await loginMutation.mutateAsync({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
-      if (!result || !result.success) {
+      if (error) {
+        setErrorMessage(error.message || "Invalid email or password.");
+        return;
+      }
+
+      if (!data.user) {
         setErrorMessage("Login failed. Please check your credentials.");
         return;
       }
 
-      toast.success(`Welcome, ${result.name ?? "User"}!`);
+      const role: string =
+        data.user.user_metadata?.role ?? "cafeteria_admin";
+      const name: string =
+        data.user.user_metadata?.name ??
+        data.user.user_metadata?.full_name ??
+        data.user.email?.split("@")[0] ??
+        "User";
 
-      const destination = getRouteForRole(result.role);
-      setLocation(destination);
-    } catch (error: unknown) {
-      const msg = extractErrorMessage(error);
+      toast.success(`Welcome, ${name}!`);
+      setLocation(getRouteForRole(role));
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "An unexpected error occurred. Please try again.";
       setErrorMessage(msg);
     } finally {
       setIsLoading(false);

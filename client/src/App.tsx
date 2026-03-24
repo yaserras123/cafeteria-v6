@@ -54,7 +54,7 @@ function Router() {
         component={() => (
           <ProtectedRoute
             component={ManagerDashboard}
-            allowedRoles={["manager"]}
+            allowedRoles={["manager", "cafeteria_admin"]}
           />
         )}
       />

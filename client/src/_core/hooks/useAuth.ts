@@ -1,125 +1,142 @@
-import { getLoginUrl } from "@/const";
-import { trpc } from "@/lib/trpc";
-import { TRPCClientError } from "@trpc/client";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+/**
+ * useAuth — Supabase-only authentication hook.
+ *
+ * Replaces the legacy tRPC-based auth hook. All session data comes
+ * directly from Supabase Auth; no database queries are performed.
+ *
+ * Fallback values are provided so the app works even when the
+ * public.users table does not exist:
+ *   role        → "cafeteria_admin"
+ *   cafeteriaId → 1
+ */
+import { supabase } from "@/lib/supabaseClient";
+import { useCallback, useEffect, useState } from "react";
 
-type UseAuthOptions = {
-  redirectOnUnauthenticated?: boolean;
-  redirectPath?: string;
+export type AuthUser = {
+  id: string;
+  email: string | undefined;
+  name: string;
+  role: string;
+  cafeteriaId: number;
 };
 
-export function useAuth(options?: UseAuthOptions) {
-  const {
-    redirectOnUnauthenticated = false,
-    redirectPath = getLoginUrl(),
-  } = options ?? {};
+type AuthState = {
+  user: AuthUser | null;
+  loading: boolean;
+  error: Error | null;
+  isAuthenticated: boolean;
+  isUnauthenticated: boolean;
+};
 
-  const utils = trpc.useUtils();
-  const hasRedirectedRef = useRef(false);
+function buildUser(supabaseUser: import("@supabase/supabase-js").User): AuthUser {
+  const meta = supabaseUser.user_metadata ?? {};
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email,
+    name:
+      meta.name ??
+      meta.full_name ??
+      supabaseUser.email?.split("@")[0] ??
+      "User",
+    role: meta.role ?? "cafeteria_admin",
+    cafeteriaId: meta.cafeteriaId ?? 1,
+  };
+}
 
-  const meQuery = trpc.auth.me.useQuery(undefined, {
-    retry: false,
-    refetchOnWindowFocus: false,
+export function useAuth() {
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    loading: true,
+    error: null,
+    isAuthenticated: false,
+    isUnauthenticated: false,
   });
 
-  const logoutMutation = trpc.auth.logout.useMutation({
-    onSuccess: () => {
-      utils.auth.me.setData(undefined, null);
-    },
-  });
+  useEffect(() => {
+    // Fetch the initial session
+    supabase.auth.getUser().then(({ data, error }) => {
+      if (error || !data.user) {
+        setState({
+          user: null,
+          loading: false,
+          error: error ?? null,
+          isAuthenticated: false,
+          isUnauthenticated: true,
+        });
+      } else {
+        setState({
+          user: buildUser(data.user),
+          loading: false,
+          error: null,
+          isAuthenticated: true,
+          isUnauthenticated: false,
+        });
+      }
+    });
+
+    // Subscribe to auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setState({
+          user: buildUser(session.user),
+          loading: false,
+          error: null,
+          isAuthenticated: true,
+          isUnauthenticated: false,
+        });
+      } else {
+        setState({
+          user: null,
+          loading: false,
+          error: null,
+          isAuthenticated: false,
+          isUnauthenticated: true,
+        });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const logout = useCallback(async () => {
-    try {
-      await logoutMutation.mutateAsync();
-    } catch (error: unknown) {
-      if (
-        error instanceof TRPCClientError &&
-        error.data?.code === "UNAUTHORIZED"
-      ) {
-        return;
-      }
-      throw error;
-    } finally {
-      utils.auth.me.setData(undefined, null);
-      await utils.auth.me.invalidate();
+    await supabase.auth.signOut();
+    setState({
+      user: null,
+      loading: false,
+      error: null,
+      isAuthenticated: false,
+      isUnauthenticated: true,
+    });
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) {
+      setState((prev) => ({
+        ...prev,
+        user: null,
+        isAuthenticated: false,
+        isUnauthenticated: true,
+        error: error ?? null,
+      }));
+    } else {
+      setState((prev) => ({
+        ...prev,
+        user: buildUser(data.user),
+        isAuthenticated: true,
+        isUnauthenticated: false,
+        error: null,
+      }));
     }
-  }, [logoutMutation, utils]);
-
-  const isUnauthorizedError =
-    meQuery.error instanceof TRPCClientError &&
-    meQuery.error.data?.code === "UNAUTHORIZED";
-
-  const isSettled = !meQuery.isLoading && !logoutMutation.isPending;
-
-  const isAuthenticated = Boolean(meQuery.data);
-
-  const isUnauthenticated =
-    isSettled && (meQuery.data === null || meQuery.data === undefined) && !!meQuery.error
-      ? isUnauthorizedError
-      : isSettled && !meQuery.data;
-
-  const state = useMemo(() => {
-    return {
-      user: meQuery.data ?? null,
-      loading: meQuery.isLoading || logoutMutation.isPending,
-      error: meQuery.error ?? logoutMutation.error ?? null,
-      isAuthenticated,
-      isUnauthenticated,
-    };
-  }, [
-    meQuery.data,
-    meQuery.error,
-    meQuery.isLoading,
-    logoutMutation.error,
-    logoutMutation.isPending,
-    isAuthenticated,
-    isUnauthenticated,
-  ]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      if (meQuery.data) {
-        localStorage.setItem(
-          "manus-runtime-user-info",
-          JSON.stringify(meQuery.data)
-        );
-      } else {
-        localStorage.removeItem("manus-runtime-user-info");
-      }
-    } catch {
-      // ignore localStorage failures
-    }
-  }, [meQuery.data]);
-
-  useEffect(() => {
-    if (!redirectOnUnauthenticated) return;
-    if (!isSettled) return;
-    if (!isUnauthenticated) return;
-    if (typeof window === "undefined") return;
-    if (hasRedirectedRef.current) return;
-
-    const currentPath = window.location.pathname;
-    const currentUrl = window.location.href;
-
-    const targetUrl = new URL(redirectPath, window.location.origin);
-    const targetPath = targetUrl.pathname;
-
-    if (currentPath === targetPath || currentUrl === targetUrl.href) return;
-
-    hasRedirectedRef.current = true;
-    window.location.replace(targetUrl.href);
-  }, [
-    redirectOnUnauthenticated,
-    redirectPath,
-    isSettled,
-    isUnauthenticated,
-  ]);
+  }, []);
 
   return {
     ...state,
-    refresh: () => meQuery.refetch(),
     logout,
+    refresh,
   };
 }

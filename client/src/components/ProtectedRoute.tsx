@@ -17,6 +17,7 @@ const ROLE_ROUTES: Record<string, string> = {
   owner: "/dashboard/owner",
   marketer: "/dashboard/marketer",
   admin: "/dashboard/cafeteria",
+  cafeteria_admin: "/dashboard/manager",
   manager: "/dashboard/manager",
   waiter: "/dashboard/waiter",
   chef: "/dashboard/chef",
@@ -76,8 +77,13 @@ export function ProtectedRoute({
     return null;
   }
 
+  // If no user at all, render nothing (redirect is handled in useEffect)
+  if (!user) {
+    return null;
+  }
+
   // Check if user role is allowed
-  if (user && user.role) {
+  if (user.role) {
     const userRole = user.role as string;
     if (!allowedRoles.includes(userRole)) {
       return null;
