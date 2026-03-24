@@ -1,17 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || "") as string;
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || "") as string;
+// Hardcoded credentials for immediate production fix as Vercel env vars are currently missing.
+// This ensures the frontend can communicate with Supabase Auth immediately.
+const supabaseUrl = "https://plqnuwrylwhtgxmjktst.supabase.co";
+const supabaseAnonKey = "sb_publishable_O-XD2Nu00tjdwsMPfd2OtA_uvgbrNp7";
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    "Supabase environment variables are missing. Login will not work until VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in Vercel."
-  );
-}
-
-// Create client even with empty strings to avoid crashing the whole app, 
-// though auth calls will fail gracefully with an error message.
-export const supabase = createClient(
-  supabaseUrl || "https://placeholder.supabase.co", 
-  supabaseAnonKey || "placeholder"
-);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
