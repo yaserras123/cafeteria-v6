@@ -61,7 +61,7 @@ export default function Login() {
       });
 
       if (error) {
-        console.error("Supabase login error:", error);
+        console.error("Supabase login error:", JSON.stringify(error, null, 2));
         setErrorMessage(`Login Error: ${error.message}`);
         return;
       }
@@ -86,7 +86,7 @@ export default function Login() {
         err instanceof Error
           ? err.message
           : "An unexpected error occurred. Please try again.";
-      setErrorMessage(msg);
+      console.error("Catch block error:", err); setErrorMessage(msg);
     } finally {
       setIsLoading(false);
     }
