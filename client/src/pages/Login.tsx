@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,14 +10,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabaseClient";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
 
-/**
- * Role → dashboard route mapping.
- * Matches the roles returned by server/routers/auth.ts login mutation.
- */
 const ROLE_ROUTES: Record<string, string> = {
   owner: "/dashboard/owner",
   marketer: "/dashboard/marketer",
@@ -27,8 +23,7 @@ const ROLE_ROUTES: Record<string, string> = {
   chef: "/dashboard/chef",
 };
 
-function getRouteForRole(role?: string): string {
-  if (!role) return "/dashboard/manager";
+function getRouteForRole(role: string): string {
   return ROLE_ROUTES[role] ?? "/dashboard/manager";
 }
 
@@ -55,38 +50,40 @@ export default function Login() {
 
     setIsLoading(true);
     try {
+      console.log("Attempting login for:", email.trim());
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
       if (error) {
-        console.error("Supabase login error:", JSON.stringify(error, null, 2));
-        setErrorMessage(`Login Error: ${error.message}`);
+        console.error("Supabase login error:", error.message, error);
+        setErrorMessage(error.message);
         return;
       }
 
       if (!data.user) {
+        console.error("Login failed: No user returned from Supabase.");
         setErrorMessage("Login failed: No user returned from Supabase.");
         return;
       }
 
-      const role: string =
-        data.user.user_metadata?.role ?? "cafeteria_admin";
+      const role: string = data.user.user_metadata?.role ?? "cafeteria_admin";
       const name: string =
         data.user.user_metadata?.name ??
         data.user.user_metadata?.full_name ??
         data.user.email?.split("@")[0] ??
         "User";
 
+      console.log("Login successful, user role:", role);
       toast.success(`Welcome, ${name}!`);
-      setLocation(getRouteForRole(role));
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "An unexpected error occurred. Please try again.";
-      console.error("Catch block error:", err); setErrorMessage(msg);
+      
+      const targetRoute = getRouteForRole(role);
+      console.log("Redirecting to:", targetRoute);
+      setLocation(targetRoute);
+    } catch (err: any) {
+      console.error("Unexpected catch block error during login:", err);
+      setErrorMessage(err?.message || "An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -99,10 +96,8 @@ export default function Login() {
           <CardTitle className="text-3xl font-bold">Cafeteria System</CardTitle>
           <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>
-
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4" noValidate>
-            {/* Email field */}
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">
                 Email
@@ -121,8 +116,6 @@ export default function Login() {
                 autoFocus
               />
             </div>
-
-            {/* Password field with show/hide toggle */}
             <div className="space-y-2">
               <label htmlFor="password" className="text-sm font-medium">
                 Password
@@ -156,8 +149,6 @@ export default function Login() {
                 </button>
               </div>
             </div>
-
-            {/* Error message area */}
             {errorMessage && (
               <div
                 role="alert"
@@ -166,7 +157,6 @@ export default function Login() {
                 {errorMessage}
               </div>
             )}
-
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <>
