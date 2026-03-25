@@ -79,7 +79,7 @@ export default function Login() {
       toast.success(`Welcome, ${name}!`);
       
       const targetRoute = getRouteForRole(role);
-      console.log("Redirecting to:", targetRoute);
+      console.log("Redirecting to:", targetRoute); alert("Redirecting to: " + targetRoute);
       setLocation(targetRoute);
     } catch (err: any) {
       console.error("Unexpected catch block error during login:", err);
