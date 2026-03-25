@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
-import { useParams } from "wouter";
+import React, { useState, useEffect } from "react";
+import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { ShoppingCart, ChevronDown, ChevronUp, Trash2, Plus, Minus } from "lucide-react";
 
 interface MenuItem {
   id: string;
@@ -13,6 +14,7 @@ interface MenuItem {
   description?: string | null;
   price: number;
   available: boolean | null;
+  image?: string | null;
 }
 
 interface CartItem {
@@ -20,11 +22,16 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  selectedForPayment?: boolean;
 }
 
 export default function CustomerMenu() {
   const { tableToken } = useParams<{ tableToken: string }>();
+  const [, navigate] = useLocation();
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [paymentMode, setPaymentMode] = useState<'full' | 'partial'>('full');
+  const [cartExpanded, setCartExpanded] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const { data: table, isLoading: isLoadingTable, error: tableError } = trpc.qrOrders.resolveTableByToken.useQuery(
     { token: tableToken || "" },
@@ -41,7 +48,7 @@ export default function CustomerMenu() {
       toast.success("Order submitted successfully!");
       setCart([]);
       setTimeout(() => {
-        window.location.href = `/order-confirmation/${order.orderId}`;
+        navigate(`/order-confirmation/${order.orderId}`);
       }, 1000);
     },
     onError: (error) => {
@@ -77,8 +84,12 @@ export default function CustomerMenu() {
         }
         grouped[item.categoryId].items.push(item);
       });
-      setCategories(Object.values(grouped));
+      const categoriesArray = Object.values(grouped);
+      setCategories(categoriesArray);
       setMenuItems(menuData as any);
+      if (categoriesArray.length > 0 && !selectedCategory) {
+        setSelectedCategory(categoriesArray[0].id);
+      }
     }
   }, [menuData]);
 
@@ -98,6 +109,7 @@ export default function CustomerMenu() {
           name: item.name,
           price: Number(item.price),
           quantity: 1,
+          selectedForPayment: paymentMode === 'full' ? true : false,
         },
       ]);
     }
@@ -120,8 +132,31 @@ export default function CustomerMenu() {
     }
   };
 
+  const toggleItemForPayment = (menuItemId: string) => {
+    setCart(
+      cart.map((ci) =>
+        ci.menuItemId === menuItemId
+          ? { ...ci, selectedForPayment: !ci.selectedForPayment }
+          : ci
+      )
+    );
+  };
+
   const getTotalAmount = () => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
+  };
+
+  const getPaymentAmount = () => {
+    if (paymentMode === 'full') {
+      return getTotalAmount();
+    }
+    return cart
+      .filter((item) => item.selectedForPayment)
+      .reduce((total, item) => total + item.price * item.quantity, 0);
+  };
+
+  const getRemainingAmount = () => {
+    return getTotalAmount() - getPaymentAmount();
   };
 
   const submitOrder = async () => {
@@ -130,18 +165,32 @@ export default function CustomerMenu() {
       return;
     }
 
+    if (paymentMode === 'partial' && getPaymentAmount() === 0) {
+      toast.error("Please select at least one item to pay");
+      return;
+    }
+
+    const itemsToSubmit = paymentMode === 'full'
+      ? cart.map((item) => ({
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+        }))
+      : cart
+          .filter((item) => item.selectedForPayment)
+          .map((item) => ({
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+          }));
+
     createOrderMutation.mutate({
       token: tableToken || "",
-      items: cart.map((item) => ({
-        menuItemId: item.menuItemId,
-        quantity: item.quantity,
-      })),
+      items: itemsToSubmit,
     });
   };
 
   if (isLoadingTable || isLoadingMenu) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <Spinner />
       </div>
     );
@@ -149,8 +198,8 @@ export default function CustomerMenu() {
 
   if (!table) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="p-8 text-center">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <Card className="p-8 text-center w-full max-w-md">
           <h1 className="text-2xl font-bold mb-4">Invalid Table</h1>
           <p className="text-gray-600">The table token is invalid or expired.</p>
         </Card>
@@ -158,66 +207,126 @@ export default function CustomerMenu() {
     );
   }
 
+  const currentCategory = categories.find((c) => c.id === selectedCategory);
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-32 md:pb-8">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold">Table {table.tableNumber}</h1>
-              <p className="text-gray-600 text-sm">Order from your table</p>
-            </div>
-            <Badge variant="outline" className="text-lg px-3 py-1">
-              {cart.length} items
-            </Badge>
+      <div className="bg-white border-b sticky top-0 z-20 shadow-sm">
+        <div className="px-4 py-4 flex items-center justify-between">
+          <div className="flex-1">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800">
+              {table.cafeteriaName || 'Cafe'}
+            </h1>
+            <p className="text-sm text-gray-600">Table {table.tableNumber}</p>
           </div>
+          <Badge variant="secondary" className="text-lg px-3 py-2 flex items-center gap-2">
+            <ShoppingCart className="w-4 h-4" />
+            {cart.length}
+          </Badge>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Menu Items */}
-          <div className="lg:col-span-2">
+      <div className="px-4 py-6 md:grid md:grid-cols-3 md:gap-6 md:max-w-7xl md:mx-auto">
+        {/* Menu Section */}
+        <div className="md:col-span-2 space-y-4">
+          {/* Category Tabs */}
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
             {categories.map((category) => (
-              <div key={category.id} className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">{category.name}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {category.items.map((item: MenuItem) => (
-                    <Card
-                      key={item.id}
-                      className="p-4 hover:shadow-lg transition-shadow"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">{item.name}</h3>
-                        <Badge variant="secondary">
-                          ${Number(item.price).toFixed(2)}
-                        </Badge>
-                      </div>
-                      {item.description && (
-                        <p className="text-sm text-gray-600 mb-3">
-                          {item.description}
-                        </p>
-                      )}
-                      <Button
-                        onClick={() => addToCart(item)}
-                        disabled={!item.available}
-                        className="w-full"
-                        variant={item.available ? "default" : "outline"}
-                      >
-                        {item.available ? "Add to Order" : "Unavailable"}
-                      </Button>
-                    </Card>
-                  ))}
-                </div>
-              </div>
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category.id)}
+                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  selectedCategory === category.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 border border-gray-200 hover:border-blue-400'
+                }`}
+              >
+                {category.name}
+              </button>
             ))}
           </div>
 
-          {/* Cart Sidebar */}
-          <div className="lg:col-span-1">
-            <Card className="p-6 sticky top-24">
-              <h2 className="text-lg font-bold mb-4">Your Order</h2>
+          {/* Menu Items Grid */}
+          {currentCategory && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {currentCategory.items.map((item: MenuItem) => (
+                <Card
+                  key={item.id}
+                  className={`p-4 transition-all ${
+                    !item.available ? 'opacity-50' : 'hover:shadow-lg'
+                  }`}
+                >
+                  {item.image && (
+                    <div className="w-full h-32 bg-gray-200 rounded-lg mb-3 overflow-hidden">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-semibold text-gray-800">{item.name}</h3>
+                    <Badge variant="secondary" className="text-sm font-bold">
+                      ${Number(item.price).toFixed(2)}
+                    </Badge>
+                  </div>
+                  {item.description && (
+                    <p className="text-xs text-gray-600 mb-3 line-clamp-2">
+                      {item.description}
+                    </p>
+                  )}
+                  <Button
+                    onClick={() => addToCart(item)}
+                    disabled={!item.available}
+                    className={`w-full h-12 font-semibold text-base ${
+                      item.available
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {item.available ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Plus className="w-5 h-5" />
+                        Add
+                      </div>
+                    ) : (
+                      'Unavailable'
+                    )}
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Cart Section - Mobile Bottom Sheet / Desktop Sidebar */}
+        <div className={`fixed bottom-0 left-0 right-0 md:static md:col-span-1 ${
+          cartExpanded ? 'h-auto' : 'h-20'
+        } md:h-auto bg-white md:bg-transparent border-t md:border-0 shadow-lg md:shadow-none z-30 transition-all duration-300`}>
+          {/* Mobile Header */}
+          <div className="md:hidden flex items-center justify-between p-4 border-b">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5" />
+              Your Order ({cart.length})
+            </h2>
+            <button
+              onClick={() => setCartExpanded(!cartExpanded)}
+              className="p-2 hover:bg-gray-100 rounded-lg"
+            >
+              {cartExpanded ? (
+                <ChevronDown className="w-5 h-5" />
+              ) : (
+                <ChevronUp className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+
+          {/* Cart Content */}
+          {cartExpanded && (
+            <div className="p-4 md:p-6 md:sticky md:top-24 md:bg-white md:rounded-lg md:border md:border-gray-200 md:shadow-sm">
+              <h2 className="hidden md:block text-lg font-bold mb-4">Your Order</h2>
 
               {cart.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">
@@ -225,83 +334,162 @@ export default function CustomerMenu() {
                 </p>
               ) : (
                 <>
+                  {/* Payment Mode Toggle */}
+                  <div className="mb-4 flex gap-2">
+                    <button
+                      onClick={() => setPaymentMode('full')}
+                      className={`flex-1 py-2 px-3 rounded-lg font-medium transition-all text-sm ${
+                        paymentMode === 'full'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Pay All
+                    </button>
+                    <button
+                      onClick={() => setPaymentMode('partial')}
+                      className={`flex-1 py-2 px-3 rounded-lg font-medium transition-all text-sm ${
+                        paymentMode === 'partial'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Pay Partial
+                    </button>
+                  </div>
+
+                  {/* Cart Items */}
                   <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
                     {cart.map((item) => (
                       <div
                         key={item.menuItemId}
-                        className="flex justify-between items-center p-2 bg-gray-50 rounded"
+                        className="p-3 bg-gray-50 rounded-lg border border-gray-200"
                       >
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{item.name}</p>
-                          <p className="text-xs text-gray-600">
-                            ${item.price.toFixed(2)} x {item.quantity}
+                        {paymentMode === 'partial' && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <input
+                              type="checkbox"
+                              checked={item.selectedForPayment || false}
+                              onChange={() => toggleItemForPayment(item.menuItemId)}
+                              className="w-5 h-5 rounded cursor-pointer accent-blue-600"
+                            />
+                            <span className="text-xs text-gray-600 font-medium">
+                              Select for payment
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <p className="font-medium text-sm text-gray-800">
+                              {item.name}
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              ${item.price.toFixed(2)} × {item.quantity}
+                            </p>
+                          </div>
+                          <p className="font-bold text-sm text-gray-800">
+                            ${(item.price * item.quantity).toFixed(2)}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              updateQuantity(
-                                item.menuItemId,
-                                item.quantity - 1
-                              )
-                            }
-                          >
-                            -
-                          </Button>
-                          <span className="w-8 text-center text-sm font-medium">
-                            {item.quantity}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              updateQuantity(
-                                item.menuItemId,
-                                item.quantity + 1
-                              )
-                            }
-                          >
-                            +
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
+
+                        {/* Quantity Controls */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-300">
+                            <button
+                              onClick={() =>
+                                updateQuantity(item.menuItemId, item.quantity - 1)
+                              }
+                              className="p-1 hover:bg-gray-100 transition-colors"
+                            >
+                              <Minus className="w-4 h-4 text-gray-600" />
+                            </button>
+                            <span className="w-8 text-center text-sm font-bold">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() =>
+                                updateQuantity(item.menuItemId, item.quantity + 1)
+                              }
+                              className="p-1 hover:bg-gray-100 transition-colors"
+                            >
+                              <Plus className="w-4 h-4 text-gray-600" />
+                            </button>
+                          </div>
+                          <button
                             onClick={() => removeFromCart(item.menuItemId)}
+                            className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
                           >
-                            ✕
-                          </Button>
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="border-t pt-4 mb-4">
-                    <div className="flex justify-between items-center mb-2">
+                  {/* Summary */}
+                  <div className="border-t pt-4 mb-4 space-y-2">
+                    <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-600">Subtotal:</span>
-                      <span className="font-semibold">
+                      <span className="font-semibold text-gray-800">
                         ${getTotalAmount().toFixed(2)}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center text-lg font-bold">
+
+                    {paymentMode === 'partial' && (
+                      <>
+                        <div className="flex justify-between items-center text-sm bg-blue-50 p-2 rounded-lg">
+                          <span className="text-blue-700 font-medium">For Payment:</span>
+                          <span className="font-bold text-blue-700">
+                            ${getPaymentAmount().toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm bg-amber-50 p-2 rounded-lg">
+                          <span className="text-amber-700 font-medium">Remaining:</span>
+                          <span className="font-bold text-amber-700">
+                            ${getRemainingAmount().toFixed(2)}
+                          </span>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="flex justify-between items-center text-lg font-bold pt-2 border-t">
                       <span>Total:</span>
-                      <span>${getTotalAmount().toFixed(2)}</span>
+                      <span className="text-blue-600">
+                        ${paymentMode === 'full' ? getTotalAmount().toFixed(2) : getPaymentAmount().toFixed(2)}
+                      </span>
                     </div>
                   </div>
 
-                  <Button
-                    onClick={submitOrder}
-                    disabled={(createOrderMutation as any).isPending || cart.length === 0}
-                    className="w-full"
-                    size="lg"
-                  >
-                    {(createOrderMutation as any).isPending ? "Submitting..." : "Submit Order"}
-                  </Button>
+                  {/* Action Buttons */}
+                  <div className="space-y-2">
+                    <Button
+                      onClick={submitOrder}
+                      disabled={
+                        (createOrderMutation as any).isPending ||
+                        cart.length === 0 ||
+                        (paymentMode === 'partial' && getPaymentAmount() === 0)
+                      }
+                      className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-bold text-base"
+                    >
+                      {(createOrderMutation as any).isPending
+                        ? 'Submitting...'
+                        : paymentMode === 'full'
+                        ? 'Pay Now'
+                        : 'Pay Selected'}
+                    </Button>
+                    <Button
+                      onClick={() => setCart([])}
+                      variant="outline"
+                      className="w-full h-12 font-medium"
+                    >
+                      Clear Cart
+                    </Button>
+                  </div>
                 </>
               )}
-            </Card>
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

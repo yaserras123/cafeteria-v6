@@ -19,12 +19,46 @@ import Upgrade from "./pages/Upgrade";
 import UpgradeSuccess from "./pages/UpgradeSuccess";
 import UpgradeCancel from "./pages/UpgradeCancel";
 
+// Owner Dashboard Sub-pages (to be created)
+import OwnerCafeterias from "./pages/owner/OwnerCafeterias";
+import OwnerMarketers from "./pages/owner/OwnerMarketers";
+import OwnerPoints from "./pages/owner/OwnerPoints";
+import OwnerReports from "./pages/owner/OwnerReports";
+import OwnerSettings from "./pages/owner/OwnerSettings";
+
+// Marketer Dashboard Sub-pages (to be created)
+import MarketerDownlines from "./pages/marketer/MarketerDownlines";
+import MarketerCommissions from "./pages/marketer/MarketerCommissions";
+import MarketerReports from "./pages/marketer/MarketerReports";
+
+// Cafeteria Admin Dashboard Sub-pages (to be created)
+import CafeteriaMenu from "./pages/cafeteria/CafeteriaMenu";
+import CafeteriaTables from "./pages/cafeteria/CafeteriaTables";
+import CafeteriaStaff from "./pages/cafeteria/CafeteriaStaff";
+import CafeteriaReports from "./pages/cafeteria/CafeteriaReports";
+import CafeteriaRecharge from "./pages/cafeteria/CafeteriaRecharge";
+import CafeteriaSettings from "./pages/cafeteria/CafeteriaSettings";
+
+// Manager Dashboard Sub-pages (to be created)
+import ManagerOrders from "./pages/manager/ManagerOrders";
+import ManagerStaff from "./pages/manager/ManagerStaff";
+import ManagerReports from "./pages/manager/ManagerReports";
+
+// Waiter Dashboard Sub-pages (to be created)
+import WaiterTables from "./pages/waiter/WaiterTables";
+import WaiterOrders from "./pages/waiter/WaiterOrders";
+
+// Chef Dashboard Sub-pages (to be created)
+import ChefKitchenBoard from "./pages/chef/ChefKitchenBoard";
+
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/login"} component={Login} />
       <Route path={"/menu/:tableToken"} component={CustomerMenu} />
+      
+      {/* ===== OWNER DASHBOARD ROUTES ===== */}
       <Route
         path={"/dashboard/owner"}
         component={() => (
@@ -32,11 +66,72 @@ function Router() {
         )}
       />
       <Route
+        path={"/dashboard/owner/cafeterias"}
+        component={() => (
+          <ProtectedRoute component={OwnerCafeterias} allowedRoles={["owner"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/owner/marketers"}
+        component={() => (
+          <ProtectedRoute component={OwnerMarketers} allowedRoles={["owner"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/owner/points"}
+        component={() => (
+          <ProtectedRoute component={OwnerPoints} allowedRoles={["owner"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/owner/reports"}
+        component={() => (
+          <ProtectedRoute component={OwnerReports} allowedRoles={["owner"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/owner/settings"}
+        component={() => (
+          <ProtectedRoute component={OwnerSettings} allowedRoles={["owner"]} />
+        )}
+      />
+
+      {/* ===== MARKETER DASHBOARD ROUTES ===== */}
+      <Route
         path={"/dashboard/marketer"}
         component={() => (
           <ProtectedRoute
             component={MarketerDashboard}
             allowedRoles={["marketer"]}
+          />
+        )}
+      />
+      <Route
+        path={"/dashboard/marketer/downlines"}
+        component={() => (
+          <ProtectedRoute component={MarketerDownlines} allowedRoles={["marketer"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/marketer/commissions"}
+        component={() => (
+          <ProtectedRoute component={MarketerCommissions} allowedRoles={["marketer"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/marketer/reports"}
+        component={() => (
+          <ProtectedRoute component={MarketerReports} allowedRoles={["marketer"]} />
+        )}
+      />
+
+      {/* ===== CAFETERIA ADMIN DASHBOARD ROUTES ===== */}
+      <Route
+        path={"/dashboard/cafeteria-admin"}
+        component={() => (
+          <ProtectedRoute
+            component={CafeteriaDashboard}
+            allowedRoles={["cafeteria_admin"]}
           />
         )}
       />
@@ -50,14 +145,72 @@ function Router() {
         )}
       />
       <Route
+        path={"/dashboard/cafeteria-admin/menu"}
+        component={() => (
+          <ProtectedRoute component={CafeteriaMenu} allowedRoles={["cafeteria_admin"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/cafeteria-admin/tables"}
+        component={() => (
+          <ProtectedRoute component={CafeteriaTables} allowedRoles={["cafeteria_admin"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/cafeteria-admin/staff"}
+        component={() => (
+          <ProtectedRoute component={CafeteriaStaff} allowedRoles={["cafeteria_admin"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/cafeteria-admin/reports"}
+        component={() => (
+          <ProtectedRoute component={CafeteriaReports} allowedRoles={["cafeteria_admin"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/cafeteria-admin/recharge"}
+        component={() => (
+          <ProtectedRoute component={CafeteriaRecharge} allowedRoles={["cafeteria_admin"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/cafeteria-admin/settings"}
+        component={() => (
+          <ProtectedRoute component={CafeteriaSettings} allowedRoles={["cafeteria_admin"]} />
+        )}
+      />
+
+      {/* ===== MANAGER DASHBOARD ROUTES ===== */}
+      <Route
         path={"/dashboard/manager"}
         component={() => (
           <ProtectedRoute
             component={ManagerDashboard}
-            allowedRoles={["manager", "cafeteria_admin"]}
+            allowedRoles={["manager"]}
           />
         )}
       />
+      <Route
+        path={"/dashboard/manager/orders"}
+        component={() => (
+          <ProtectedRoute component={ManagerOrders} allowedRoles={["manager"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/manager/staff"}
+        component={() => (
+          <ProtectedRoute component={ManagerStaff} allowedRoles={["manager"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/manager/reports"}
+        component={() => (
+          <ProtectedRoute component={ManagerReports} allowedRoles={["manager"]} />
+        )}
+      />
+
+      {/* ===== WAITER DASHBOARD ROUTES ===== */}
       <Route
         path={"/dashboard/waiter"}
         component={() => (
@@ -68,11 +221,33 @@ function Router() {
         )}
       />
       <Route
+        path={"/dashboard/waiter/tables"}
+        component={() => (
+          <ProtectedRoute component={WaiterTables} allowedRoles={["waiter"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/waiter/orders"}
+        component={() => (
+          <ProtectedRoute component={WaiterOrders} allowedRoles={["waiter"]} />
+        )}
+      />
+
+      {/* ===== CHEF DASHBOARD ROUTES ===== */}
+      <Route
         path={"/dashboard/chef"}
         component={() => (
           <ProtectedRoute component={ChefDashboard} allowedRoles={["chef"]} />
         )}
       />
+      <Route
+        path={"/dashboard/chef/kitchen-board"}
+        component={() => (
+          <ProtectedRoute component={ChefKitchenBoard} allowedRoles={["chef"]} />
+        )}
+      />
+
+      {/* ===== OTHER ROUTES ===== */}
       <Route path={"/reports"} component={ReportingDashboard} />
       <Route path={"/upgrade"} component={Upgrade} />
       <Route path={"/upgrade/success"} component={UpgradeSuccess} />
