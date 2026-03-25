@@ -1,14 +1,3 @@
-/**
- * useAuth — Supabase-only authentication hook.
- *
- * Replaces the legacy tRPC-based auth hook. All session data comes
- * directly from Supabase Auth; no database queries are performed.
- *
- * Fallback values are provided so the app works even when the
- * public.users table does not exist:
- *   role        → "admin"
- *   cafeteriaId → 1
- */
 import { supabase } from "@/lib/supabaseClient";
 import { useCallback, useEffect, useState } from "react";
 
@@ -28,16 +17,34 @@ type AuthState = {
   isUnauthenticated: boolean;
 };
 
-function buildUser(supabaseUser: import("@supabase/supabase-js").User): AuthUser {
+async function buildUser(supabaseUser: any): Promise<AuthUser> {
   const meta = supabaseUser.user_metadata ?? {};
+  
+  // Try to fetch from public.users table for the most up-to-date role
+  try {
+    const { data: userData, error } = await supabase
+      .from("users")
+      .select("role, name, cafeteriaId")
+      .eq("id", supabaseUser.id)
+      .single();
+    
+    if (!error && userData) {
+      return {
+        id: supabaseUser.id,
+        email: supabaseUser.email,
+        name: userData.name ?? meta.name ?? meta.full_name ?? supabaseUser.email?.split("@")[0] ?? "User",
+        role: userData.role ?? meta.role ?? "admin",
+        cafeteriaId: userData.cafeteriaId ?? meta.cafeteriaId ?? 1,
+      };
+    }
+  } catch (e) {
+    console.error("Error fetching user from public.users:", e);
+  }
+
   return {
     id: supabaseUser.id,
     email: supabaseUser.email,
-    name:
-      meta.name ??
-      meta.full_name ??
-      supabaseUser.email?.split("@")[0] ??
-      "User",
+    name: meta.name ?? meta.full_name ?? supabaseUser.email?.split("@")[0] ?? "User",
     role: meta.role ?? "admin",
     cafeteriaId: meta.cafeteriaId ?? 1,
   };
@@ -52,35 +59,36 @@ export function useAuth() {
     isUnauthenticated: false,
   });
 
-  useEffect(() => {
-    // Fetch the initial session
-    supabase.auth.getUser().then(({ data, error }) => {
-      if (error || !data.user) {
-        setState({
-          user: null,
-          loading: false,
-          error: error ?? null,
-          isAuthenticated: false,
-          isUnauthenticated: true,
-        });
-      } else {
-        setState({
-          user: buildUser(data.user),
-          loading: false,
-          error: null,
-          isAuthenticated: true,
-          isUnauthenticated: false,
-        });
-      }
-    });
+  const refresh = useCallback(async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) {
+      setState({
+        user: null,
+        loading: false,
+        error: error ?? null,
+        isAuthenticated: false,
+        isUnauthenticated: true,
+      });
+    } else {
+      const user = await buildUser(data.user);
+      setState({
+        user,
+        loading: false,
+        error: null,
+        isAuthenticated: true,
+        isUnauthenticated: false,
+      });
+    }
+  }, []);
 
-    // Subscribe to auth state changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+  useEffect(() => {
+    refresh();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
+        const user = await buildUser(session.user);
         setState({
-          user: buildUser(session.user),
+          user,
           loading: false,
           error: null,
           isAuthenticated: true,
@@ -100,7 +108,7 @@ export function useAuth() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [refresh]);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
@@ -111,27 +119,6 @@ export function useAuth() {
       isAuthenticated: false,
       isUnauthenticated: true,
     });
-  }, []);
-
-  const refresh = useCallback(async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
-      setState((prev) => ({
-        ...prev,
-        user: null,
-        isAuthenticated: false,
-        isUnauthenticated: true,
-        error: error ?? null,
-      }));
-    } else {
-      setState((prev) => ({
-        ...prev,
-        user: buildUser(data.user),
-        isAuthenticated: true,
-        isUnauthenticated: false,
-        error: null,
-      }));
-    }
   }, []);
 
   return {
