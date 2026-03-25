@@ -6,7 +6,7 @@
  *
  * Fallback values are provided so the app works even when the
  * public.users table does not exist:
- *   role        → "cafeteria_admin"
+ *   role        → "admin"
  *   cafeteriaId → 1
  */
 import { supabase } from "@/lib/supabaseClient";
@@ -38,7 +38,7 @@ function buildUser(supabaseUser: import("@supabase/supabase-js").User): AuthUser
       meta.full_name ??
       supabaseUser.email?.split("@")[0] ??
       "User",
-    role: meta.role ?? "cafeteria_admin",
+    role: meta.role ?? "admin",
     cafeteriaId: meta.cafeteriaId ?? 1,
   };
 }

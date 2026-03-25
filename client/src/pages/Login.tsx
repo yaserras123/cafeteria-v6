@@ -24,7 +24,7 @@ const ROLE_ROUTES: Record<string, string> = {
 };
 
 function getRouteForRole(role: string): string {
-  return ROLE_ROUTES[role] ?? "/dashboard/manager";
+  return ROLE_ROUTES[role] ?? "/dashboard/cafeteria";
 }
 
 export default function Login() {
@@ -68,7 +68,7 @@ export default function Login() {
         return;
       }
 
-      const role: string = data.user.user_metadata?.role ?? "cafeteria_admin";
+      const role: string = data.user.user_metadata?.role ?? "admin";
       const name: string =
         data.user.user_metadata?.name ??
         data.user.user_metadata?.full_name ??
