@@ -281,17 +281,17 @@ export default function CafeteriaDashboard() {
 
         {/* Tabs for detailed views */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-white border-2 border-slate-200 rounded-xl p-1 shadow-md">
-            <TabsTrigger value="overview" className="text-xs font-bold data-[state=active]:bg-blue-500 data-[state=active]:text-white rounded-lg">
+          <TabsList className="w-full overflow-x-auto flex flex-nowrap gap-2 bg-white border-2 border-slate-200 rounded-xl p-1 shadow-md">
+            <TabsTrigger value="overview" className="text-xs font-bold whitespace-nowrap flex-shrink-0 data-[state=active]:bg-blue-500 data-[state=active]:text-white rounded-lg">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="staff" className="text-xs font-bold data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-lg">
+            <TabsTrigger value="staff" className="text-xs font-bold whitespace-nowrap flex-shrink-0 data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-lg">
               Staff
             </TabsTrigger>
-            <TabsTrigger value="tables" className="text-xs font-bold data-[state=active]:bg-purple-500 data-[state=active]:text-white rounded-lg">
+            <TabsTrigger value="tables" className="text-xs font-bold whitespace-nowrap flex-shrink-0 data-[state=active]:bg-purple-500 data-[state=active]:text-white rounded-lg">
               Tables
             </TabsTrigger>
-            <TabsTrigger value="orders" className="text-xs font-bold data-[state=active]:bg-pink-500 data-[state=active]:text-white rounded-lg">
+            <TabsTrigger value="orders" className="text-xs font-bold whitespace-nowrap flex-shrink-0 data-[state=active]:bg-pink-500 data-[state=active]:text-white rounded-lg">
               Orders
             </TabsTrigger>
           </TabsList>
