@@ -62,7 +62,7 @@ async function buildUser(supabaseUser: any): Promise<AuthUser> {
   return userFromMeta;
 }
 
-export function useAuth() {
+export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
   const [state, setState] = useState<AuthState>({
     user: null,
     loading: true,
