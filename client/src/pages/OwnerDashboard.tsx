@@ -5,14 +5,28 @@ import { useTranslation } from '@/locales/useTranslation';
 import { trpc } from '@/lib/trpc';
 import { 
   LayoutDashboard, 
+  CreditCard, 
+  Wallet, 
+  BarChart3, 
+  Activity, 
+  CheckCircle2, 
+  XCircle,
+  Clock,
   TrendingUp,
   Users,
   Store,
-  Activity
+  Gift,
+  Settings,
+  Calculator
 } from 'lucide-react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TableQRManager } from '@/components/TableQRManager';
+import { SystemTestTools } from '@/components/SystemTestTools';
+import { SystemMonitorPanel } from '@/components/SystemMonitorPanel';
+import { LaunchToolkitManager } from '@/components/LaunchToolkitManager';
+import { PointsCalculator } from '@/components/PointsCalculator';
 
 /**
  * OWNER DASHBOARD - CAFETERIA V2
@@ -20,13 +34,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
  * Features: Recharge Approval, Withdrawal Approval, Global Reports, System Monitoring
  * RTL Support: Yes (via useTranslation hook)
  * Mobile Responsive: Yes (Tailwind CSS)
- * Fixed: Scrollable Tabs for mobile compatibility
  */
 
 export default function OwnerDashboard() {
   const { user, loading: authLoading } = useAuth({ redirectOnUnauthenticated: true });
   const { language, setLanguage } = useTranslation();
   const [activeTab, setActiveTab] = useState('recharges');
+  const [globalFreeMonths, setGlobalFreeMonths] = useState<number>(0);
+  const [specialFreeDays, setSpecialFreeDays] = useState<number>(30);
+  const [targetRefCodes, setTargetRefCodes] = useState<string>('');
+  const [grantReason, setGrantReason] = useState<string>('');
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [selectedRecharge, setSelectedRecharge] = useState<any>(null);
 
@@ -63,6 +80,29 @@ export default function OwnerDashboard() {
 
   // Fetch pending withdrawals
   const { data: pendingWithdrawals, isLoading: withdrawalsLoading } = trpc.withdrawals.getRequests.useQuery({ status: "pending" });
+
+  // Fetch global free months setting
+  const { data: globalFreeConfig, refetch: refetchGlobalFree } = trpc.system.getGlobalFreeMonths.useQuery();
+  
+  // Update global free months mutation
+  const updateGlobalFreeMutation = trpc.system.setGlobalFreeMonths.useMutation({
+    onSuccess: () => {
+      refetchGlobalFree();
+      alert('Global free period updated successfully');
+    }
+  });
+
+  // Grant special free period mutation
+  const grantSpecialFreeMutation = trpc.system.grantSpecialFreePeriod.useMutation({
+    onSuccess: (data) => {
+      alert(`Successfully granted free period to ${data.processedCount} cafeterias`);
+      setTargetRefCodes('');
+      setGrantReason('');
+    },
+    onError: (error) => {
+      alert(`Error: ${error.message}`);
+    }
+  });
 
   // Approve recharge mutation
   const approveRechargeMutation = trpc.recharges.approveRequest.useMutation({
@@ -104,6 +144,12 @@ export default function OwnerDashboard() {
       </header>
 
       <main className="p-3 md:p-8 max-w-7xl mx-auto pb-20">
+        {/* System Monitor Panel */}
+        <div className="mb-8">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">System Monitor</h2>
+          <SystemMonitorPanel cafeteriaId={(user as any)?.cafeteriaId || "default-cafeteria-id"} />
+        </div>
+
         {/* Global Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           <Card className="hover:shadow-md transition-shadow">
@@ -160,49 +206,101 @@ export default function OwnerDashboard() {
           </Card>
         </div>
 
-        {/* Main Content Tabs - Mobile Responsive */}
+        {/* Main Content Tabs */}
         <Card>
           <CardHeader>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              {/* Scrollable Tabs for Mobile */}
-              <div className="w-full overflow-x-auto">
-                <TabsList className="w-full flex flex-nowrap gap-2 bg-gray-50 p-2 rounded-lg">
-                  <TabsTrigger value="recharges" className="whitespace-nowrap flex-shrink-0">Recharges</TabsTrigger>
-                  <TabsTrigger value="withdrawals" className="whitespace-nowrap flex-shrink-0">Withdrawals</TabsTrigger>
-                  <TabsTrigger value="free-periods" className="whitespace-nowrap flex-shrink-0">Free Periods</TabsTrigger>
-                  <TabsTrigger value="reports" className="whitespace-nowrap flex-shrink-0">Reports</TabsTrigger>
-                  <TabsTrigger value="qr-codes" className="whitespace-nowrap flex-shrink-0">QR Codes</TabsTrigger>
-                  <TabsTrigger value="launch-toolkit" className="whitespace-nowrap flex-shrink-0">Toolkit</TabsTrigger>
-                  <TabsTrigger value="test-tools" className="whitespace-nowrap flex-shrink-0">Tests</TabsTrigger>
-                </TabsList>
-              </div>
+<div className="w-full overflow-x-auto">
+              <TabsList className="flex flex-nowrap gap-2 bg-gray-50 p-2 rounded-lg">
+                <TabsTrigger value="recharges" className="whitespace-nowrap flex-shrink-0">Recharges</TabsTrigger>
+                <TabsTrigger value="withdrawals" className="whitespace-nowrap flex-shrink-0">Withdrawals</TabsTrigger>
+                <TabsTrigger value="free-periods" className="whitespace-nowrap flex-shrink-0">Free Periods</TabsTrigger>
+                <TabsTrigger value="reports" className="whitespace-nowrap flex-shrink-0">Reports</TabsTrigger>
+                <TabsTrigger value="qr-codes" className="whitespace-nowrap flex-shrink-0">QR Codes</TabsTrigger>
+                <TabsTrigger value="launch-toolkit" className="whitespace-nowrap flex-shrink-0">Toolkit</TabsTrigger>
+                <TabsTrigger value="test-tools" className="whitespace-nowrap flex-shrink-0">Tests</TabsTrigger>
+              </TabsList>
+            </div>
 
               <TabsContent value="recharges" className="mt-6">
                 <div className="space-y-4">
                   <h3 className="text-lg font-bold text-gray-800">Approve Recharge Requests</h3>
                   
-                  {rechargesLoading ? (
-                    <p className="text-center text-gray-500">Loading recharge requests...</p>
-                  ) : pendingRecharges && pendingRecharges.length > 0 ? (
-                    <div className="space-y-4">
-                      {pendingRecharges.map((recharge: any) => (
-                        <Card key={recharge.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                          <CardContent className="pt-6">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-bold text-gray-900">{recharge.cafeteria?.name}</p>
-                                <p className="text-sm text-gray-500">${recharge.amount}</p>
-                              </div>
-                              <Button onClick={() => setSelectedRecharge(recharge)} size="sm">
-                                Review
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                  {selectedRecharge ? (
+                    <div className="max-w-2xl mx-auto py-4">
+                      <PointsCalculator
+                        cafeteriaName={selectedRecharge.cafeteria?.name || "Cafeteria"}
+                        cafeteriaCurrency={selectedRecharge.cafeteria?.currency || "USD"}
+                        requestedAmount={selectedRecharge.amount}
+                        isProcessing={approveRechargeMutation.isPending}
+                        onCancel={() => setSelectedRecharge(null)}
+                        onApprove={(data) => {
+                          approveRechargeMutation.mutate({
+                            rechargeRequestId: selectedRecharge.id,
+                            approvedPoints: data.approvedPoints,
+                            paidAmount: data.paidAmount,
+                            paidCurrency: data.paidCurrency,
+                            exchangeRateToUsd: data.exchangeRateToUsd,
+                            pointsMultiplier: data.pointsMultiplier,
+                            notes: `Paid ${data.paidAmount} ${data.paidCurrency} @ ${data.exchangeRateToUsd} USD/rate x ${data.pointsMultiplier} multiplier`
+                          });
+                        }}
+                      />
                     </div>
                   ) : (
-                    <p className="text-center text-gray-500">No pending recharge requests</p>
+                    <>
+                      {rechargesLoading ? (
+                        <p className="text-gray-500">Loading...</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left">
+                            <thead>
+                              <tr className="text-gray-400 text-sm border-b border-gray-100">
+                                <th className="pb-3 font-medium">Cafeteria</th>
+                                <th className="pb-3 font-medium">Amount</th>
+                                <th className="pb-3 font-medium">Date</th>
+                                <th className="pb-3 font-medium">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {pendingRecharges?.map((req: any) => (
+                                <tr key={req.id} className="text-sm">
+                                  <td className="py-4 font-medium text-gray-900">{req.cafeteria?.name}</td>
+                                  <td className="py-4 text-blue-600 font-bold">${req.amount}</td>
+                                  <td className="py-4 text-gray-500">{new Date(req.createdAt).toLocaleString()}</td>
+                                  <td className="py-4">
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="gap-2 border-green-200 text-green-700 hover:bg-green-50"
+                                        onClick={() => setSelectedRecharge(req)}
+                                        disabled={approveRechargeMutation.isPending}
+                                      >
+                                        <Calculator className="w-4 h-4" />
+                                        Calculate & Approve
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {}}
+                                      >
+                                        <XCircle className="w-5 h-5 text-red-600" />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                              {(!pendingRecharges || pendingRecharges.length === 0) && (
+                                <tr>
+                                  <td colSpan={4} className="py-8 text-center text-gray-500">No pending recharge requests</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </TabsContent>
@@ -211,80 +309,170 @@ export default function OwnerDashboard() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-bold text-gray-800">Approve Withdrawal Requests</h3>
                   {withdrawalsLoading ? (
-                    <p className="text-center text-gray-500">Loading withdrawal requests...</p>
-                  ) : pendingWithdrawals && pendingWithdrawals.length > 0 ? (
-                    <div className="space-y-4">
-                      {pendingWithdrawals.map((withdrawal: any) => (
-                        <Card key={withdrawal.id}>
+                    <p className="text-gray-500">Loading...</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {pendingWithdrawals?.map((req: any) => (
+                        <Card key={req.id}>
                           <CardContent className="pt-6">
                             <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-bold text-gray-900">{withdrawal.marketer?.name}</p>
-                                <p className="text-sm text-gray-500">${withdrawal.amount}</p>
+                              <div className="flex items-center gap-4">
+                                <Wallet className="w-5 h-5 text-purple-600" />
+                                <div>
+                                  <p className="font-bold text-gray-900">{req.marketer?.name}</p>
+                                  <p className="text-xs text-gray-500">{new Date(req.createdAt).toLocaleString()}</p>
+                                </div>
                               </div>
-                              <Button 
-                                onClick={() => approveWithdrawalMutation.mutate({ withdrawalRequestId: withdrawal.id })}
-                                size="sm"
-                              >
-                                Approve
-                              </Button>
+                              <div className="flex items-center gap-6">
+                                <span className="text-lg font-bold text-purple-600">${req.amount}</span>
+                                <div className="flex gap-2">
+                                  <Button size="sm" onClick={() => approveWithdrawalMutation.mutate({ withdrawalRequestId: req.id })}>Approve</Button>
+                                  <Button size="sm" variant="outline">Reject</Button>
+                                </div>
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-center text-gray-500">No pending withdrawal requests</p>
                   )}
                 </div>
               </TabsContent>
 
-              <TabsContent value="free-periods" className="mt-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-gray-800">Free Periods Management</h3>
-                  <p className="text-sm text-gray-500">Manage global and special free periods for cafeterias</p>
-                </div>
-              </TabsContent>
+	              <TabsContent value="free-periods" className="mt-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Global Settings */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Settings className="w-5 h-5 text-blue-600" />
+                          Global Free Period Settings
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <p className="text-sm text-gray-500">
+                          Set the default free operation period (in months) for all newly created cafeterias.
+                        </p>
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <label className="text-xs font-bold text-gray-400 uppercase">Free Months</label>
+                            <input 
+                              type="number" 
+                              className="w-full p-2 border rounded mt-1"
+                              value={globalFreeMonths || globalFreeConfig?.months || 0}
+                              onChange={(e) => setGlobalFreeMonths(parseInt(e.target.value))}
+                            />
+                          </div>
+                          <Button 
+                            className="mt-5"
+                            onClick={() => updateGlobalFreeMutation.mutate({ months: globalFreeMonths })}
+                            disabled={updateGlobalFreeMutation.isPending}
+                          >
+                            Update
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
 
-              <TabsContent value="reports" className="mt-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-gray-800">Global Reports</h3>
-                  <p className="text-sm text-gray-500">View system-wide reports and analytics</p>
-                </div>
-              </TabsContent>
+                    {/* Special Grant */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Gift className="w-5 h-5 text-purple-600" />
+                          Grant Special Free Period
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase">Cafeteria Reference Codes (comma separated)</label>
+                          <textarea 
+                            className="w-full p-2 border rounded h-20"
+                            placeholder="e.g. CAF-001, CAF-002"
+                            value={targetRefCodes}
+                            onChange={(e) => setTargetRefCodes(e.target.value)}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs font-bold text-gray-400 uppercase">Duration (Days)</label>
+                            <input 
+                              type="number" 
+                              className="w-full p-2 border rounded mt-1"
+                              value={specialFreeDays}
+                              onChange={(e) => setSpecialFreeDays(parseInt(e.target.value))}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-bold text-gray-400 uppercase">Reason (Optional)</label>
+                            <input 
+                              type="text" 
+                              className="w-full p-2 border rounded mt-1"
+                              placeholder="Promotion, Support, etc."
+                              value={grantReason}
+                              onChange={(e) => setGrantReason(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <Button 
+                          className="w-full bg-purple-600 hover:bg-purple-700"
+                          onClick={() => {
+                            const codes = targetRefCodes.split(',').map(c => c.trim()).filter(c => c.length > 0);
+                            if (codes.length === 0) return alert('Please enter at least one reference code');
+                            grantSpecialFreeMutation.mutate({
+                              referenceCodes: codes,
+                              days: specialFreeDays,
+                              reason: grantReason
+                            });
+                          }}
+                          disabled={grantSpecialFreeMutation.isPending}
+                        >
+                          Grant Free Period
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="reports" className="mt-6">
+	                <div className="text-center py-12">
+	                  <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+	                  <p className="text-gray-500">Global commission reports loading...</p>
+	                </div>
+	              </TabsContent>
 
               <TabsContent value="qr-codes" className="mt-6">
                 <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-gray-800">QR Code Management</h3>
-                  <p className="text-sm text-gray-500">QR Code management features coming soon</p>
+                  <h3 className="text-lg font-bold text-gray-800">Generate Table QR Codes</h3>
+                  <TableQRManager cafeteriaId={(user as any)?.cafeteriaId || "default-cafeteria-id"} />
                 </div>
               </TabsContent>
 
-              <TabsContent value="launch-toolkit" className="mt-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-gray-800">Launch Toolkit</h3>
-                  <p className="text-sm text-gray-500">Launch toolkit features coming soon</p>
-                </div>
-              </TabsContent>
+<TabsContent value="launch-toolkit" className="mt-6">
+	                <div className="space-y-4">
+	                  <h3 className="text-lg font-bold text-gray-800">Launch Toolkit</h3>
+	                  <LaunchToolkitManager />
+	                </div>
+	              </TabsContent>
 
-              <TabsContent value="test-tools" className="mt-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-gray-800">System Test Tools</h3>
-                  <p className="text-sm text-gray-500">System test tools coming soon</p>
-                </div>
-              </TabsContent>
+	              <TabsContent value="test-tools" className="mt-6">
+	                <div className="space-y-4">
+	                  <h3 className="text-lg font-bold text-gray-800">System Test Tools</h3>
+	                  <SystemTestTools cafeteriaId={(user as any)?.cafeteriaId || "default-cafeteria-id"} />
+	                </div>
+	              </TabsContent>
             </Tabs>
           </CardHeader>
         </Card>
       </main>
 
-      {/* Scroll to Top Button */}
+      {/* Floating Scroll-to-Top Button */}
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-8 right-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg transition-all"
+          className="fixed bottom-6 right-6 md:bottom-8 md:right-8 bg-blue-600 hover:bg-blue-700 text-white p-3 md:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 z-50 active:scale-95"
+          aria-label="Scroll to top"
         >
-          <ChevronUp className="w-6 h-6" />
+          <ChevronUp className="w-5 md:w-6 h-5 md:h-6" />
         </button>
       )}
     </div>
