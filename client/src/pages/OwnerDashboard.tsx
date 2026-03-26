@@ -210,15 +210,15 @@ export default function OwnerDashboard() {
         <Card>
           <CardHeader>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-<div className="w-full overflow-x-auto">
-              <TabsList className="flex flex-nowrap gap-2 bg-gray-50 p-2 rounded-lg">
-                <TabsTrigger value="recharges" className="whitespace-nowrap flex-shrink-0">Recharges</TabsTrigger>
-                <TabsTrigger value="withdrawals" className="whitespace-nowrap flex-shrink-0">Withdrawals</TabsTrigger>
-                <TabsTrigger value="free-periods" className="whitespace-nowrap flex-shrink-0">Free Periods</TabsTrigger>
-                <TabsTrigger value="reports" className="whitespace-nowrap flex-shrink-0">Reports</TabsTrigger>
-                <TabsTrigger value="qr-codes" className="whitespace-nowrap flex-shrink-0">QR Codes</TabsTrigger>
-                <TabsTrigger value="launch-toolkit" className="whitespace-nowrap flex-shrink-0">Toolkit</TabsTrigger>
-                <TabsTrigger value="test-tools" className="whitespace-nowrap flex-shrink-0">Tests</TabsTrigger>
+<div className="w-full overflow-x-auto -mx-6 px-6">
+              <TabsList className="inline-flex flex-nowrap gap-1 bg-transparent p-0 border-b border-gray-200">
+                <TabsTrigger value="recharges" className="whitespace-nowrap flex-shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent">Recharges</TabsTrigger>
+                <TabsTrigger value="withdrawals" className="whitespace-nowrap flex-shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent">Withdrawals</TabsTrigger>
+                <TabsTrigger value="free-periods" className="whitespace-nowrap flex-shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent">Free Periods</TabsTrigger>
+                <TabsTrigger value="reports" className="whitespace-nowrap flex-shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent">Reports</TabsTrigger>
+                <TabsTrigger value="qr-codes" className="whitespace-nowrap flex-shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent">QR Codes</TabsTrigger>
+                <TabsTrigger value="launch-toolkit" className="whitespace-nowrap flex-shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent">Toolkit</TabsTrigger>
+                <TabsTrigger value="test-tools" className="whitespace-nowrap flex-shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent">Tests</TabsTrigger>
               </TabsList>
             </div>
 
