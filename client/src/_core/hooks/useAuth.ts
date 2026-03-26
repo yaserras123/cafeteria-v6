@@ -6,7 +6,8 @@ export type AuthUser = {
   email: string | undefined;
   name: string;
   role: string;
-  cafeteriaId: number;
+  cafeteriaId: any;
+  referenceCode?: string;
 };
 
 type AuthState = {
@@ -17,37 +18,48 @@ type AuthState = {
   isUnauthenticated: boolean;
 };
 
+/**
+ * Optimized user builder that prioritizes metadata to avoid slow DB lookups on every page load.
+ */
 async function buildUser(supabaseUser: any): Promise<AuthUser> {
   const meta = supabaseUser.user_metadata ?? {};
   
-  // Try to fetch from public.users table for the most up-to-date role
-  try {
-    const { data: userData, error } = await supabase
-      .from("users")
-      .select("role, name, cafeteriaId")
-      .eq("id", supabaseUser.id)
-      .single();
-    
-    if (!error && userData) {
-      return {
-        id: supabaseUser.id,
-        email: supabaseUser.email,
-        name: userData.name ?? meta.name ?? meta.full_name ?? supabaseUser.email?.split("@")[0] ?? "User",
-        role: userData.role ?? meta.role ?? "admin",
-        cafeteriaId: userData.cafeteriaId ?? meta.cafeteriaId ?? 1,
-      };
-    }
-  } catch (e) {
-    console.error("Error fetching user from public.users:", e);
-  }
-
-  return {
+  // Create user object from metadata (fastest)
+  const userFromMeta: AuthUser = {
     id: supabaseUser.id,
     email: supabaseUser.email,
     name: meta.name ?? meta.full_name ?? supabaseUser.email?.split("@")[0] ?? "User",
     role: meta.role ?? "admin",
     cafeteriaId: meta.cafeteriaId ?? 1,
+    referenceCode: meta.referenceCode,
   };
+
+  // Only fetch from public.users if critical data is missing from metadata
+  // This significantly improves dashboard loading speed.
+  if (!meta.role || !meta.cafeteriaId) {
+    try {
+      const { data: userData, error } = await supabase
+        .from("users")
+        .select("role, name, cafeteriaId, referenceCode")
+        .eq("id", supabaseUser.id)
+        .single();
+      
+      if (!error && userData) {
+        return {
+          id: supabaseUser.id,
+          email: supabaseUser.email,
+          name: userData.name ?? userFromMeta.name,
+          role: userData.role ?? userFromMeta.role,
+          cafeteriaId: userData.cafeteriaId ?? userFromMeta.cafeteriaId,
+          referenceCode: userData.referenceCode ?? userFromMeta.referenceCode,
+        };
+      }
+    } catch (e) {
+      console.error("Error fetching user from public.users:", e);
+    }
+  }
+
+  return userFromMeta;
 }
 
 export function useAuth() {

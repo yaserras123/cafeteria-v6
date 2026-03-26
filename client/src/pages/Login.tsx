@@ -16,15 +16,15 @@ import { toast } from "sonner";
 const ROLE_ROUTES: Record<string, string> = {
   owner: "/dashboard/owner",
   marketer: "/dashboard/marketer",
-  admin: "/dashboard/cafeteria",
-  cafeteria_admin: "/dashboard/manager",
+  admin: "/dashboard/cafeteria-admin",
+  cafeteria_admin: "/dashboard/cafeteria-admin",
   manager: "/dashboard/manager",
   waiter: "/dashboard/waiter",
   chef: "/dashboard/chef",
 };
 
 function getRouteForRole(role: string): string {
-  return ROLE_ROUTES[role] ?? "/dashboard/cafeteria";
+  return ROLE_ROUTES[role] ?? "/dashboard/cafeteria-admin";
 }
 
 export default function Login() {
@@ -50,20 +50,17 @@ export default function Login() {
 
     setIsLoading(true);
     try {
-      console.log("Attempting login for:", email.trim());
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
       if (error) {
-        console.error("Supabase login error:", error.message, error);
         setErrorMessage(error.message);
         return;
       }
 
       if (!data.user) {
-        console.error("Login failed: No user returned from Supabase.");
         setErrorMessage("Login failed: No user returned from Supabase.");
         return;
       }
@@ -75,14 +72,11 @@ export default function Login() {
         data.user.email?.split("@")[0] ??
         "User";
 
-      console.log("Login successful, user role:", role);
       toast.success(`Welcome, ${name}!`);
       
       const targetRoute = getRouteForRole(role);
-      console.log("Redirecting to:", targetRoute); alert("Redirecting to: " + targetRoute);
       setLocation(targetRoute);
     } catch (err: any) {
-      console.error("Unexpected catch block error during login:", err);
       setErrorMessage(err?.message || "An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);

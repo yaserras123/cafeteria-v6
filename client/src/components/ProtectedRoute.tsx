@@ -10,14 +10,13 @@ interface ProtectedRouteProps {
 
 /**
  * Role → dashboard route mapping.
- * Used to redirect users to their correct dashboard when they lack
- * permission to access the requested route.
+ * Corrected to separate owner, cafeteria_admin, and manager.
  */
 const ROLE_ROUTES: Record<string, string> = {
   owner: "/dashboard/owner",
   marketer: "/dashboard/marketer",
-  admin: "/dashboard/cafeteria",
-  cafeteria_admin: "/dashboard/manager",
+  admin: "/dashboard/cafeteria-admin",
+  cafeteria_admin: "/dashboard/cafeteria-admin",
   manager: "/dashboard/manager",
   waiter: "/dashboard/waiter",
   chef: "/dashboard/chef",
@@ -26,15 +25,6 @@ const ROLE_ROUTES: Record<string, string> = {
 /**
  * ProtectedRoute wraps a dashboard component and enforces both
  * authentication and role-based access control (RBAC).
- *
- * - If loading: shows a spinner
- * - If not authenticated: redirects to /login (SPA navigation)
- * - If authenticated but role not in allowedRoles: redirects to user's
- *   correct dashboard based on their role (SPA navigation)
- * - If authenticated and role is allowed: renders the component
- *
- * Uses useAuth() to check session state and user role. Redirects use
- * setLocation() for SPA navigation (wouter) instead of window.location.replace.
  */
 export function ProtectedRoute({
   component: Component,
@@ -77,12 +67,10 @@ export function ProtectedRoute({
     return null;
   }
 
-  // If no user at all, render nothing (redirect is handled in useEffect)
   if (!user) {
     return null;
   }
 
-  // Check if user role is allowed
   if (user.role) {
     const userRole = user.role as string;
     if (!allowedRoles.includes(userRole)) {

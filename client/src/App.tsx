@@ -19,19 +19,19 @@ import Upgrade from "./pages/Upgrade";
 import UpgradeSuccess from "./pages/UpgradeSuccess";
 import UpgradeCancel from "./pages/UpgradeCancel";
 
-// Owner Dashboard Sub-pages (to be created)
+// Owner Dashboard Sub-pages
 import OwnerCafeterias from "./pages/owner/OwnerCafeterias";
 import OwnerMarketers from "./pages/owner/OwnerMarketers";
 import OwnerPoints from "./pages/owner/OwnerPoints";
 import OwnerReports from "./pages/owner/OwnerReports";
 import OwnerSettings from "./pages/owner/OwnerSettings";
 
-// Marketer Dashboard Sub-pages (to be created)
+// Marketer Dashboard Sub-pages
 import MarketerDownlines from "./pages/marketer/MarketerDownlines";
 import MarketerCommissions from "./pages/marketer/MarketerCommissions";
 import MarketerReports from "./pages/marketer/MarketerReports";
 
-// Cafeteria Admin Dashboard Sub-pages (to be created)
+// Cafeteria Admin Dashboard Sub-pages
 import CafeteriaMenu from "./pages/cafeteria/CafeteriaMenu";
 import CafeteriaTables from "./pages/cafeteria/CafeteriaTables";
 import CafeteriaStaff from "./pages/cafeteria/CafeteriaStaff";
@@ -39,16 +39,16 @@ import CafeteriaReports from "./pages/cafeteria/CafeteriaReports";
 import CafeteriaRecharge from "./pages/cafeteria/CafeteriaRecharge";
 import CafeteriaSettings from "./pages/cafeteria/CafeteriaSettings";
 
-// Manager Dashboard Sub-pages (to be created)
+// Manager Dashboard Sub-pages
 import ManagerOrders from "./pages/manager/ManagerOrders";
 import ManagerStaff from "./pages/manager/ManagerStaff";
 import ManagerReports from "./pages/manager/ManagerReports";
 
-// Waiter Dashboard Sub-pages (to be created)
+// Waiter Dashboard Sub-pages
 import WaiterTables from "./pages/waiter/WaiterTables";
 import WaiterOrders from "./pages/waiter/WaiterOrders";
 
-// Chef Dashboard Sub-pages (to be created)
+// Chef Dashboard Sub-pages
 import ChefKitchenBoard from "./pages/chef/ChefKitchenBoard";
 
 function Router() {
@@ -131,53 +131,44 @@ function Router() {
         component={() => (
           <ProtectedRoute
             component={CafeteriaDashboard}
-            allowedRoles={["cafeteria_admin"]}
-          />
-        )}
-      />
-      <Route
-        path={"/dashboard/cafeteria"}
-        component={() => (
-          <ProtectedRoute
-            component={CafeteriaDashboard}
-            allowedRoles={["admin"]}
+            allowedRoles={["cafeteria_admin", "admin"]}
           />
         )}
       />
       <Route
         path={"/dashboard/cafeteria-admin/menu"}
         component={() => (
-          <ProtectedRoute component={CafeteriaMenu} allowedRoles={["cafeteria_admin"]} />
+          <ProtectedRoute component={CafeteriaMenu} allowedRoles={["cafeteria_admin", "admin"]} />
         )}
       />
       <Route
         path={"/dashboard/cafeteria-admin/tables"}
         component={() => (
-          <ProtectedRoute component={CafeteriaTables} allowedRoles={["cafeteria_admin"]} />
+          <ProtectedRoute component={CafeteriaTables} allowedRoles={["cafeteria_admin", "admin"]} />
         )}
       />
       <Route
         path={"/dashboard/cafeteria-admin/staff"}
         component={() => (
-          <ProtectedRoute component={CafeteriaStaff} allowedRoles={["cafeteria_admin"]} />
+          <ProtectedRoute component={CafeteriaStaff} allowedRoles={["cafeteria_admin", "admin"]} />
         )}
       />
       <Route
         path={"/dashboard/cafeteria-admin/reports"}
         component={() => (
-          <ProtectedRoute component={CafeteriaReports} allowedRoles={["cafeteria_admin"]} />
+          <ProtectedRoute component={CafeteriaReports} allowedRoles={["cafeteria_admin", "admin"]} />
         )}
       />
       <Route
         path={"/dashboard/cafeteria-admin/recharge"}
         component={() => (
-          <ProtectedRoute component={CafeteriaRecharge} allowedRoles={["cafeteria_admin"]} />
+          <ProtectedRoute component={CafeteriaRecharge} allowedRoles={["cafeteria_admin", "admin"]} />
         )}
       />
       <Route
         path={"/dashboard/cafeteria-admin/settings"}
         component={() => (
-          <ProtectedRoute component={CafeteriaSettings} allowedRoles={["cafeteria_admin"]} />
+          <ProtectedRoute component={CafeteriaSettings} allowedRoles={["cafeteria_admin", "admin"]} />
         )}
       />
 
@@ -253,24 +244,15 @@ function Router() {
       <Route path={"/upgrade/success"} component={UpgradeSuccess} />
       <Route path={"/upgrade/cancel"} component={UpgradeCancel} />
       <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster />
           <Router />
