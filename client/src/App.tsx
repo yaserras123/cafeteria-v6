@@ -12,13 +12,8 @@ import WaiterDashboard from "./pages/WaiterDashboard";
 import ChefDashboard from "./pages/ChefDashboard";
 import ReportingDashboard from "./pages/ReportingDashboard";
 import OwnerDashboard from "./pages/OwnerDashboard";
-import OwnerDashboardNew from "./pages/OwnerDashboardNew";
 import MarketerDashboard from "./pages/MarketerDashboard";
-import MarketerDashboardNew from "./pages/MarketerDashboardNew";
 import CafeteriaDashboard from "./pages/CafeteriaDashboard";
-import AdminDashboardNew from "./pages/AdminDashboardNew";
-import WaiterDashboardNew from "./pages/WaiterDashboardNew";
-import ChefDashboardNew from "./pages/ChefDashboardNew";
 import CustomerMenu from "./pages/CustomerMenu";
 import Upgrade from "./pages/Upgrade";
 import UpgradeSuccess from "./pages/UpgradeSuccess";
@@ -106,7 +101,7 @@ function Router() {
         path={"/dashboard/marketer"}
         component={() => (
           <ProtectedRoute
-            component={MarketerDashboardNew}
+            component={MarketerDashboard}
             allowedRoles={["marketer"]}
           />
         )}
@@ -135,7 +130,7 @@ function Router() {
         path={"/dashboard/cafeteria-admin"}
         component={() => (
           <ProtectedRoute
-            component={AdminDashboardNew}
+            component={CafeteriaDashboard}
             allowedRoles={["cafeteria_admin", "admin"]}
           />
         )}
@@ -211,7 +206,7 @@ function Router() {
         path={"/dashboard/waiter"}
         component={() => (
           <ProtectedRoute
-            component={WaiterDashboardNew}
+            component={WaiterDashboard}
             allowedRoles={["waiter"]}
           />
         )}
@@ -233,7 +228,7 @@ function Router() {
       <Route
         path={"/dashboard/chef"}
         component={() => (
-          <ProtectedRoute component={ChefDashboardNew} allowedRoles={["chef"]} />
+          <ProtectedRoute component={ChefDashboard} allowedRoles={["chef"]} />
         )}
       />
       <Route
