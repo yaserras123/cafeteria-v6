@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import {
   BarChart3, LayoutDashboard, Store, Users, Wallet, Settings,
-  TrendingUp, Download, RefreshCw, Calendar
+  TrendingUp, Download, RefreshCw, Calendar, ArrowLeft, Home
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
@@ -28,6 +29,7 @@ interface Report {
 export default function OwnerReports() {
   const { user } = useAuth({ redirectOnUnauthenticated: true });
   const { language } = useTranslation();
+  const [, setLocation] = useLocation();
   const isRTL = language === 'ar';
 
   const [reports, setReports] = useState<Report[]>([]);
@@ -112,6 +114,24 @@ export default function OwnerReports() {
               className="h-10 w-10 text-slate-600 hover:text-orange-600"
             >
               <RefreshCw className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation('/dashboard/owner')}
+              className="h-10 w-10 text-slate-600 hover:text-orange-600"
+              title={isRTL ? 'العودة للخلف' : 'Go Back'}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation('/dashboard/owner')}
+              className="h-10 w-10 text-slate-600 hover:text-orange-600"
+              title={isRTL ? 'الصفحة الرئيسية' : 'Home'}
+            >
+              <Home className="w-5 h-5" />
             </Button>
           </div>
         </div>
@@ -209,18 +229,10 @@ export default function OwnerReports() {
                     {reports.map((report) => (
                       <TableRow key={report.id} className="hover:bg-gray-50">
                         <TableCell className="font-semibold text-gray-900">{report.cafeteria_name || report.cafeteria_id}</TableCell>
-                        <TableCell>
-                          <Badge className="bg-blue-100 text-blue-700 border-none text-xs font-bold">
-                            {report.total_orders}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-bold text-green-600">
-                          {report.total_revenue.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-gray-600">
-                          {report.average_order_value.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-gray-600 text-sm">{report.period}</TableCell>
+                        <TableCell className="text-gray-600">{report.total_orders}</TableCell>
+                        <TableCell className="font-bold text-orange-600">{report.total_revenue.toLocaleString()}</TableCell>
+                        <TableCell className="text-gray-600">{report.average_order_value.toFixed(2)}</TableCell>
+                        <TableCell><Badge className="bg-blue-100 text-blue-700 border-none">{report.period}</Badge></TableCell>
                         <TableCell className="text-gray-500 text-sm">
                           {new Date(report.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US')}
                         </TableCell>

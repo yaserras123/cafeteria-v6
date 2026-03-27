@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import {
   Wallet, LayoutDashboard, Store, Users, BarChart3, Settings,
-  Plus, Minus, RefreshCw, TrendingUp, TrendingDown
+  Plus, Minus, RefreshCw, TrendingUp, TrendingDown, ArrowLeft, Home
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
@@ -28,6 +29,7 @@ interface PointsTransaction {
 export default function OwnerPoints() {
   const { user } = useAuth({ redirectOnUnauthenticated: true });
   const { language } = useTranslation();
+  const [, setLocation] = useLocation();
   const isRTL = language === 'ar';
 
   const [transactions, setTransactions] = useState<PointsTransaction[]>([]);
@@ -69,7 +71,7 @@ export default function OwnerPoints() {
       const { data, error } = await supabase
         .from('cafeterias')
         .select('id, name')
-        .eq('status', 'active');
+        .eq('subscriptionStatus', 'active');
 
       if (error) throw error;
       setCafeterias(data || []);
@@ -151,6 +153,24 @@ export default function OwnerPoints() {
             >
               <RefreshCw className="w-5 h-5" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation('/dashboard/owner')}
+              className="h-10 w-10 text-slate-600 hover:text-green-600"
+              title={isRTL ? 'العودة للخلف' : 'Go Back'}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation('/dashboard/owner')}
+              className="h-10 w-10 text-slate-600 hover:text-green-600"
+              title={isRTL ? 'الصفحة الرئيسية' : 'Home'}
+            >
+              <Home className="w-5 h-5" />
+            </Button>
           </div>
         </div>
       </header>
@@ -203,7 +223,7 @@ export default function OwnerPoints() {
             className="bg-green-600 hover:bg-green-700 text-white gap-2"
           >
             <Plus className="w-4 h-4" />
-            {isRTL ? 'معاملة جديدة' : 'New Transaction'}
+            {isRTL ? 'تسجيل معاملة' : 'Add Transaction'}
           </Button>
         </div>
 
@@ -234,23 +254,13 @@ export default function OwnerPoints() {
                       <TableRow key={transaction.id} className="hover:bg-gray-50">
                         <TableCell className="font-semibold text-gray-900">{transaction.cafeteria_name || transaction.cafeteria_id}</TableCell>
                         <TableCell>
-                          <Badge className={`${transaction.type === 'add' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} border-none text-xs font-bold flex items-center gap-1 w-fit`}>
-                            {transaction.type === 'add' ? (
-                              <>
-                                <TrendingUp className="w-3 h-3" />
-                                {isRTL ? 'إضافة' : 'Add'}
-                              </>
-                            ) : (
-                              <>
-                                <TrendingDown className="w-3 h-3" />
-                                {isRTL ? 'خصم' : 'Deduct'}
-                              </>
-                            )}
+                          <Badge className={`${transaction.type === 'add' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} border-none text-xs font-bold`}>
+                            {isRTL ? (transaction.type === 'add' ? 'إضافة' : 'خصم') : (transaction.type === 'add' ? 'Add' : 'Deduct')}
                           </Badge>
                         </TableCell>
                         <TableCell className="font-bold text-lg">
                           <span className={transaction.type === 'add' ? 'text-green-600' : 'text-red-600'}>
-                            {transaction.type === 'add' ? '+' : '-'}{transaction.amount.toLocaleString()}
+                            {transaction.type === 'add' ? '+' : '-'}{transaction.amount}
                           </span>
                         </TableCell>
                         <TableCell className="text-gray-600 text-sm">{transaction.reason}</TableCell>
@@ -271,7 +281,7 @@ export default function OwnerPoints() {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent dir={isRTL ? 'rtl' : 'ltr'}>
           <DialogHeader>
-            <DialogTitle>{isRTL ? 'إضافة معاملة نقاط' : 'Add Points Transaction'}</DialogTitle>
+            <DialogTitle>{isRTL ? 'تسجيل معاملة نقاط' : 'Add Points Transaction'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -279,13 +289,11 @@ export default function OwnerPoints() {
               <select
                 value={formData.cafeteria_id}
                 onChange={(e) => setFormData({ ...formData, cafeteria_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white cursor-pointer"
               >
                 <option value="">{isRTL ? 'اختر كافيتريا' : 'Select cafeteria'}</option>
-                {cafeterias.map((cafe) => (
-                  <option key={cafe.id} value={cafe.id}>
-                    {cafe.name}
-                  </option>
+                {cafeterias.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>
@@ -294,7 +302,7 @@ export default function OwnerPoints() {
               <select
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value as 'add' | 'deduct' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white cursor-pointer"
               >
                 <option value="add">{isRTL ? 'إضافة' : 'Add'}</option>
                 <option value="deduct">{isRTL ? 'خصم' : 'Deduct'}</option>
@@ -306,7 +314,8 @@ export default function OwnerPoints() {
                 type="number"
                 value={formData.amount}
                 onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                placeholder={isRTL ? 'عدد النقاط' : 'Points amount'}
+                placeholder={isRTL ? 'عدد النقاط' : 'Number of points'}
+                min="1"
               />
             </div>
             <div>
@@ -323,7 +332,7 @@ export default function OwnerPoints() {
               {isRTL ? 'إلغاء' : 'Cancel'}
             </Button>
             <Button onClick={handleAddTransaction} disabled={submitting}>
-              {submitting ? '...' : (isRTL ? 'إضافة' : 'Add')}
+              {submitting ? '...' : (isRTL ? 'تسجيل' : 'Record')}
             </Button>
           </DialogFooter>
         </DialogContent>
