@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 
 export type AuthUser = {
   id: string;
@@ -20,10 +20,20 @@ type AuthState = {
 
 /**
  * Optimized user builder that prioritizes metadata to avoid slow DB lookups on every page load.
- * Now with timeout protection to prevent infinite loading states.
+ * Now with timeout protection and caching to prevent infinite loading states.
  */
+const userCache = new Map<string, { user: AuthUser; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 async function buildUser(supabaseUser: any): Promise<AuthUser> {
   const meta = supabaseUser.user_metadata ?? {};
+  const userId = supabaseUser.id;
+  
+  // Check cache first
+  const cached = userCache.get(userId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.user;
+  }
   
   // Create user object from metadata (fastest)
   const userFromMeta: AuthUser = {
@@ -37,6 +47,7 @@ async function buildUser(supabaseUser: any): Promise<AuthUser> {
 
   // If we have role and cafeteriaId from metadata, return immediately
   if (meta.role && meta.cafeteriaId) {
+    userCache.set(userId, { user: userFromMeta, timestamp: Date.now() });
     return userFromMeta;
   }
 
@@ -46,7 +57,7 @@ async function buildUser(supabaseUser: any): Promise<AuthUser> {
     try {
       // Add timeout to prevent infinite waiting
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
 
       const { data: userData, error } = await supabase
         .from("users")
@@ -57,7 +68,7 @@ async function buildUser(supabaseUser: any): Promise<AuthUser> {
       clearTimeout(timeoutId);
 
       if (!error && userData) {
-        return {
+        const finalUser = {
           id: supabaseUser.id,
           email: supabaseUser.email,
           name: userData.name ?? userFromMeta.name,
@@ -65,6 +76,8 @@ async function buildUser(supabaseUser: any): Promise<AuthUser> {
           cafeteriaId: userData.cafeteriaId ?? userFromMeta.cafeteriaId,
           referenceCode: userData.referenceCode ?? userFromMeta.referenceCode,
         };
+        userCache.set(userId, { user: finalUser, timestamp: Date.now() });
+        return finalUser;
       }
     } catch (e) {
       console.warn("Error fetching user from public.users (using metadata fallback):", e);
@@ -72,6 +85,7 @@ async function buildUser(supabaseUser: any): Promise<AuthUser> {
     }
   }
 
+  userCache.set(userId, { user: userFromMeta, timestamp: Date.now() });
   return userFromMeta;
 }
 
@@ -83,6 +97,7 @@ export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
     isAuthenticated: false,
     isUnauthenticated: false,
   });
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -119,10 +134,26 @@ export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
   }, []);
 
   useEffect(() => {
+    // Set a timeout to prevent infinite loading
+    refreshTimeoutRef.current = setTimeout(() => {
+      if (state.loading) {
+        console.warn("Auth loading timeout - forcing completion");
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          isUnauthenticated: true,
+        }));
+      }
+    }, 5000);
+
     refresh();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
+        if (refreshTimeoutRef.current) {
+          clearTimeout(refreshTimeoutRef.current);
+        }
+        
         if (session?.user) {
           const user = await buildUser(session.user);
           setState({
@@ -154,12 +185,19 @@ export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
     });
 
     return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
       subscription.unsubscribe();
     };
   }, [refresh]);
 
   const logout = useCallback(async () => {
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
     await supabase.auth.signOut();
+    userCache.clear();
     setState({
       user: null,
       loading: false,

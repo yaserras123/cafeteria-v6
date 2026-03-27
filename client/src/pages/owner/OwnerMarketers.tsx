@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import {
   Users, LayoutDashboard, Store, Wallet, BarChart3, Settings,
-  Plus, Edit, Trash2, Mail, Phone, RefreshCw
+  Plus, Edit, Trash2, Mail, Phone, RefreshCw, ArrowLeft, Home
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
@@ -20,15 +21,15 @@ interface Marketer {
   id: string;
   name: string;
   email: string;
-  phone?: string;
-  status: string;
-  created_at: string;
-  cafeterias_count?: number;
+  createdAt: string;
+  referenceCode?: string;
+  isRoot?: boolean;
 }
 
 export default function OwnerMarketers() {
   const { user } = useAuth({ redirectOnUnauthenticated: true });
   const { language } = useTranslation();
+  const [, setLocation] = useLocation();
   const isRTL = language === 'ar';
 
   const [marketers, setMarketers] = useState<Marketer[]>([]);
@@ -43,7 +44,6 @@ export default function OwnerMarketers() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
     password: '',
   });
 
@@ -53,7 +53,7 @@ export default function OwnerMarketers() {
       const { data, error } = await supabase
         .from('marketers')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('createdAt', { ascending: false });
 
       if (error) throw error;
       setMarketers(data || []);
@@ -81,15 +81,15 @@ export default function OwnerMarketers() {
         {
           name: formData.name,
           email: formData.email,
-          phone: formData.phone || null,
-          status: 'active',
+          isRoot: false,
+          createdAt: new Date().toISOString(),
         },
       ]);
 
       if (error) throw error;
       toast.success(isRTL ? 'تم إضافة المسوق بنجاح' : 'Marketer added successfully');
       setShowAddDialog(false);
-      setFormData({ name: '', email: '', phone: '', password: '' });
+      setFormData({ name: '', email: '', password: '' });
       fetchMarketers();
     } catch (err: any) {
       toast.error(err.message || (isRTL ? 'خطأ في إضافة المسوق' : 'Error adding marketer'));
@@ -111,7 +111,6 @@ export default function OwnerMarketers() {
         .update({
           name: formData.name,
           email: formData.email,
-          phone: formData.phone || null,
         })
         .eq('id', selectedMarketer.id);
 
@@ -152,7 +151,6 @@ export default function OwnerMarketers() {
     setFormData({
       name: marketer.name,
       email: marketer.email,
-      phone: marketer.phone || '',
       password: '',
     });
     setShowEditDialog(true);
@@ -188,6 +186,24 @@ export default function OwnerMarketers() {
             >
               <RefreshCw className="w-5 h-5" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation('/dashboard/owner')}
+              className="h-10 w-10 text-slate-600 hover:text-purple-600"
+              title={isRTL ? 'العودة للخلف' : 'Go Back'}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation('/dashboard/owner')}
+              className="h-10 w-10 text-slate-600 hover:text-purple-600"
+              title={isRTL ? 'الصفحة الرئيسية' : 'Home'}
+            >
+              <Home className="w-5 h-5" />
+            </Button>
           </div>
         </div>
       </header>
@@ -203,14 +219,14 @@ export default function OwnerMarketers() {
           </Card>
           <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-700 text-white">
             <CardContent className="p-4">
-              <p className="text-3xl font-black">{marketers.filter(m => m.status === 'active').length}</p>
-              <p className="text-xs opacity-80">{isRTL ? 'نشطين' : 'Active'}</p>
+              <p className="text-3xl font-black">{marketers.filter(m => m.isRoot).length}</p>
+              <p className="text-xs opacity-80">{isRTL ? 'مسوقين رئيسيين' : 'Root Marketers'}</p>
             </CardContent>
           </Card>
           <Card className="border-0 shadow-md bg-gradient-to-br from-orange-500 to-orange-700 text-white">
             <CardContent className="p-4">
-              <p className="text-3xl font-black">{marketers.reduce((acc, m) => acc + (m.cafeterias_count || 0), 0)}</p>
-              <p className="text-xs opacity-80">{isRTL ? 'كافيتريات' : 'Cafeterias'}</p>
+              <p className="text-3xl font-black">{marketers.filter(m => !m.isRoot).length}</p>
+              <p className="text-xs opacity-80">{isRTL ? 'مسوقين فرعيين' : 'Child Marketers'}</p>
             </CardContent>
           </Card>
         </div>
@@ -225,7 +241,7 @@ export default function OwnerMarketers() {
           />
           <Button
             onClick={() => {
-              setFormData({ name: '', email: '', phone: '', password: '' });
+              setFormData({ name: '', email: '', password: '' });
               setShowAddDialog(true);
             }}
             className="bg-purple-600 hover:bg-purple-700 text-white gap-2"
@@ -252,8 +268,8 @@ export default function OwnerMarketers() {
                     <TableRow className="bg-gray-50">
                       <TableHead>{isRTL ? 'الاسم' : 'Name'}</TableHead>
                       <TableHead>{isRTL ? 'البريد الإلكتروني' : 'Email'}</TableHead>
-                      <TableHead>{isRTL ? 'الهاتف' : 'Phone'}</TableHead>
-                      <TableHead>{isRTL ? 'الحالة' : 'Status'}</TableHead>
+                      <TableHead>{isRTL ? 'النوع' : 'Type'}</TableHead>
+                      <TableHead>{isRTL ? 'الرقم المرجعي' : 'Reference Code'}</TableHead>
                       <TableHead>{isRTL ? 'التاريخ' : 'Date'}</TableHead>
                       <TableHead>{isRTL ? 'إجراءات' : 'Actions'}</TableHead>
                     </TableRow>
@@ -263,14 +279,16 @@ export default function OwnerMarketers() {
                       <TableRow key={marketer.id} className="hover:bg-gray-50">
                         <TableCell className="font-semibold text-gray-900">{marketer.name}</TableCell>
                         <TableCell className="text-gray-600 text-sm">{marketer.email}</TableCell>
-                        <TableCell className="text-gray-600 text-sm">{marketer.phone || '-'}</TableCell>
                         <TableCell>
-                          <Badge className={`${marketer.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} border-none text-xs font-bold`}>
-                            {isRTL ? (marketer.status === 'active' ? 'نشط' : 'غير نشط') : (marketer.status === 'active' ? 'Active' : 'Inactive')}
+                          <Badge className={`${marketer.isRoot ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'} border-none text-xs font-bold`}>
+                            {isRTL ? (marketer.isRoot ? 'رئيسي' : 'فرعي') : (marketer.isRoot ? 'Root' : 'Child')}
                           </Badge>
                         </TableCell>
+                        <TableCell className="text-gray-500 text-sm font-mono">
+                          {marketer.referenceCode || '-'}
+                        </TableCell>
                         <TableCell className="text-gray-500 text-sm">
-                          {new Date(marketer.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US')}
+                          {new Date(marketer.createdAt).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US')}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
@@ -279,6 +297,7 @@ export default function OwnerMarketers() {
                               size="sm"
                               className="h-7 px-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
                               onClick={() => openEditDialog(marketer)}
+                              title={isRTL ? 'تعديل' : 'Edit'}
                             >
                               <Edit className="w-3 h-3" />
                             </Button>
@@ -290,6 +309,7 @@ export default function OwnerMarketers() {
                                 setSelectedMarketer(marketer);
                                 setShowDeleteDialog(true);
                               }}
+                              title={isRTL ? 'حذف' : 'Delete'}
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
@@ -326,15 +346,7 @@ export default function OwnerMarketers() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder={isRTL ? 'البريد الإلكتروني' : 'Email'}
-              />
-            </div>
-            <div>
-              <Label>{isRTL ? 'الهاتف' : 'Phone'}</Label>
-              <Input
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder={isRTL ? 'رقم الهاتف' : 'Phone number'}
+                placeholder={isRTL ? 'البريد الإلكتروني' : 'Email address'}
               />
             </div>
           </div>
@@ -361,6 +373,7 @@ export default function OwnerMarketers() {
               <Input
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder={isRTL ? 'اسم المسوق' : 'Marketer name'}
               />
             </div>
             <div>
@@ -369,13 +382,7 @@ export default function OwnerMarketers() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>{isRTL ? 'الهاتف' : 'Phone'}</Label>
-              <Input
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder={isRTL ? 'البريد الإلكتروني' : 'Email address'}
               />
             </div>
           </div>
@@ -384,7 +391,7 @@ export default function OwnerMarketers() {
               {isRTL ? 'إلغاء' : 'Cancel'}
             </Button>
             <Button onClick={handleEditMarketer} disabled={submitting}>
-              {submitting ? '...' : (isRTL ? 'حفظ' : 'Save')}
+              {submitting ? '...' : (isRTL ? 'تحديث' : 'Update')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -396,13 +403,13 @@ export default function OwnerMarketers() {
           <AlertDialogHeader>
             <AlertDialogTitle>{isRTL ? 'حذف المسوق' : 'Delete Marketer'}</AlertDialogTitle>
             <AlertDialogDescription>
-              {isRTL ? `هل أنت متأكد من حذف "${selectedMarketer?.name}"؟` : `Are you sure you want to delete "${selectedMarketer?.name}"?`}
+              {isRTL ? 'هل أنت متأكد من حذف هذا المسوق؟' : 'Are you sure you want to delete this marketer?'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{isRTL ? 'إلغاء' : 'Cancel'}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteMarketer} disabled={submitting} className="bg-red-600 hover:bg-red-700">
-              {submitting ? '...' : (isRTL ? 'حذف' : 'Delete')}
+            <AlertDialogAction onClick={handleDeleteMarketer} className="bg-red-600 hover:bg-red-700">
+              {isRTL ? 'حذف' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

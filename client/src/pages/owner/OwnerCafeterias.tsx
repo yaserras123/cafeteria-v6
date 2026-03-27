@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import {
   Store, LayoutDashboard, Users, Wallet, BarChart3, Settings,
-  Plus, Edit, Trash2, Eye, RefreshCw
+  Plus, Edit, Trash2, Eye, RefreshCw, ArrowLeft, Home
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
@@ -20,16 +21,18 @@ import { toast } from 'sonner';
 interface Cafeteria {
   id: string;
   name: string;
-  phone?: string;
-  address?: string;
-  status: string;
-  plan: string;
-  created_at: string;
+  location?: string;
+  subscriptionPlan: string;
+  subscriptionStatus: string;
+  createdAt: string;
+  pointsBalance?: number;
+  freeOperationEndDate?: string;
 }
 
 export default function OwnerCafeterias() {
   const { user } = useAuth({ redirectOnUnauthenticated: true });
   const { language } = useTranslation();
+  const [, setLocation] = useLocation();
   const isRTL = language === 'ar';
 
   const [cafeterias, setCafeterias] = useState<Cafeteria[]>([]);
@@ -37,6 +40,7 @@ export default function OwnerCafeterias() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showFreeperiodDialog, setShowFreePeriodDialog] = useState(false);
   const [selectedCafeteria, setSelectedCafeteria] = useState<Cafeteria | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,9 +48,12 @@ export default function OwnerCafeterias() {
 
   const [formData, setFormData] = useState({
     name: '',
-    phone: '',
-    address: '',
-    plan: 'free',
+    location: '',
+    subscriptionPlan: 'starter',
+  });
+
+  const [freePeriodData, setFreePeriodData] = useState({
+    months: 1,
   });
 
   const fetchCafeterias = async () => {
@@ -55,7 +62,7 @@ export default function OwnerCafeterias() {
       const { data, error } = await supabase
         .from('cafeterias')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('createdAt', { ascending: false });
 
       if (error) throw error;
       setCafeterias(data || []);
@@ -82,17 +89,18 @@ export default function OwnerCafeterias() {
       const { error } = await supabase.from('cafeterias').insert([
         {
           name: formData.name,
-          phone: formData.phone || null,
-          address: formData.address || null,
-          plan: formData.plan,
-          status: 'active',
+          location: formData.location || null,
+          subscriptionPlan: formData.subscriptionPlan,
+          subscriptionStatus: 'active',
+          pointsBalance: 0,
+          marketerId: user?.id || null,
         },
       ]);
 
       if (error) throw error;
       toast.success(isRTL ? 'تم إضافة الكافيتريا بنجاح' : 'Cafeteria added successfully');
       setShowAddDialog(false);
-      setFormData({ name: '', phone: '', address: '', plan: 'free' });
+      setFormData({ name: '', location: '', subscriptionPlan: 'starter' });
       fetchCafeterias();
     } catch (err: any) {
       toast.error(err.message || (isRTL ? 'خطأ في إضافة الكافيتريا' : 'Error adding cafeteria'));
@@ -113,9 +121,8 @@ export default function OwnerCafeterias() {
         .from('cafeterias')
         .update({
           name: formData.name,
-          phone: formData.phone || null,
-          address: formData.address || null,
-          plan: formData.plan,
+          location: formData.location || null,
+          subscriptionPlan: formData.subscriptionPlan,
         })
         .eq('id', selectedCafeteria.id);
 
@@ -151,31 +158,57 @@ export default function OwnerCafeterias() {
     }
   };
 
+  const handleGrantFreePeriod = async () => {
+    if (!selectedCafeteria) return;
+
+    setSubmitting(true);
+    try {
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + freePeriodData.months);
+
+      const { error } = await supabase
+        .from('cafeterias')
+        .update({
+          freeOperationEndDate: endDate.toISOString(),
+        })
+        .eq('id', selectedCafeteria.id);
+
+      if (error) throw error;
+      toast.success(isRTL ? 'تم منح الفترة المجانية بنجاح' : 'Free period granted successfully');
+      setShowFreePeriodDialog(false);
+      setFreePeriodData({ months: 1 });
+      fetchCafeterias();
+    } catch (err: any) {
+      toast.error(err.message || (isRTL ? 'خطأ في منح الفترة المجانية' : 'Error granting free period'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const openEditDialog = (cafeteria: Cafeteria) => {
     setSelectedCafeteria(cafeteria);
     setFormData({
       name: cafeteria.name,
-      phone: cafeteria.phone || '',
-      address: cafeteria.address || '',
-      plan: cafeteria.plan || 'free',
+      location: cafeteria.location || '',
+      subscriptionPlan: cafeteria.subscriptionPlan || 'starter',
     });
     setShowEditDialog(true);
   };
 
   const filteredCafeterias = cafeterias.filter((c) => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesPlan = filterPlan === 'all' || c.plan === filterPlan;
+    const matchesPlan = filterPlan === 'all' || c.subscriptionPlan === filterPlan;
     return matchesSearch && matchesPlan;
   });
 
   const getPlanColor = (plan: string) => {
     const colors: Record<string, string> = {
-      free: 'bg-gray-100 text-gray-700',
+      starter: 'bg-gray-100 text-gray-700',
       basic: 'bg-blue-100 text-blue-700',
       pro: 'bg-purple-100 text-purple-700',
       enterprise: 'bg-green-100 text-green-700',
     };
-    return colors[plan] || colors.free;
+    return colors[plan] || colors.starter;
   };
 
   return (
@@ -203,6 +236,24 @@ export default function OwnerCafeterias() {
             >
               <RefreshCw className="w-5 h-5" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation('/dashboard/owner')}
+              className="h-10 w-10 text-slate-600 hover:text-blue-600"
+              title={isRTL ? 'العودة للخلف' : 'Go Back'}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation('/dashboard/owner')}
+              className="h-10 w-10 text-slate-600 hover:text-blue-600"
+              title={isRTL ? 'الصفحة الرئيسية' : 'Home'}
+            >
+              <Home className="w-5 h-5" />
+            </Button>
           </div>
         </div>
       </header>
@@ -218,13 +269,13 @@ export default function OwnerCafeterias() {
           </Card>
           <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-700 text-white">
             <CardContent className="p-4">
-              <p className="text-3xl font-black">{cafeterias.filter(c => c.status === 'active').length}</p>
+              <p className="text-3xl font-black">{cafeterias.filter(c => c.subscriptionStatus === 'active').length}</p>
               <p className="text-xs opacity-80">{isRTL ? 'نشطة' : 'Active'}</p>
             </CardContent>
           </Card>
           <Card className="border-0 shadow-md bg-gradient-to-br from-purple-500 to-purple-700 text-white">
             <CardContent className="p-4">
-              <p className="text-3xl font-black">{cafeterias.filter(c => c.plan === 'pro').length}</p>
+              <p className="text-3xl font-black">{cafeterias.filter(c => c.subscriptionPlan === 'pro').length}</p>
               <p className="text-xs opacity-80">{isRTL ? 'خطة Pro' : 'Pro Plan'}</p>
             </CardContent>
           </Card>
@@ -244,7 +295,7 @@ export default function OwnerCafeterias() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{isRTL ? 'جميع الخطط' : 'All Plans'}</SelectItem>
-              <SelectItem value="free">{isRTL ? 'مجاني' : 'Free'}</SelectItem>
+              <SelectItem value="starter">{isRTL ? 'مبتدئ' : 'Starter'}</SelectItem>
               <SelectItem value="basic">{isRTL ? 'أساسي' : 'Basic'}</SelectItem>
               <SelectItem value="pro">{isRTL ? 'احترافي' : 'Pro'}</SelectItem>
               <SelectItem value="enterprise">{isRTL ? 'مؤسسي' : 'Enterprise'}</SelectItem>
@@ -252,7 +303,7 @@ export default function OwnerCafeterias() {
           </Select>
           <Button
             onClick={() => {
-              setFormData({ name: '', phone: '', address: '', plan: 'free' });
+              setFormData({ name: '', location: '', subscriptionPlan: 'starter' });
               setShowAddDialog(true);
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
@@ -278,9 +329,10 @@ export default function OwnerCafeterias() {
                   <TableHeader>
                     <TableRow className="bg-gray-50">
                       <TableHead>{isRTL ? 'الاسم' : 'Name'}</TableHead>
-                      <TableHead>{isRTL ? 'الهاتف' : 'Phone'}</TableHead>
+                      <TableHead>{isRTL ? 'الموقع' : 'Location'}</TableHead>
                       <TableHead>{isRTL ? 'الخطة' : 'Plan'}</TableHead>
                       <TableHead>{isRTL ? 'الحالة' : 'Status'}</TableHead>
+                      <TableHead>{isRTL ? 'الفترة المجانية' : 'Free Period'}</TableHead>
                       <TableHead>{isRTL ? 'التاريخ' : 'Date'}</TableHead>
                       <TableHead>{isRTL ? 'إجراءات' : 'Actions'}</TableHead>
                     </TableRow>
@@ -289,19 +341,25 @@ export default function OwnerCafeterias() {
                     {filteredCafeterias.map((cafeteria) => (
                       <TableRow key={cafeteria.id} className="hover:bg-gray-50">
                         <TableCell className="font-semibold text-gray-900">{cafeteria.name}</TableCell>
-                        <TableCell className="text-gray-600 text-sm">{cafeteria.phone || '-'}</TableCell>
+                        <TableCell className="text-gray-600 text-sm">{cafeteria.location || '-'}</TableCell>
                         <TableCell>
-                          <Badge className={`${getPlanColor(cafeteria.plan)} border-none text-xs font-bold`}>
-                            {cafeteria.plan.toUpperCase()}
+                          <Badge className={`${getPlanColor(cafeteria.subscriptionPlan)} border-none text-xs font-bold`}>
+                            {cafeteria.subscriptionPlan.toUpperCase()}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge className={`${cafeteria.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} border-none text-xs font-bold`}>
-                            {isRTL ? (cafeteria.status === 'active' ? 'نشط' : 'غير نشط') : (cafeteria.status === 'active' ? 'Active' : 'Inactive')}
+                          <Badge className={`${cafeteria.subscriptionStatus === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} border-none text-xs font-bold`}>
+                            {isRTL ? (cafeteria.subscriptionStatus === 'active' ? 'نشط' : 'غير نشط') : (cafeteria.subscriptionStatus === 'active' ? 'Active' : 'Inactive')}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-gray-500 text-sm">
-                          {new Date(cafeteria.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US')}
+                          {cafeteria.freeOperationEndDate 
+                            ? new Date(cafeteria.freeOperationEndDate).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US')
+                            : '-'
+                          }
+                        </TableCell>
+                        <TableCell className="text-gray-500 text-sm">
+                          {new Date(cafeteria.createdAt).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US')}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
@@ -310,8 +368,21 @@ export default function OwnerCafeterias() {
                               size="sm"
                               className="h-7 px-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
                               onClick={() => openEditDialog(cafeteria)}
+                              title={isRTL ? 'تعديل' : 'Edit'}
                             >
                               <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-green-600 hover:text-green-800 hover:bg-green-50"
+                              onClick={() => {
+                                setSelectedCafeteria(cafeteria);
+                                setShowFreePeriodDialog(true);
+                              }}
+                              title={isRTL ? 'منح فترة مجانية' : 'Grant Free Period'}
+                            >
+                              <Wallet className="w-3 h-3" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -321,6 +392,7 @@ export default function OwnerCafeterias() {
                                 setSelectedCafeteria(cafeteria);
                                 setShowDeleteDialog(true);
                               }}
+                              title={isRTL ? 'حذف' : 'Delete'}
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
@@ -352,29 +424,21 @@ export default function OwnerCafeterias() {
               />
             </div>
             <div>
-              <Label>{isRTL ? 'الهاتف' : 'Phone'}</Label>
+              <Label>{isRTL ? 'الموقع' : 'Location'}</Label>
               <Input
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder={isRTL ? 'رقم الهاتف' : 'Phone number'}
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder={isRTL ? 'الموقع' : 'Location'}
               />
             </div>
             <div>
-              <Label>{isRTL ? 'العنوان' : 'Address'}</Label>
-              <Input
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder={isRTL ? 'العنوان' : 'Address'}
-              />
-            </div>
-            <div>
-              <Label>{isRTL ? 'الخطة' : 'Plan'}</Label>
-              <Select value={formData.plan} onValueChange={(v) => setFormData({ ...formData, plan: v })}>
+              <Label>{isRTL ? 'خطة الاشتراك' : 'Subscription Plan'}</Label>
+              <Select value={formData.subscriptionPlan} onValueChange={(v) => setFormData({ ...formData, subscriptionPlan: v })}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="free">{isRTL ? 'مجاني' : 'Free'}</SelectItem>
+                  <SelectItem value="starter">{isRTL ? 'مبتدئ' : 'Starter'}</SelectItem>
                   <SelectItem value="basic">{isRTL ? 'أساسي' : 'Basic'}</SelectItem>
                   <SelectItem value="pro">{isRTL ? 'احترافي' : 'Pro'}</SelectItem>
                   <SelectItem value="enterprise">{isRTL ? 'مؤسسي' : 'Enterprise'}</SelectItem>
@@ -405,30 +469,25 @@ export default function OwnerCafeterias() {
               <Input
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder={isRTL ? 'اسم الكافيتريا' : 'Cafeteria name'}
               />
             </div>
             <div>
-              <Label>{isRTL ? 'الهاتف' : 'Phone'}</Label>
+              <Label>{isRTL ? 'الموقع' : 'Location'}</Label>
               <Input
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder={isRTL ? 'الموقع' : 'Location'}
               />
             </div>
             <div>
-              <Label>{isRTL ? 'العنوان' : 'Address'}</Label>
-              <Input
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>{isRTL ? 'الخطة' : 'Plan'}</Label>
-              <Select value={formData.plan} onValueChange={(v) => setFormData({ ...formData, plan: v })}>
+              <Label>{isRTL ? 'خطة الاشتراك' : 'Subscription Plan'}</Label>
+              <Select value={formData.subscriptionPlan} onValueChange={(v) => setFormData({ ...formData, subscriptionPlan: v })}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="free">{isRTL ? 'مجاني' : 'Free'}</SelectItem>
+                  <SelectItem value="starter">{isRTL ? 'مبتدئ' : 'Starter'}</SelectItem>
                   <SelectItem value="basic">{isRTL ? 'أساسي' : 'Basic'}</SelectItem>
                   <SelectItem value="pro">{isRTL ? 'احترافي' : 'Pro'}</SelectItem>
                   <SelectItem value="enterprise">{isRTL ? 'مؤسسي' : 'Enterprise'}</SelectItem>
@@ -441,7 +500,42 @@ export default function OwnerCafeterias() {
               {isRTL ? 'إلغاء' : 'Cancel'}
             </Button>
             <Button onClick={handleEditCafeteria} disabled={submitting}>
-              {submitting ? '...' : (isRTL ? 'حفظ' : 'Save')}
+              {submitting ? '...' : (isRTL ? 'تحديث' : 'Update')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Free Period Dialog */}
+      <Dialog open={showFreeperiodDialog} onOpenChange={setShowFreePeriodDialog}>
+        <DialogContent dir={isRTL ? 'rtl' : 'ltr'}>
+          <DialogHeader>
+            <DialogTitle>{isRTL ? 'منح فترة مجانية' : 'Grant Free Period'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>{isRTL ? 'عدد الأشهر' : 'Number of Months'}</Label>
+              <Input
+                type="number"
+                min="1"
+                max="12"
+                value={freePeriodData.months}
+                onChange={(e) => setFreePeriodData({ months: parseInt(e.target.value) || 1 })}
+              />
+            </div>
+            <p className="text-sm text-gray-600">
+              {isRTL 
+                ? `سيتم منح فترة مجانية لمدة ${freePeriodData.months} شهر للكافيتريا: ${selectedCafeteria?.name}`
+                : `Grant a free period of ${freePeriodData.months} month(s) for cafeteria: ${selectedCafeteria?.name}`
+              }
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowFreePeriodDialog(false)}>
+              {isRTL ? 'إلغاء' : 'Cancel'}
+            </Button>
+            <Button onClick={handleGrantFreePeriod} disabled={submitting}>
+              {submitting ? '...' : (isRTL ? 'منح' : 'Grant')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -453,13 +547,13 @@ export default function OwnerCafeterias() {
           <AlertDialogHeader>
             <AlertDialogTitle>{isRTL ? 'حذف الكافيتريا' : 'Delete Cafeteria'}</AlertDialogTitle>
             <AlertDialogDescription>
-              {isRTL ? `هل أنت متأكد من حذف "${selectedCafeteria?.name}"؟` : `Are you sure you want to delete "${selectedCafeteria?.name}"?`}
+              {isRTL ? 'هل أنت متأكد من حذف هذه الكافيتريا؟' : 'Are you sure you want to delete this cafeteria?'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{isRTL ? 'إلغاء' : 'Cancel'}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteCafeteria} disabled={submitting} className="bg-red-600 hover:bg-red-700">
-              {submitting ? '...' : (isRTL ? 'حذف' : 'Delete')}
+            <AlertDialogAction onClick={handleDeleteCafeteria} className="bg-red-600 hover:bg-red-700">
+              {isRTL ? 'حذف' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
