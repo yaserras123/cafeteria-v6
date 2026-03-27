@@ -20,8 +20,8 @@ export default function OwnerDashboard() {
   const [stats, setStats] = useState({
     totalCafeterias: 0,
     totalMarketers: 0,
-    totalPoints: 0,
-    activeSubscriptions: 0
+    activeSubscriptions: 0,
+    freePeriodCafeterias: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -31,12 +31,17 @@ export default function OwnerDashboard() {
       try {
         const { count: cafeCount } = await supabase.from('cafeterias').select('*', { count: 'exact', head: true });
         const { count: marketerCount } = await supabase.from('marketers').select('*', { count: 'exact', head: true });
+        const { count: freePeriodCount } = await supabase
+          .from('cafeterias')
+          .select('*', { count: 'exact', head: true })
+          .not('freeOperationEndDate', 'is', null)
+          .gt('freeOperationEndDate', new Date().toISOString());
         
         setStats({
           totalCafeterias: cafeCount || 0,
           totalMarketers: marketerCount || 0,
-          totalPoints: 125000,
-          activeSubscriptions: cafeCount ? Math.floor(cafeCount * 0.7) : 0
+          activeSubscriptions: cafeCount ? Math.floor(cafeCount * 0.7) : 0,
+          freePeriodCafeterias: freePeriodCount || 0
         });
       } catch (err) {
         console.error('Error fetching owner stats:', err);
@@ -123,14 +128,14 @@ export default function OwnerDashboard() {
             </Card>
             <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">
               <CardContent className="p-4">
-                <p className="text-2xl font-bold">{stats.totalPoints.toLocaleString()}</p>
-                <p className="text-xs text-slate-400 uppercase tracking-wider">{isRTL ? 'إجمالي النقاط' : 'Total Points'}</p>
+                <p className="text-2xl font-bold">{stats.activeSubscriptions}</p>
+                <p className="text-xs text-slate-400 uppercase tracking-wider">{isRTL ? 'الاشتراكات النشطة' : 'Active Subs'}</p>
               </CardContent>
             </Card>
             <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">
               <CardContent className="p-4">
-                <p className="text-2xl font-bold">{stats.activeSubscriptions}</p>
-                <p className="text-xs text-slate-400 uppercase tracking-wider">{isRTL ? 'الاشتراكات النشطة' : 'Active Subs'}</p>
+                <p className="text-2xl font-bold">{stats.freePeriodCafeterias}</p>
+                <p className="text-xs text-slate-400 uppercase tracking-wider">{isRTL ? 'فترة مجانية' : 'Free Period'}</p>
               </CardContent>
             </Card>
           </div>
@@ -164,77 +169,43 @@ export default function OwnerDashboard() {
             <CardHeader className="bg-slate-50 border-b border-slate-100 flex flex-row items-center justify-between">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
                 <Activity className="w-5 h-5 text-blue-500" />
-                {isRTL ? 'طلبات شحن معلقة' : 'Pending Recharges'}
+                {isRTL ? 'الكافيتريات بفترة مجانية' : 'Cafeterias with Free Period'}
               </CardTitle>
-              <Badge className="bg-orange-100 text-orange-600 border-0">3 {isRTL ? 'طلبات' : 'Requests'}</Badge>
+              <Badge className="bg-blue-100 text-blue-600 border-0">{stats.freePeriodCafeterias}</Badge>
             </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y divide-slate-100">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
-                        <Store className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-900 text-sm">كافيتريا الروضة #{i}</p>
-                        <p className="text-xs text-slate-500">5000 {isRTL ? 'نقطة' : 'Points'}</p>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="outline" className="text-xs h-8">
-                      {isRTL ? 'مراجعة' : 'Review'}
-                    </Button>
-                  </div>
-                ))}
-              </div>
+            <CardContent className="p-4">
+              <p className="text-sm text-slate-600">
+                {isRTL 
+                  ? 'عدد الكافيتريات التي تتمتع بفترة تشغيل مجانية حالياً'
+                  : 'Number of cafeterias currently enjoying free operation period'
+                }
+              </p>
             </CardContent>
           </Card>
 
           <Card className="border-0 shadow-xl bg-white overflow-hidden">
             <CardHeader className="bg-slate-50 border-b border-slate-100 flex flex-row items-center justify-between">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-500" />
+                <CheckCircle2 className="w-5 h-5 text-green-500" />
                 {isRTL ? 'حالة النظام' : 'System Health'}
               </CardTitle>
               <Badge className="bg-green-100 text-green-600 border-0 font-bold">{isRTL ? 'مستقر' : 'Stable'}</Badge>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-6">
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm font-bold text-slate-700">{isRTL ? 'استهلاك السيرفر' : 'Server Load'}</span>
-                    <span className="text-sm font-bold text-blue-600">24%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div className="bg-blue-500 h-full w-[24%] rounded-full"></div>
-                  </div>
+            <CardContent className="p-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-600">{isRTL ? 'قاعدة البيانات' : 'Database'}</span>
+                  <Badge className="bg-green-100 text-green-700 border-0 text-xs">{isRTL ? 'متصل' : 'Connected'}</Badge>
                 </div>
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm font-bold text-slate-700">{isRTL ? 'قاعدة البيانات' : 'Database Usage'}</span>
-                    <span className="text-sm font-bold text-purple-600">12%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div className="bg-purple-500 h-full w-[12%] rounded-full"></div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-green-600 text-sm font-bold bg-green-50 p-3 rounded-xl border border-green-100">
-                  <CheckCircle2 className="w-5 h-5" />
-                  {isRTL ? 'جميع الخدمات تعمل بشكل طبيعي' : 'All systems operational'}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-600">{isRTL ? 'الخادم' : 'Server'}</span>
+                  <Badge className="bg-green-100 text-green-700 border-0 text-xs">{isRTL ? 'يعمل' : 'Running'}</Badge>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
       </main>
-
-      <div className={`fixed bottom-8 ${isRTL ? 'left-8' : 'right-8'} flex flex-col gap-4 z-50`}>
-        <Button 
-          className="w-16 h-16 rounded-2xl bg-blue-600 hover:bg-blue-700 shadow-2xl flex items-center justify-center p-0 transition-all duration-300 hover:scale-110 active:scale-95 group"
-        >
-          <Plus className="w-8 h-8 text-white group-hover:rotate-90 transition-transform duration-300" />
-        </Button>
-      </div>
     </div>
   );
 }
