@@ -1,158 +1,146 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { 
-  Store, 
-  Users, 
-  Settings, 
-  ShoppingCart, 
-  TableIcon,
-  Utensils,
-  Wallet,
-  FileText,
-  Languages,
-  LogOut,
-  Plus,
-  Lock,
-  Zap,
-  AlertCircle,
-  ChevronRight,
-  Bell,
-  Eye,
-  EyeOff,
-  Trash2,
-  Edit,
-  Phone,
-  Hash,
-  Key,
-  ToggleLeft,
-  ToggleRight,
-  User,
-  DollarSign,
-  Coins,
-  TrendingUp
+import {
+  Store, Users, Settings, ShoppingCart, Table2, UtensilsCrossed,
+  CreditCard, BarChart3, LogOut, TrendingUp, DollarSign,
+  LayoutDashboard, Languages, RefreshCw, ChevronRight
 } from 'lucide-react';
-import { usePlanCheck } from '@/hooks/usePlanCheck';
-import { UpgradeModal } from '@/components/SubscriptionGating';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
-import { trpc } from '@/lib/trpc';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function CafeteriaDashboard() {
   const { user, logout } = useAuth();
-  const { t, language, setLanguage } = useTranslation();
+  const { language, setLanguage } = useTranslation();
   const [, setLocation] = useLocation();
   const cafeteriaId = user?.cafeteriaId;
-  const { plan, limits } = usePlanCheck();
+  const isRTL = language === 'ar';
 
-  // Queries
-  const { data: cafeteriaInfo } = trpc.cafeterias.getCafeteriaDetails.useQuery(
-    { cafeteriaId: cafeteriaId! },
-    { enabled: !!cafeteriaId }
-  );
+  const [cafeteriaInfo, setCafeteriaInfo] = useState<any>(null);
+  const [stats, setStats] = useState({
+    activeOrders: 0,
+    totalRevenue: 0,
+    staffCount: 0,
+    tablesCount: 0,
+    menuItemsCount: 0,
+    availableTables: 0,
+  });
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const { data: backendStaff = [] } = trpc.staff.getStaff.useQuery(
-    { cafeteriaId: cafeteriaId! },
-    { enabled: !!cafeteriaId }
-  );
+  const fetchDashboardData = async () => {
+    if (!cafeteriaId) return;
+    try {
+      const [cafRes, ordersRes, staffRes, tablesRes, menuRes] = await Promise.all([
+        supabase.from('cafeterias').select('*').eq('id', cafeteriaId).single(),
+        supabase.from('orders').select('*').eq('cafeteria_id', cafeteriaId).order('created_at', { ascending: false }).limit(50),
+        supabase.from('cafeteria_staff').select('id').eq('cafeteria_id', cafeteriaId),
+        supabase.from('cafeteria_tables').select('id, status').eq('cafeteria_id', cafeteriaId),
+        supabase.from('menu_items').select('id').eq('cafeteria_id', cafeteriaId),
+      ]);
 
-  const { data: backendTables = [] } = trpc.tables.getTables.useQuery(
-    { cafeteriaId: cafeteriaId! },
-    { enabled: !!cafeteriaId }
-  );
+      if (cafRes.data) setCafeteriaInfo(cafRes.data);
 
-  const { data: backendOrders = [] } = trpc.orders.getOrders.useQuery(
-    { cafeteriaId: cafeteriaId! },
-    { enabled: !!cafeteriaId, refetchInterval: 5000 }
-  );
+      const orders = ordersRes.data || [];
+      const activeOrders = orders.filter((o: any) => o.status === 'open').length;
+      const totalRevenue = orders
+        .filter((o: any) => o.status === 'closed')
+        .reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
 
-  const { data: backendItems = [] } = trpc.menu.getMenuItems.useQuery(
-    { cafeteriaId: cafeteriaId! },
-    { enabled: !!cafeteriaId }
-  );
+      const tables = tablesRes.data || [];
+      const availableTables = tables.filter((t: any) => t.status === 'available').length;
 
-  // State
-  const [activeTab, setActiveTab] = useState('overview');
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [upgradeReason, setUpgradeReason] = useState('');
+      setStats({
+        activeOrders,
+        totalRevenue,
+        staffCount: (staffRes.data || []).length,
+        tablesCount: tables.length,
+        menuItemsCount: (menuRes.data || []).length,
+        availableTables,
+      });
 
-  // Calculate stats
-  const activeOrders = backendOrders.filter((o: any) => o.status === 'open').length;
-  const totalRevenue = backendOrders
-    .filter((o: any) => o.status === 'closed')
-    .reduce((sum: number, o: any) => sum + (Number(o.totalAmount) || 0), 0);
+      setRecentOrders(orders.slice(0, 5));
+    } catch (err: any) {
+      console.error('Dashboard error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Main action grid
-  const mainActions = [
+  useEffect(() => {
+    fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 30000);
+    return () => clearInterval(interval);
+  }, [cafeteriaId]);
+
+  const quickActions = [
     {
-      title: 'Menu',
-      icon: Utensils,
+      titleAr: 'المنيو',
+      titleEn: 'Menu',
+      icon: UtensilsCrossed,
       color: 'from-orange-400 to-orange-600',
-      bgColor: 'bg-orange-50',
-      count: backendItems.length,
-      action: () => setLocation('/dashboard/cafeteria/menu'),
+      bg: 'bg-orange-50',
+      count: stats.menuItemsCount,
+      path: '/dashboard/cafeteria-admin/menu',
     },
     {
-      title: 'Dashboard',
-      icon: TrendingUp,
+      titleAr: 'لوحة التحكم',
+      titleEn: 'Dashboard',
+      icon: LayoutDashboard,
       color: 'from-blue-400 to-blue-600',
-      bgColor: 'bg-blue-50',
-      count: activeOrders,
-      action: () => setActiveTab('overview'),
+      bg: 'bg-blue-50',
+      count: stats.activeOrders,
+      path: '/dashboard/cafeteria-admin',
     },
     {
-      title: 'Staff',
+      titleAr: 'الموظفين',
+      titleEn: 'Staff',
       icon: Users,
       color: 'from-green-400 to-green-600',
-      bgColor: 'bg-green-50',
-      count: backendStaff.length,
-      action: () => setActiveTab('staff'),
+      bg: 'bg-green-50',
+      count: stats.staffCount,
+      path: '/dashboard/cafeteria-admin/staff',
     },
     {
-      title: 'Tables',
-      icon: TableIcon,
+      titleAr: 'الطاولات',
+      titleEn: 'Tables',
+      icon: Table2,
       color: 'from-purple-400 to-purple-600',
-      bgColor: 'bg-purple-50',
-      count: backendTables.length,
-      action: () => setActiveTab('tables'),
+      bg: 'bg-purple-50',
+      count: stats.tablesCount,
+      path: '/dashboard/cafeteria-admin/tables',
     },
     {
-      title: 'Orders',
+      titleAr: 'الطلبات',
+      titleEn: 'Orders',
       icon: ShoppingCart,
       color: 'from-pink-400 to-pink-600',
-      bgColor: 'bg-pink-50',
-      count: activeOrders,
-      action: () => setActiveTab('orders'),
+      bg: 'bg-pink-50',
+      count: stats.activeOrders,
+      path: '/dashboard/cafeteria-admin/orders',
     },
     {
-      title: 'Reports',
-      icon: FileText,
+      titleAr: 'التقارير',
+      titleEn: 'Reports',
+      icon: BarChart3,
       color: 'from-indigo-400 to-indigo-600',
-      bgColor: 'bg-indigo-50',
-      locked: plan === 'starter',
-      action: () => {
-        if (plan === 'starter') {
-          setUpgradeReason('Unlock detailed reports and analytics');
-          setShowUpgradeModal(true);
-        } else {
-          setActiveTab('reports');
-        }
-      },
+      bg: 'bg-indigo-50',
+      count: null,
+      path: '/dashboard/cafeteria-admin/reports',
     },
   ];
 
+  const plan = cafeteriaInfo?.plan || 'free';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pb-20">
+    <div
+      className={`min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pb-20 ${isRTL ? 'rtl' : 'ltr'}`}
+      dir={isRTL ? 'rtl' : 'ltr'}
+    >
       {/* Header */}
       <header className="bg-white border-b-4 border-blue-500 sticky top-0 z-40 shadow-lg">
         <div className="px-4 py-4 flex items-center justify-between">
@@ -161,317 +149,246 @@ export default function CafeteriaDashboard() {
               <Store className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-slate-900">
-                {(cafeteriaInfo as any)?.name || 'Cafeteria'}
+              <h1 className="text-xl font-black text-slate-900">
+                {cafeteriaInfo?.name || (isRTL ? 'الكافيتريا' : 'Cafeteria')}
               </h1>
-              <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">
-                {(plan ?? 'starter').toUpperCase()} Plan
-              </p>
+              <Badge className="bg-purple-100 text-purple-700 border-none text-xs font-bold uppercase">
+                {plan} {isRTL ? 'خطة' : 'Plan'}
+              </Badge>
             </div>
           </div>
-
           <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-12 w-12 text-slate-600 hover:text-blue-600 hover:bg-blue-50"
-                >
-                  <Bell className="w-6 h-6" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Notifications</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={logout}
-                  className="h-12 w-12 text-slate-600 hover:text-red-600 hover:bg-red-50"
-                >
-                  <LogOut className="w-6 h-6" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Logout</TooltipContent>
-            </Tooltip>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={fetchDashboardData}
+              className="h-10 w-10 text-slate-600 hover:text-blue-600"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={logout}
+              className="h-10 w-10 text-slate-600 hover:text-red-600 hover:bg-red-50"
+            >
+              <LogOut className="w-5 h-5" />
+            </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* Upgrade Banner */}
-        {plan === 'starter' && (
-          <Card className="border-0 shadow-lg overflow-hidden bg-gradient-to-r from-blue-500 to-blue-600">
-            <CardContent className="p-6 flex items-center justify-between text-white">
-              <div className="flex items-center gap-4">
-                <Zap className="w-8 h-8" />
+      <main className="px-4 py-6 max-w-4xl mx-auto">
+        {/* KPI Stats */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <Card className="border-0 shadow-md bg-gradient-to-br from-blue-500 to-blue-700 text-white">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <ShoppingCart className="w-8 h-8 opacity-80" />
                 <div>
-                  <h3 className="font-black text-lg">Unlock Premium</h3>
-                  <p className="text-sm text-blue-100">More staff, detailed reports & more</p>
+                  <p className="text-3xl font-black">{stats.activeOrders}</p>
+                  <p className="text-xs opacity-80">{isRTL ? 'الطلبات النشطة' : 'Active Orders'}</p>
                 </div>
               </div>
-              <Button
-                onClick={() => setLocation('/upgrade')}
-                className="bg-white text-blue-600 hover:bg-blue-50 font-bold"
-              >
-                Upgrade
-              </Button>
             </CardContent>
           </Card>
-        )}
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card className="border-0 shadow-md bg-gradient-to-br from-purple-50 to-purple-100 overflow-hidden">
-            <CardContent className="p-6 text-center">
-              <div className="bg-purple-500 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                <ShoppingCart className="w-6 h-6 text-white" />
+          <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-700 text-white">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <DollarSign className="w-8 h-8 opacity-80" />
+                <div>
+                  <p className="text-3xl font-black">{stats.totalRevenue.toFixed(0)}</p>
+                  <p className="text-xs opacity-80">{isRTL ? 'الإيرادات' : 'Revenue'}</p>
+                </div>
               </div>
-              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Active Orders</p>
-              <p className="text-4xl font-black text-purple-600 mt-2">{activeOrders}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-md bg-gradient-to-br from-green-50 to-green-100 overflow-hidden">
-            <CardContent className="p-6 text-center">
-              <div className="bg-green-500 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                <DollarSign className="w-6 h-6 text-white" />
-              </div>
-              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Revenue</p>
-              <p className="text-4xl font-black text-green-600 mt-2">${totalRevenue.toFixed(0)}</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Action Grid */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-black text-slate-900 px-2">Quick Access</h2>
-          <div className="grid grid-cols-2 gap-4">
-            {mainActions.map((action, idx) => {
-              const Icon = action.icon;
-              return (
-                <Card
-                  key={idx}
-                  onClick={action.action}
-                  className={`border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer overflow-hidden ${
-                    action.locked ? 'opacity-60' : ''
-                  }`}
-                >
-                  <div className={`h-3 bg-gradient-to-r ${action.color}`} />
-                  <CardContent className="p-6 text-center">
-                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-gradient-to-br ${action.color} shadow-lg`}>
-                      <Icon className="w-8 h-8 text-white" />
-                    </div>
-                    <h3 className="font-black text-lg text-slate-900">{action.title}</h3>
-                    <div className="flex items-center justify-center gap-2 mt-3">
-                      <Badge className="bg-slate-100 text-slate-700 border-none font-bold text-base px-3 py-1">
-                        {action.count}
-                      </Badge>
-                      {action.locked && <Lock className="w-4 h-4 text-amber-500" />}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Tabs for detailed views */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full overflow-x-auto flex flex-nowrap gap-2 bg-white border-2 border-slate-200 rounded-xl p-1 shadow-md">
-            <TabsTrigger value="overview" className="text-xs font-bold whitespace-nowrap flex-shrink-0 data-[state=active]:bg-blue-500 data-[state=active]:text-white rounded-lg">
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="staff" className="text-xs font-bold whitespace-nowrap flex-shrink-0 data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-lg">
-              Staff
-            </TabsTrigger>
-            <TabsTrigger value="tables" className="text-xs font-bold whitespace-nowrap flex-shrink-0 data-[state=active]:bg-purple-500 data-[state=active]:text-white rounded-lg">
-              Tables
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="text-xs font-bold whitespace-nowrap flex-shrink-0 data-[state=active]:bg-pink-500 data-[state=active]:text-white rounded-lg">
-              Orders
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6 mt-6">
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b-4 border-blue-500">
-                <CardTitle className="text-xl font-black text-slate-900">Welcome Back!</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <p className="text-slate-600 mb-4">Your cafeteria is running smoothly. Here's what's happening today:</p>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
-                    <span className="font-bold text-slate-900">Active Orders</span>
-                    <span className="text-2xl font-black text-purple-600">{activeOrders}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border-2 border-green-200">
-                    <span className="font-bold text-slate-900">Staff On Duty</span>
-                    <span className="text-2xl font-black text-green-600">{backendStaff.length}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-orange-50 rounded-xl border-2 border-orange-200">
-                    <span className="font-bold text-slate-900">Menu Items</span>
-                    <span className="text-2xl font-black text-orange-600">{backendItems.length}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Staff Tab */}
-          <TabsContent value="staff" className="space-y-6 mt-6">
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-green-50 to-green-100 border-b-4 border-green-500 flex items-center justify-between">
-                <CardTitle className="text-xl font-black text-slate-900">Staff Members</CardTitle>
-                <Button
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold"
-                  onClick={() => setLocation('/dashboard/cafeteria/staff')}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add
-                </Button>
-              </CardHeader>
-              <CardContent className="p-6">
-                {backendStaff.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                    <p className="text-slate-600 font-bold">No staff members yet</p>
-                    <Button
-                      onClick={() => setLocation('/dashboard/cafeteria/staff')}
-                      className="mt-4 bg-green-600 hover:bg-green-700 text-white font-bold"
-                    >
-                      Add First Staff
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {backendStaff.slice(0, 5).map((staff: any) => (
-                      <div key={staff.id} className="p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl border-2 border-green-200 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold">
-                            {staff.name[0]}
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-900">{staff.name}</p>
-                            <p className="text-xs text-slate-600 uppercase font-semibold">{staff.role}</p>
-                          </div>
-                        </div>
-                        <Badge className={`${staff.status === 'active' ? 'bg-green-500' : 'bg-slate-300'} text-white border-none font-bold`}>
-                          {staff.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Tables Tab */}
-          <TabsContent value="tables" className="space-y-6 mt-6">
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100 border-b-4 border-purple-500 flex items-center justify-between">
-                <CardTitle className="text-xl font-black text-slate-900">Tables</CardTitle>
-                <Button
-                  size="sm"
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold"
-                  onClick={() => setLocation('/dashboard/cafeteria/tables')}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add
-                </Button>
-              </CardHeader>
-              <CardContent className="p-6">
-                {backendTables.length === 0 ? (
-                  <div className="text-center py-12">
-                    <TableIcon className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                    <p className="text-slate-600 font-bold">No tables yet</p>
-                    <Button
-                      onClick={() => setLocation('/dashboard/cafeteria/tables')}
-                      className="mt-4 bg-purple-600 hover:bg-purple-700 text-white font-bold"
-                    >
-                      Create First Table
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {backendTables.slice(0, 6).map((table: any) => (
-                      <div
-                        key={table.id}
-                        className={`p-4 rounded-xl border-2 text-center font-bold ${
-                          table.status === 'available'
-                            ? 'bg-green-50 border-green-300 text-green-700'
-                            : table.status === 'occupied'
-                            ? 'bg-red-50 border-red-300 text-red-700'
-                            : 'bg-yellow-50 border-yellow-300 text-yellow-700'
-                        }`}
-                      >
-                        Table {table.tableNumber}
-                        <p className="text-xs mt-1">{table.status}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Orders Tab */}
-          <TabsContent value="orders" className="space-y-6 mt-6">
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-pink-50 to-pink-100 border-b-4 border-pink-500">
-                <CardTitle className="text-xl font-black text-slate-900">Recent Orders</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                {activeOrders === 0 ? (
-                  <div className="text-center py-12">
-                    <ShoppingCart className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                    <p className="text-slate-600 font-bold">No active orders</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {backendOrders
-                      .filter((o: any) => o.status === 'open')
-                      .slice(0, 5)
-                      .map((order: any) => (
-                        <div key={order.id} className="p-4 bg-gradient-to-r from-pink-50 to-pink-100 rounded-xl border-2 border-pink-200 flex items-center justify-between">
-                          <div>
-                            <p className="font-bold text-slate-900">Order #{order.id}</p>
-                            <p className="text-xs text-slate-600">{order.items?.length || 0} items</p>
-                          </div>
-                          <Badge className="bg-pink-500 text-white border-none font-bold">
-                            ${Number(order.totalAmount || 0).toFixed(2)}
-                          </Badge>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* Settings Card */}
-        <Card className="border-0 shadow-lg mb-12">
-          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-4 border-slate-400">
-            <CardTitle className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <Settings className="w-6 h-6" />
-              Settings
+        {/* Quick Access Grid */}
+        <Card className="border-0 shadow-md mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold text-slate-800">
+              {isRTL ? 'وصول سريع' : 'Quick Access'}
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border-2 border-slate-200">
-              <div className="flex items-center gap-3">
-                <Languages className="w-6 h-6 text-slate-600" />
-                <span className="font-bold text-slate-900">Language</span>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-3">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={action.path}
+                    onClick={() => setLocation(action.path)}
+                    className={`${action.bg} p-4 rounded-xl flex flex-col items-center gap-2 transition-all hover:shadow-md hover:scale-105 active:scale-95`}
+                  >
+                    <div className={`w-10 h-10 bg-gradient-to-br ${action.color} rounded-lg flex items-center justify-center shadow-sm`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-700 text-center">
+                      {isRTL ? action.titleAr : action.titleEn}
+                    </span>
+                    {action.count !== null && (
+                      <span className="text-lg font-black text-slate-800">{action.count}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tables Status */}
+        <Card className="border-0 shadow-md mb-6">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-base font-bold text-slate-800">
+              {isRTL ? 'حالة الطاولات' : 'Tables Status'}
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocation('/dashboard/cafeteria-admin/tables')}
+              className="text-blue-600 hover:text-blue-800 gap-1 text-xs"
+            >
+              {isRTL ? 'عرض الكل' : 'View All'}
+              <ChevronRight className={`w-3 h-3 ${isRTL ? 'rotate-180' : ''}`} />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+                <p className="text-2xl font-black text-green-700">{stats.availableTables}</p>
+                <p className="text-xs text-green-600">{isRTL ? 'متاحة' : 'Available'}</p>
               </div>
-              <Select value={language} onValueChange={(v) => setLanguage(v as 'ar' | 'en')}>
-                <SelectTrigger className="w-[120px] border-2 border-slate-300 font-bold">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+                <p className="text-2xl font-black text-red-700">
+                  {stats.tablesCount - stats.availableTables}
+                </p>
+                <p className="text-xs text-red-600">{isRTL ? 'مشغولة' : 'Occupied'}</p>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+                <p className="text-2xl font-black text-blue-700">{stats.tablesCount}</p>
+                <p className="text-xs text-blue-600">{isRTL ? 'الإجمالي' : 'Total'}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Orders */}
+        <Card className="border-0 shadow-md mb-6">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-base font-bold text-slate-800">
+              {isRTL ? 'آخر الطلبات' : 'Recent Orders'}
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocation('/dashboard/cafeteria-admin/orders')}
+              className="text-blue-600 hover:text-blue-800 gap-1 text-xs"
+            >
+              {isRTL ? 'عرض الكل' : 'View All'}
+              <ChevronRight className={`w-3 h-3 ${isRTL ? 'rotate-180' : ''}`} />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <p className="text-center text-gray-400 py-4">{isRTL ? 'جاري التحميل...' : 'Loading...'}</p>
+            ) : recentOrders.length === 0 ? (
+              <div className="text-center py-6">
+                <ShoppingCart className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-400 text-sm">{isRTL ? 'لا توجد طلبات بعد' : 'No orders yet'}</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {recentOrders.map((order: any) => (
+                  <div
+                    key={order.id}
+                    className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200"
+                  >
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">#{order.id.slice(0, 8)}</p>
+                      <p className="text-xs text-slate-500">
+                        {new Date(order.created_at).toLocaleTimeString(isRTL ? 'ar-SA' : 'en-US', {
+                          hour: '2-digit', minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        className={`text-xs border-none ${
+                          order.status === 'open'
+                            ? 'bg-blue-100 text-blue-700'
+                            : order.status === 'closed'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}
+                      >
+                        {order.status === 'open'
+                          ? (isRTL ? 'مفتوح' : 'Open')
+                          : order.status === 'closed'
+                          ? (isRTL ? 'مغلق' : 'Closed')
+                          : (isRTL ? 'ملغي' : 'Cancelled')}
+                      </Badge>
+                      <span className="font-bold text-green-700 text-sm">
+                        {Number(order.total_amount || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Navigation Links */}
+        <Card className="border-0 shadow-md mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold text-slate-800">
+              {isRTL ? 'الإدارة' : 'Management'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {[
+              { titleAr: 'إدارة المنيو', titleEn: 'Menu Management', icon: UtensilsCrossed, path: '/dashboard/cafeteria-admin/menu', color: 'text-orange-600' },
+              { titleAr: 'إدارة الطاولات', titleEn: 'Tables Management', icon: Table2, path: '/dashboard/cafeteria-admin/tables', color: 'text-purple-600' },
+              { titleAr: 'إدارة الموظفين', titleEn: 'Staff Management', icon: Users, path: '/dashboard/cafeteria-admin/staff', color: 'text-green-600' },
+              { titleAr: 'إدارة الطلبات', titleEn: 'Orders Management', icon: ShoppingCart, path: '/dashboard/cafeteria-admin/orders', color: 'text-pink-600' },
+              { titleAr: 'التقارير والإحصائيات', titleEn: 'Reports & Analytics', icon: BarChart3, path: '/dashboard/cafeteria-admin/reports', color: 'text-indigo-600' },
+              { titleAr: 'شحن النقاط', titleEn: 'Recharge Points', icon: CreditCard, path: '/dashboard/cafeteria-admin/recharge', color: 'text-yellow-600' },
+              { titleAr: 'إعدادات الكافيتريا', titleEn: 'Cafeteria Settings', icon: Settings, path: '/dashboard/cafeteria-admin/settings', color: 'text-slate-600' },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => setLocation(item.path)}
+                  className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors border border-slate-200"
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className={`w-5 h-5 ${item.color}`} />
+                    <span className="font-semibold text-slate-800 text-sm">
+                      {isRTL ? item.titleAr : item.titleEn}
+                    </span>
+                  </div>
+                  <ChevronRight className={`w-4 h-4 text-slate-400 ${isRTL ? 'rotate-180' : ''}`} />
+                </button>
+              );
+            })}
+          </CardContent>
+        </Card>
+
+        {/* Language Switcher */}
+        <Card className="border-0 shadow-md">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Languages className="w-5 h-5 text-slate-600" />
+                <span className="font-semibold text-slate-800 text-sm">
+                  {isRTL ? 'اللغة' : 'Language'}
+                </span>
+              </div>
+              <Select value={language} onValueChange={(v) => setLanguage(v)}>
+                <SelectTrigger className="w-[130px] border-2 border-slate-300 font-bold">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -480,24 +397,9 @@ export default function CafeteriaDashboard() {
                 </SelectContent>
               </Select>
             </div>
-
-            <Button
-              onClick={() => setLocation('/dashboard/cafeteria/settings')}
-              className="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold h-14 text-lg"
-            >
-              <Settings className="w-5 h-5 mr-2" />
-              Full Settings
-            </Button>
           </CardContent>
         </Card>
       </main>
-
-      {/* Upgrade Modal */}
-      <UpgradeModal
-        open={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        reason={upgradeReason}
-      />
     </div>
   );
 }

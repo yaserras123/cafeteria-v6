@@ -36,6 +36,7 @@ import CafeteriaMenu from "./pages/cafeteria/CafeteriaMenu";
 import CafeteriaTables from "./pages/cafeteria/CafeteriaTables";
 import CafeteriaStaff from "./pages/cafeteria/CafeteriaStaff";
 import CafeteriaReports from "./pages/cafeteria/CafeteriaReports";
+import CafeteriaOrders from "./pages/cafeteria/CafeteriaOrders";
 import CafeteriaRecharge from "./pages/cafeteria/CafeteriaRecharge";
 import CafeteriaSettings from "./pages/cafeteria/CafeteriaSettings";
 
@@ -151,6 +152,12 @@ function Router() {
         path={"/dashboard/cafeteria-admin/staff"}
         component={() => (
           <ProtectedRoute component={CafeteriaStaff} allowedRoles={["cafeteria_admin", "admin"]} />
+        )}
+      />
+      <Route
+        path={"/dashboard/cafeteria-admin/orders"}
+        component={() => (
+          <ProtectedRoute component={CafeteriaOrders} allowedRoles={["cafeteria_admin", "admin"]} />
         )}
       />
       <Route
