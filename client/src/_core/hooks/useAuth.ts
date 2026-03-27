@@ -55,17 +55,19 @@ async function buildUser(supabaseUser: any): Promise<AuthUser> {
   // This significantly improves dashboard loading speed.
   if (!meta.role || !meta.cafeteriaId) {
     try {
-      // Add timeout to prevent infinite waiting
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+      // Use Promise.race with timeout instead of AbortController
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Database query timeout')), 2000)
+      );
 
-      const { data: userData, error } = await supabase
+      const queryPromise = supabase
         .from("users")
         .select("role, name, cafeteriaId, referenceCode")
         .eq("id", supabaseUser.id)
         .single();
       
-      clearTimeout(timeoutId);
+      const result = await Promise.race([queryPromise, timeoutPromise]) as any;
+      const { data: userData, error } = result;
 
       if (!error && userData) {
         const finalUser = {
