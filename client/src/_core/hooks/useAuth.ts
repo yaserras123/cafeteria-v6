@@ -20,6 +20,7 @@ type AuthState = {
 
 /**
  * Optimized user builder that prioritizes metadata to avoid slow DB lookups on every page load.
+ * Now with timeout protection to prevent infinite loading states.
  */
 async function buildUser(supabaseUser: any): Promise<AuthUser> {
   const meta = supabaseUser.user_metadata ?? {};
@@ -29,21 +30,32 @@ async function buildUser(supabaseUser: any): Promise<AuthUser> {
     id: supabaseUser.id,
     email: supabaseUser.email,
     name: meta.name ?? meta.full_name ?? supabaseUser.email?.split("@")[0] ?? "User",
-    role: meta.role ?? "admin",
-    cafeteriaId: meta.cafeteriaId ?? 1,
+    role: meta.role ?? "cafeteria_admin",
+    cafeteriaId: meta.cafeteriaId ?? null,
     referenceCode: meta.referenceCode,
   };
+
+  // If we have role and cafeteriaId from metadata, return immediately
+  if (meta.role && meta.cafeteriaId) {
+    return userFromMeta;
+  }
 
   // Only fetch from public.users if critical data is missing from metadata
   // This significantly improves dashboard loading speed.
   if (!meta.role || !meta.cafeteriaId) {
     try {
+      // Add timeout to prevent infinite waiting
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
       const { data: userData, error } = await supabase
         .from("users")
         .select("role, name, cafeteriaId, referenceCode")
         .eq("id", supabaseUser.id)
         .single();
       
+      clearTimeout(timeoutId);
+
       if (!error && userData) {
         return {
           id: supabaseUser.id,
@@ -55,7 +67,8 @@ async function buildUser(supabaseUser: any): Promise<AuthUser> {
         };
       }
     } catch (e) {
-      console.error("Error fetching user from public.users:", e);
+      console.warn("Error fetching user from public.users (using metadata fallback):", e);
+      // Fall through to use metadata
     }
   }
 
@@ -72,23 +85,35 @@ export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
   });
 
   const refresh = useCallback(async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      
+      if (error || !data.user) {
+        setState({
+          user: null,
+          loading: false,
+          error: error ?? null,
+          isAuthenticated: false,
+          isUnauthenticated: true,
+        });
+      } else {
+        const user = await buildUser(data.user);
+        setState({
+          user,
+          loading: false,
+          error: null,
+          isAuthenticated: true,
+          isUnauthenticated: false,
+        });
+      }
+    } catch (err: any) {
+      console.error("Error in useAuth refresh:", err);
       setState({
         user: null,
         loading: false,
-        error: error ?? null,
+        error: err,
         isAuthenticated: false,
         isUnauthenticated: true,
-      });
-    } else {
-      const user = await buildUser(data.user);
-      setState({
-        user,
-        loading: false,
-        error: null,
-        isAuthenticated: true,
-        isUnauthenticated: false,
       });
     }
   }, []);
@@ -97,20 +122,31 @@ export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
     refresh();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const user = await buildUser(session.user);
-        setState({
-          user,
-          loading: false,
-          error: null,
-          isAuthenticated: true,
-          isUnauthenticated: false,
-        });
-      } else {
+      try {
+        if (session?.user) {
+          const user = await buildUser(session.user);
+          setState({
+            user,
+            loading: false,
+            error: null,
+            isAuthenticated: true,
+            isUnauthenticated: false,
+          });
+        } else {
+          setState({
+            user: null,
+            loading: false,
+            error: null,
+            isAuthenticated: false,
+            isUnauthenticated: true,
+          });
+        }
+      } catch (err: any) {
+        console.error("Error in auth state change:", err);
         setState({
           user: null,
           loading: false,
-          error: null,
+          error: err,
           isAuthenticated: false,
           isUnauthenticated: true,
         });
