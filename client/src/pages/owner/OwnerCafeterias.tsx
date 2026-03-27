@@ -343,8 +343,8 @@ export default function OwnerCafeterias() {
                         <TableCell className="font-semibold text-gray-900">{cafeteria.name}</TableCell>
                         <TableCell className="text-gray-600 text-sm">{cafeteria.location || '-'}</TableCell>
                         <TableCell>
-                          <Badge className={`${getPlanColor(cafeteria.subscriptionPlan)} border-none text-xs font-bold`}>
-                            {cafeteria.subscriptionPlan.toUpperCase()}
+                          <Badge className={`${getPlanColor(cafeteria.subscriptionPlan || 'starter')} border-none text-xs font-bold`}>
+                            {(cafeteria.subscriptionPlan || 'starter').toUpperCase()}
                           </Badge>
                         </TableCell>
                         <TableCell>
