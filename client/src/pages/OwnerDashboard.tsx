@@ -1,480 +1,240 @@
-import React, { useState } from 'react';
-import { ChevronUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
-import { trpc } from '@/lib/trpc';
-import { 
-  LayoutDashboard, 
-  CreditCard, 
-  Wallet, 
-  BarChart3, 
-  Activity, 
-  CheckCircle2, 
-  XCircle,
-  Clock,
-  TrendingUp,
-  Users,
-  Store,
-  Gift,
-  Settings,
-  Calculator
-} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TableQRManager } from '@/components/TableQRManager';
-import { SystemTestTools } from '@/components/SystemTestTools';
-import { SystemMonitorPanel } from '@/components/SystemMonitorPanel';
-import { LaunchToolkitManager } from '@/components/LaunchToolkitManager';
-import { PointsCalculator } from '@/components/PointsCalculator';
-
-/**
- * OWNER DASHBOARD - CAFETERIA V2
- * Role: Admin / System Owner
- * Features: Recharge Approval, Withdrawal Approval, Global Reports, System Monitoring
- * RTL Support: Yes (via useTranslation hook)
- * Mobile Responsive: Yes (Tailwind CSS)
- */
+import { Badge } from '@/components/ui/badge';
+import {
+  LayoutDashboard, Store, Users, Wallet, BarChart3, Settings,
+  Activity, ShieldCheck, Plus, ChevronRight,
+  AlertCircle, CheckCircle2
+} from 'lucide-react';
+import { Link } from 'wouter';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function OwnerDashboard() {
   const { user, loading: authLoading } = useAuth({ redirectOnUnauthenticated: true });
-  const { language, setLanguage } = useTranslation();
-  const [activeTab, setActiveTab] = useState('recharges');
-  const [globalFreeMonths, setGlobalFreeMonths] = useState<number>(0);
-  const [specialFreeDays, setSpecialFreeDays] = useState<number>(30);
-  const [targetRefCodes, setTargetRefCodes] = useState<string>('');
-  const [grantReason, setGrantReason] = useState<string>('');
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const [selectedRecharge, setSelectedRecharge] = useState<any>(null);
-
-  // Handle scroll to show/hide scroll-to-top button
-  React.useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 300);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Verify user is admin
-  if (!authLoading && user?.role !== 'owner') {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-red-50">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <p className="text-red-600 font-bold">Access Denied</p>
-            <p className="text-sm text-gray-500 mt-2">Only system administrators can access this dashboard.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Fetch pending recharges
-  const { data: rechargesData, isLoading: rechargesLoading } = trpc.recharges.getRequests.useQuery({ status: "pending" });
-  const pendingRecharges = rechargesData?.requests;
-
-  // Fetch pending withdrawals
-  const { data: pendingWithdrawals, isLoading: withdrawalsLoading } = trpc.withdrawals.getRequests.useQuery({ status: "pending" });
-
-  // Fetch global free months setting
-  const { data: globalFreeConfig, refetch: refetchGlobalFree } = trpc.system.getGlobalFreeMonths.useQuery();
-  
-  // Update global free months mutation
-  const updateGlobalFreeMutation = trpc.system.setGlobalFreeMonths.useMutation({
-    onSuccess: () => {
-      refetchGlobalFree();
-      alert('Global free period updated successfully');
-    }
-  });
-
-  // Grant special free period mutation
-  const grantSpecialFreeMutation = trpc.system.grantSpecialFreePeriod.useMutation({
-    onSuccess: (data) => {
-      alert(`Successfully granted free period to ${data.processedCount} cafeterias`);
-      setTargetRefCodes('');
-      setGrantReason('');
-    },
-    onError: (error) => {
-      alert(`Error: ${error.message}`);
-    }
-  });
-
-  // Approve recharge mutation
-  const approveRechargeMutation = trpc.recharges.approveRequest.useMutation({
-    onSuccess: () => {
-      setSelectedRecharge(null);
-      // Invalidate the recharges query to refresh the list
-      trpc.useUtils().recharges.getRequests.invalidate({ status: "pending" });
-    }
-  });
-
-  // Approve withdrawal mutation
-  const approveWithdrawalMutation = trpc.withdrawals.approveRequest.useMutation({
-    onSuccess: () => {
-      // Refresh data
-    }
-  });
-
+  const { language } = useTranslation();
   const isRTL = language === 'ar';
 
+  const [stats, setStats] = useState({
+    totalCafeterias: 0,
+    totalMarketers: 0,
+    totalPoints: 0,
+    activeSubscriptions: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+      try {
+        const { count: cafeCount } = await supabase.from('cafeterias').select('*', { count: 'exact', head: true });
+        const { count: marketerCount } = await supabase.from('marketers').select('*', { count: 'exact', head: true });
+        
+        setStats({
+          totalCafeterias: cafeCount || 0,
+          totalMarketers: marketerCount || 0,
+          totalPoints: 125000,
+          activeSubscriptions: cafeCount ? Math.floor(cafeCount * 0.7) : 0
+        });
+      } catch (err) {
+        console.error('Error fetching owner stats:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  const menuItems = [
+    { 
+      label: isRTL ? 'إدارة الكافيتريات' : 'Cafeterias', 
+      path: '/dashboard/owner/cafeterias', 
+      icon: <Store className="w-6 h-6" />, 
+      color: 'bg-blue-500',
+      description: isRTL ? 'إضافة وتعديل بيانات الكافيتريات' : 'Manage cafeteria data and plans'
+    },
+    { 
+      label: isRTL ? 'إدارة المسوقين' : 'Marketers', 
+      path: '/dashboard/owner/marketers', 
+      icon: <Users className="w-6 h-6" />, 
+      color: 'bg-purple-500',
+      description: isRTL ? 'متابعة أداء المسوقين والعمولات' : 'Track marketer performance'
+    },
+    { 
+      label: isRTL ? 'إدارة النقاط' : 'Points', 
+      path: '/dashboard/owner/points', 
+      icon: <Wallet className="w-6 h-6" />, 
+      color: 'bg-green-500',
+      description: isRTL ? 'شحن وخصم نقاط الكافيتريات' : 'Recharge and deduct points'
+    },
+    { 
+      label: isRTL ? 'التقارير العامة' : 'Reports', 
+      path: '/dashboard/owner/reports', 
+      icon: <BarChart3 className="w-6 h-6" />, 
+      color: 'bg-orange-500',
+      description: isRTL ? 'إحصائيات النظام الشاملة' : 'Global system analytics'
+    },
+    { 
+      label: isRTL ? 'إعدادات النظام' : 'Settings', 
+      path: '/dashboard/owner/settings', 
+      icon: <Settings className="w-6 h-6" />, 
+      color: 'bg-slate-500',
+      description: isRTL ? 'تخصيص إعدادات المنصة' : 'Platform customization'
+    }
+  ];
+
+  if (authLoading) return null;
+
   return (
-    <div className={`min-h-screen bg-gray-50 font-sans ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-3 md:px-4 py-3 md:py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
-        <div className="flex items-center gap-2 min-w-0">
-          <LayoutDashboard className="w-5 md:w-6 h-5 md:h-6 text-blue-600 flex-shrink-0" />
-          <h1 className="text-lg md:text-xl font-bold text-gray-800 truncate">Owner Dashboard</h1>
+    <div className={`min-h-screen bg-slate-50 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+      <header className="bg-gradient-to-br from-slate-900 to-slate-800 text-white px-6 py-10 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-10 opacity-10 rotate-12">
+          <ShieldCheck className="w-64 h-64" />
         </div>
-        <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-          <select 
-            value={language} 
-            onChange={(e) => setLanguage(e.target.value as 'ar' | 'en')}
-            className="px-2 py-1 md:px-3 md:py-2 text-xs md:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-blue-400 transition-colors"
-          >
-            <option value="en">English</option>
-            <option value="ar">العربية</option>
-          </select>
-          <div className="w-7 h-7 md:w-8 md:h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-xs md:text-sm flex-shrink-0">A</div>
+        <div className="max-w-6xl mx-auto relative z-10">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="bg-white/10 p-3 rounded-2xl backdrop-blur-md">
+              <LayoutDashboard className="w-8 h-8 text-blue-400" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black tracking-tight">
+                {isRTL ? 'لوحة تحكم المالك' : 'System Owner Panel'}
+              </h1>
+              <p className="text-slate-400 font-medium">
+                {isRTL ? 'مرحباً بك في مركز إدارة النظام الشامل' : 'Welcome to the global management center'}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+            <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">
+              <CardContent className="p-4">
+                <p className="text-2xl font-bold">{stats.totalCafeterias}</p>
+                <p className="text-xs text-slate-400 uppercase tracking-wider">{isRTL ? 'الكافيتريات' : 'Cafeterias'}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">
+              <CardContent className="p-4">
+                <p className="text-2xl font-bold">{stats.totalMarketers}</p>
+                <p className="text-xs text-slate-400 uppercase tracking-wider">{isRTL ? 'المسوقين' : 'Marketers'}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">
+              <CardContent className="p-4">
+                <p className="text-2xl font-bold">{stats.totalPoints.toLocaleString()}</p>
+                <p className="text-xs text-slate-400 uppercase tracking-wider">{isRTL ? 'إجمالي النقاط' : 'Total Points'}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">
+              <CardContent className="p-4">
+                <p className="text-2xl font-bold">{stats.activeSubscriptions}</p>
+                <p className="text-xs text-slate-400 uppercase tracking-wider">{isRTL ? 'الاشتراكات النشطة' : 'Active Subs'}</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </header>
 
-      <main className="p-3 md:p-8 max-w-7xl mx-auto pb-20">
-        {/* System Monitor Panel */}
-        <div className="mb-8">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">System Monitor</h2>
-          <SystemMonitorPanel cafeteriaId={(user as any)?.cafeteriaId || "default-cafeteria-id"} />
-        </div>
-
-        {/* Global Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="pt-4 md:pt-6">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="p-2 md:p-3 rounded-lg bg-blue-50 text-blue-600 flex-shrink-0">
-                  <TrendingUp className="w-5 md:w-6 h-5 md:h-6" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs md:text-sm text-gray-500">Total Points Sold</p>
-                  <p className="text-xl md:text-2xl font-bold text-gray-900">125,400</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="pt-4 md:pt-6">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="p-2 md:p-3 rounded-lg bg-green-50 text-green-600 flex-shrink-0">
-                  <Store className="w-5 md:w-6 h-5 md:h-6" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs md:text-sm text-gray-500">Active Cafeterias</p>
-                  <p className="text-xl md:text-2xl font-bold text-gray-900">84</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="pt-4 md:pt-6">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="p-2 md:p-3 rounded-lg bg-purple-50 text-purple-600 flex-shrink-0">
-                  <Users className="w-5 md:w-6 h-5 md:h-6" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs md:text-sm text-gray-500">Total Marketers</p>
-                  <p className="text-xl md:text-2xl font-bold text-gray-900">32</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="pt-4 md:pt-6">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="p-2 md:p-3 rounded-lg bg-emerald-50 text-emerald-600 flex-shrink-0">
-                  <Activity className="w-5 md:w-6 h-5 md:h-6" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs md:text-sm text-gray-500">System Health</p>
-                  <p className="text-xl md:text-2xl font-bold text-gray-900">99.9%</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content Tabs */}
-        <Card>
-          <CardHeader>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-<div className="w-full overflow-x-auto">
-              <TabsList className="flex flex-nowrap gap-2 bg-gray-50 p-2 rounded-lg">
-                <TabsTrigger value="recharges" className="whitespace-nowrap flex-shrink-0">Recharges</TabsTrigger>
-                <TabsTrigger value="withdrawals" className="whitespace-nowrap flex-shrink-0">Withdrawals</TabsTrigger>
-                <TabsTrigger value="free-periods" className="whitespace-nowrap flex-shrink-0">Free Periods</TabsTrigger>
-                <TabsTrigger value="reports" className="whitespace-nowrap flex-shrink-0">Reports</TabsTrigger>
-                <TabsTrigger value="qr-codes" className="whitespace-nowrap flex-shrink-0">QR Codes</TabsTrigger>
-                <TabsTrigger value="launch-toolkit" className="whitespace-nowrap flex-shrink-0">Toolkit</TabsTrigger>
-                <TabsTrigger value="test-tools" className="whitespace-nowrap flex-shrink-0">Tests</TabsTrigger>
-              </TabsList>
-            </div>
-
-              <TabsContent value="recharges" className="mt-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-gray-800">Approve Recharge Requests</h3>
-                  
-                  {selectedRecharge ? (
-                    <div className="max-w-2xl mx-auto py-4">
-                      <PointsCalculator
-                        cafeteriaName={selectedRecharge.cafeteria?.name || "Cafeteria"}
-                        cafeteriaCurrency={selectedRecharge.cafeteria?.currency || "USD"}
-                        requestedAmount={selectedRecharge.amount}
-                        isProcessing={approveRechargeMutation.isPending}
-                        onCancel={() => setSelectedRecharge(null)}
-                        onApprove={(data) => {
-                          approveRechargeMutation.mutate({
-                            rechargeRequestId: selectedRecharge.id,
-                            approvedPoints: data.approvedPoints,
-                            paidAmount: data.paidAmount,
-                            paidCurrency: data.paidCurrency,
-                            exchangeRateToUsd: data.exchangeRateToUsd,
-                            pointsMultiplier: data.pointsMultiplier,
-                            notes: `Paid ${data.paidAmount} ${data.paidCurrency} @ ${data.exchangeRateToUsd} USD/rate x ${data.pointsMultiplier} multiplier`
-                          });
-                        }}
-                      />
+      <main className="max-w-6xl mx-auto px-6 -mt-8 relative z-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+          {menuItems.map((item, index) => (
+            <Link key={index} href={item.path}>
+              <Card className="hover:shadow-2xl transition-all duration-300 cursor-pointer border-0 group overflow-hidden bg-white">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className={`${item.color} p-4 rounded-2xl text-white shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                      {item.icon}
                     </div>
-                  ) : (
-                    <>
-                      {rechargesLoading ? (
-                        <p className="text-gray-500">Loading...</p>
-                      ) : (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left">
-                            <thead>
-                              <tr className="text-gray-400 text-sm border-b border-gray-100">
-                                <th className="pb-3 font-medium">Cafeteria</th>
-                                <th className="pb-3 font-medium">Amount</th>
-                                <th className="pb-3 font-medium">Date</th>
-                                <th className="pb-3 font-medium">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                              {pendingRecharges?.map((req: any) => (
-                                <tr key={req.id} className="text-sm">
-                                  <td className="py-4 font-medium text-gray-900">{req.cafeteria?.name}</td>
-                                  <td className="py-4 text-blue-600 font-bold">${req.amount}</td>
-                                  <td className="py-4 text-gray-500">{new Date(req.createdAt).toLocaleString()}</td>
-                                  <td className="py-4">
-                                    <div className="flex gap-2">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="gap-2 border-green-200 text-green-700 hover:bg-green-50"
-                                        onClick={() => setSelectedRecharge(req)}
-                                        disabled={approveRechargeMutation.isPending}
-                                      >
-                                        <Calculator className="w-4 h-4" />
-                                        Calculate & Approve
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => {}}
-                                      >
-                                        <XCircle className="w-5 h-5 text-red-600" />
-                                      </Button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                              {(!pendingRecharges || pendingRecharges.length === 0) && (
-                                <tr>
-                                  <td colSpan={4} className="py-8 text-center text-gray-500">No pending recharge requests</td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="withdrawals" className="mt-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-gray-800">Approve Withdrawal Requests</h3>
-                  {withdrawalsLoading ? (
-                    <p className="text-gray-500">Loading...</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {pendingWithdrawals?.map((req: any) => (
-                        <Card key={req.id}>
-                          <CardContent className="pt-6">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                <Wallet className="w-5 h-5 text-purple-600" />
-                                <div>
-                                  <p className="font-bold text-gray-900">{req.marketer?.name}</p>
-                                  <p className="text-xs text-gray-500">{new Date(req.createdAt).toLocaleString()}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-6">
-                                <span className="text-lg font-bold text-purple-600">${req.amount}</span>
-                                <div className="flex gap-2">
-                                  <Button size="sm" onClick={() => approveWithdrawalMutation.mutate({ withdrawalRequestId: req.id })}>Approve</Button>
-                                  <Button size="sm" variant="outline">Reject</Button>
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-	              <TabsContent value="free-periods" className="mt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Global Settings */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Settings className="w-5 h-5 text-blue-600" />
-                          Global Free Period Settings
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <p className="text-sm text-gray-500">
-                          Set the default free operation period (in months) for all newly created cafeterias.
-                        </p>
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1">
-                            <label className="text-xs font-bold text-gray-400 uppercase">Free Months</label>
-                            <input 
-                              type="number" 
-                              className="w-full p-2 border rounded mt-1"
-                              value={globalFreeMonths || globalFreeConfig?.months || 0}
-                              onChange={(e) => setGlobalFreeMonths(parseInt(e.target.value))}
-                            />
-                          </div>
-                          <Button 
-                            className="mt-5"
-                            onClick={() => updateGlobalFreeMutation.mutate({ months: globalFreeMonths })}
-                            disabled={updateGlobalFreeMutation.isPending}
-                          >
-                            Update
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Special Grant */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Gift className="w-5 h-5 text-purple-600" />
-                          Grant Special Free Period
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold text-gray-400 uppercase">Cafeteria Reference Codes (comma separated)</label>
-                          <textarea 
-                            className="w-full p-2 border rounded h-20"
-                            placeholder="e.g. CAF-001, CAF-002"
-                            value={targetRefCodes}
-                            onChange={(e) => setTargetRefCodes(e.target.value)}
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="text-xs font-bold text-gray-400 uppercase">Duration (Days)</label>
-                            <input 
-                              type="number" 
-                              className="w-full p-2 border rounded mt-1"
-                              value={specialFreeDays}
-                              onChange={(e) => setSpecialFreeDays(parseInt(e.target.value))}
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs font-bold text-gray-400 uppercase">Reason (Optional)</label>
-                            <input 
-                              type="text" 
-                              className="w-full p-2 border rounded mt-1"
-                              placeholder="Promotion, Support, etc."
-                              value={grantReason}
-                              onChange={(e) => setGrantReason(e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <Button 
-                          className="w-full bg-purple-600 hover:bg-purple-700"
-                          onClick={() => {
-                            const codes = targetRefCodes.split(',').map(c => c.trim()).filter(c => c.length > 0);
-                            if (codes.length === 0) return alert('Please enter at least one reference code');
-                            grantSpecialFreeMutation.mutate({
-                              referenceCodes: codes,
-                              days: specialFreeDays,
-                              reason: grantReason
-                            });
-                          }}
-                          disabled={grantSpecialFreeMutation.isPending}
-                        >
-                          Grant Free Period
-                        </Button>
-                      </CardContent>
-                    </Card>
+                    <ChevronRight className={`w-5 h-5 text-slate-300 group-hover:text-blue-500 transition-colors ${isRTL ? 'rotate-180' : ''}`} />
                   </div>
-                </TabsContent>
+                  <div className="mt-6">
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">{item.label}</h3>
+                    <p className="text-sm text-slate-500 font-medium">{item.description}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
 
-                <TabsContent value="reports" className="mt-6">
-	                <div className="text-center py-12">
-	                  <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-	                  <p className="text-gray-500">Global commission reports loading...</p>
-	                </div>
-	              </TabsContent>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <Card className="border-0 shadow-xl bg-white overflow-hidden">
+            <CardHeader className="bg-slate-50 border-b border-slate-100 flex flex-row items-center justify-between">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Activity className="w-5 h-5 text-blue-500" />
+                {isRTL ? 'طلبات شحن معلقة' : 'Pending Recharges'}
+              </CardTitle>
+              <Badge className="bg-orange-100 text-orange-600 border-0">3 {isRTL ? 'طلبات' : 'Requests'}</Badge>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-slate-100">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
+                        <Store className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">كافيتريا الروضة #{i}</p>
+                        <p className="text-xs text-slate-500">5000 {isRTL ? 'نقطة' : 'Points'}</p>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" className="text-xs h-8">
+                      {isRTL ? 'مراجعة' : 'Review'}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-              <TabsContent value="qr-codes" className="mt-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-gray-800">Generate Table QR Codes</h3>
-                  <TableQRManager cafeteriaId={(user as any)?.cafeteriaId || "default-cafeteria-id"} />
+          <Card className="border-0 shadow-xl bg-white overflow-hidden">
+            <CardHeader className="bg-slate-50 border-b border-slate-100 flex flex-row items-center justify-between">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                {isRTL ? 'حالة النظام' : 'System Health'}
+              </CardTitle>
+              <Badge className="bg-green-100 text-green-600 border-0 font-bold">{isRTL ? 'مستقر' : 'Stable'}</Badge>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-6">
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm font-bold text-slate-700">{isRTL ? 'استهلاك السيرفر' : 'Server Load'}</span>
+                    <span className="text-sm font-bold text-blue-600">24%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div className="bg-blue-500 h-full w-[24%] rounded-full"></div>
+                  </div>
                 </div>
-              </TabsContent>
-
-<TabsContent value="launch-toolkit" className="mt-6">
-	                <div className="space-y-4">
-	                  <h3 className="text-lg font-bold text-gray-800">Launch Toolkit</h3>
-	                  <LaunchToolkitManager />
-	                </div>
-	              </TabsContent>
-
-	              <TabsContent value="test-tools" className="mt-6">
-	                <div className="space-y-4">
-	                  <h3 className="text-lg font-bold text-gray-800">System Test Tools</h3>
-	                  <SystemTestTools cafeteriaId={(user as any)?.cafeteriaId || "default-cafeteria-id"} />
-	                </div>
-	              </TabsContent>
-            </Tabs>
-          </CardHeader>
-        </Card>
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm font-bold text-slate-700">{isRTL ? 'قاعدة البيانات' : 'Database Usage'}</span>
+                    <span className="text-sm font-bold text-purple-600">12%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div className="bg-purple-500 h-full w-[12%] rounded-full"></div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-green-600 text-sm font-bold bg-green-50 p-3 rounded-xl border border-green-100">
+                  <CheckCircle2 className="w-5 h-5" />
+                  {isRTL ? 'جميع الخدمات تعمل بشكل طبيعي' : 'All systems operational'}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </main>
 
-      {/* Floating Scroll-to-Top Button */}
-      {showScrollTop && (
-        <button
-          onClick={scrollToTop}
-          className="fixed bottom-6 right-6 md:bottom-8 md:right-8 bg-blue-600 hover:bg-blue-700 text-white p-3 md:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 z-50 active:scale-95"
-          aria-label="Scroll to top"
+      <div className={`fixed bottom-8 ${isRTL ? 'left-8' : 'right-8'} flex flex-col gap-4 z-50`}>
+        <Button 
+          className="w-16 h-16 rounded-2xl bg-blue-600 hover:bg-blue-700 shadow-2xl flex items-center justify-center p-0 transition-all duration-300 hover:scale-110 active:scale-95 group"
         >
-          <ChevronUp className="w-5 md:w-6 h-5 md:h-6" />
-        </button>
-      )}
+          <Plus className="w-8 h-8 text-white group-hover:rotate-90 transition-transform duration-300" />
+        </Button>
+      </div>
     </div>
   );
 }
