@@ -19,24 +19,13 @@ type AuthState = {
 };
 
 /**
- * Optimized user builder that prioritizes metadata to avoid slow DB lookups on every page load.
- * Now with timeout protection and caching to prevent infinite loading states.
+ * Simplified user builder that uses only metadata from auth.getUser()
+ * This prevents infinite loading states and database dependency issues
  */
-const userCache = new Map<string, { user: AuthUser; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
 async function buildUser(supabaseUser: any): Promise<AuthUser> {
   const meta = supabaseUser.user_metadata ?? {};
-  const userId = supabaseUser.id;
   
-  // Check cache first
-  const cached = userCache.get(userId);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.user;
-  }
-  
-  // Create user object from metadata (fastest)
-  const userFromMeta: AuthUser = {
+  return {
     id: supabaseUser.id,
     email: supabaseUser.email,
     name: meta.name ?? meta.full_name ?? supabaseUser.email?.split("@")[0] ?? "User",
@@ -44,51 +33,6 @@ async function buildUser(supabaseUser: any): Promise<AuthUser> {
     cafeteriaId: meta.cafeteriaId ?? null,
     referenceCode: meta.referenceCode,
   };
-
-  // If we have role and cafeteriaId from metadata, return immediately
-  if (meta.role && meta.cafeteriaId) {
-    userCache.set(userId, { user: userFromMeta, timestamp: Date.now() });
-    return userFromMeta;
-  }
-
-  // Only fetch from public.users if critical data is missing from metadata
-  // This significantly improves dashboard loading speed.
-  if (!meta.role || !meta.cafeteriaId) {
-    try {
-      // Use Promise.race with timeout instead of AbortController
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Database query timeout')), 2000)
-      );
-
-      const queryPromise = supabase
-        .from("users")
-        .select("role, name, cafeteriaId, referenceCode")
-        .eq("id", supabaseUser.id)
-        .single();
-      
-      const result = await Promise.race([queryPromise, timeoutPromise]) as any;
-      const { data: userData, error } = result;
-
-      if (!error && userData) {
-        const finalUser = {
-          id: supabaseUser.id,
-          email: supabaseUser.email,
-          name: userData.name ?? userFromMeta.name,
-          role: userData.role ?? userFromMeta.role,
-          cafeteriaId: userData.cafeteriaId ?? userFromMeta.cafeteriaId,
-          referenceCode: userData.referenceCode ?? userFromMeta.referenceCode,
-        };
-        userCache.set(userId, { user: finalUser, timestamp: Date.now() });
-        return finalUser;
-      }
-    } catch (e) {
-      console.warn("Error fetching user from public.users (using metadata fallback):", e);
-      // Fall through to use metadata
-    }
-  }
-
-  userCache.set(userId, { user: userFromMeta, timestamp: Date.now() });
-  return userFromMeta;
 }
 
 export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
@@ -146,7 +90,7 @@ export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
           isUnauthenticated: true,
         }));
       }
-    }, 5000);
+    }, 3000); // 3 second timeout
 
     refresh();
 
@@ -199,7 +143,6 @@ export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
       clearTimeout(refreshTimeoutRef.current);
     }
     await supabase.auth.signOut();
-    userCache.clear();
     setState({
       user: null,
       loading: false,
