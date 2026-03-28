@@ -94,18 +94,24 @@ export default function DashboardLayout({
       }
     >
       <style dangerouslySetInnerHTML={{ __html: `
-        /* Force clear any invisible overlays that might block touch */
-        .fixed, .absolute {
-          pointer-events: auto;
-        }
-        
-        /* Specific fix for Sidebar Overlay in Mobile/RTL */
-        [data-sidebar-overlay] {
+        /* REMOVE ALL SIDEBAR OVERLAYS COMPLETELY */
+        div[class*="fixed"][class*="inset-0"][class*="z-50"] {
           display: none !important;
           pointer-events: none !important;
           visibility: hidden !important;
         }
+        
+        /* Force all fixed/absolute elements to NOT block clicks unless they are active modals */
+        .fixed, .absolute {
+          pointer-events: none;
+        }
+        
+        /* Re-enable pointer events for interactive elements */
+        button, a, input, select, textarea, [role="button"], .pointer-events-auto {
+          pointer-events: auto !important;
+        }
 
+        /* Specific fix for Sidebar Mobile/RTL */
         [dir="rtl"] .group-data-\\[side\\=left\\] {
           right: 0 !important;
           left: auto !important;
@@ -118,6 +124,7 @@ export default function DashboardLayout({
         }
         
         @media (max-width: 768px) {
+          /* Ensure sidebar doesn't block content when closed */
           .group-data-\\[state\\=collapsed\\] {
             display: none !important;
             visibility: hidden !important;
@@ -129,10 +136,11 @@ export default function DashboardLayout({
             pointer-events: auto !important;
             z-index: 9999 !important;
           }
-          /* Ensure main content is always touchable when sidebar is closed */
-          main, .flex-1 {
+          /* Ensure main content is always touchable and on top when sidebar is closed */
+          main, .flex-1, #root > div {
             pointer-events: auto !important;
             z-index: 10 !important;
+            position: relative;
           }
         }
       `}} />
