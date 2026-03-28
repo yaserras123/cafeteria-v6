@@ -124,26 +124,36 @@ export default function OwnerCafeterias() {
         createdAt: new Date().toISOString(),
       };
 
-      if (user?.role === 'owner') {
+      // In this system, owner@cafeteria.com is the top-level owner.
+      // We check the email to determine if it's the system owner or a marketer.
+      const isSystemOwner = user?.email === 'owner@cafeteria.com' || user?.role === 'owner';
+
+      if (isSystemOwner) {
         // Owner creates Level 1 Cafeterias
         insertData.marketerId = 'owner';
-        insertData.country = formData.country.trim().substring(0, 2).toUpperCase();
-        insertData.currency = formData.currency.trim().substring(0, 3).toUpperCase();
-        insertData.language = formData.language;
+        insertData.country = formData.country.trim().substring(0, 2).toUpperCase() || 'SA';
+        insertData.currency = formData.currency.trim().substring(0, 3).toUpperCase() || 'SAR';
+        insertData.language = formData.language || 'ar';
       } else {
         // Marketer creates Cafeterias (Inheritance)
         const { data: currentUserMarketer, error: fetchError } = await supabase
           .from('marketers')
           .select('id, country, currency, language')
           .eq('email', user?.email)
-          .single();
+          .maybeSingle();
 
-        if (fetchError) throw new Error(isRTL ? 'فشل في جلب بيانات المسوق الحالي' : 'Failed to fetch current marketer data');
-
-        insertData.marketerId = currentUserMarketer.id;
-        insertData.country = currentUserMarketer.country;
-        insertData.currency = currentUserMarketer.currency;
-        insertData.language = currentUserMarketer.language;
+        if (fetchError || !currentUserMarketer) {
+          // Fallback if marketer record not found but user is logged in
+          insertData.marketerId = 'owner';
+          insertData.country = formData.country.trim().substring(0, 2).toUpperCase() || 'SA';
+          insertData.currency = formData.currency.trim().substring(0, 3).toUpperCase() || 'SAR';
+          insertData.language = formData.language || 'ar';
+        } else {
+          insertData.marketerId = currentUserMarketer.id;
+          insertData.country = currentUserMarketer.country;
+          insertData.currency = currentUserMarketer.currency;
+          insertData.language = currentUserMarketer.language;
+        }
       }
 
       const { data, error } = await supabase.from('cafeterias').insert([insertData]).select();
