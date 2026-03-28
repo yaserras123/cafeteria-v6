@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
 import { DashboardHeader } from '@/components/DashboardHeader';
@@ -13,10 +13,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import {
   Table2, LayoutDashboard, UtensilsCrossed, Users, BarChart3, CreditCard, Settings,
-  Plus, Edit, Trash2, QrCode, Layers, AlertCircle
+  Plus, Edit, Trash2, QrCode, Layers, AlertCircle, Printer, Download, FileText
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
+import QRCode from 'qrcode';
 
 interface Section {
   id: string;
@@ -49,8 +50,10 @@ export default function CafeteriaTables() {
   const [showAddTableDialog, setShowAddTableDialog] = useState(false);
   const [showEditTableDialog, setShowEditTableDialog] = useState(false);
   const [showDeleteTableDialog, setShowDeleteTableDialog] = useState(false);
+  const [showQRPreviewDialog, setShowQRPreviewDialog] = useState(false);
 
   const [selectedTable, setSelectedTable] = useState<TableItem | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
   const [sectionForm, setSectionForm] = useState({ name: '' });
@@ -68,7 +71,7 @@ export default function CafeteriaTables() {
     { label: isRTL ? 'الإعدادات' : 'Settings', path: '/dashboard/cafeteria-admin/settings', icon: <Settings className="w-5 h-5" /> },
   ];
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!cafeteriaId) {
       setLoading(false);
       return;
@@ -103,19 +106,16 @@ export default function CafeteriaTables() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [cafeteriaId, isRTL]);
 
   useEffect(() => {
     if (!authLoading && cafeteriaId) {
       fetchData();
     }
-  }, [cafeteriaId, authLoading]);
+  }, [cafeteriaId, authLoading, fetchData]);
 
   const handleAddSection = async () => {
-    if (!cafeteriaId) {
-      toast.error(isRTL ? 'معرف الكافيتيريا مفقود' : 'Cafeteria ID is missing');
-      return;
-    }
+    if (!cafeteriaId) return;
     if (!sectionForm.name.trim()) {
       toast.error(isRTL ? 'أدخل اسم القسم' : 'Enter section name');
       return;
@@ -128,15 +128,12 @@ export default function CafeteriaTables() {
         display_order: sections.length,
         created_at: new Date().toISOString(),
       });
-
       if (error) throw error;
-      
       toast.success(isRTL ? 'تم إضافة القسم بنجاح' : 'Section added successfully');
       setShowAddSectionDialog(false);
       setSectionForm({ name: '' });
       fetchData();
     } catch (err: any) {
-      console.error('Add section error:', err);
       toast.error(err.message || (isRTL ? 'خطأ في إضافة القسم' : 'Error adding section'));
     } finally {
       setSubmitting(false);
@@ -144,10 +141,7 @@ export default function CafeteriaTables() {
   };
 
   const handleAddTable = async () => {
-    if (!cafeteriaId) {
-      toast.error(isRTL ? 'معرف الكافيتيريا مفقود' : 'Cafeteria ID is missing');
-      return;
-    }
+    if (!cafeteriaId) return;
     if (!tableForm.tableNumber || !tableForm.sectionId) {
       toast.error(isRTL ? 'يرجى ملء جميع الحقول' : 'Please fill all fields');
       return;
@@ -164,272 +158,233 @@ export default function CafeteriaTables() {
         table_token: tableToken,
         created_at: new Date().toISOString(),
       });
-
       if (error) throw error;
-      
       toast.success(isRTL ? 'تم إضافة الطاولة بنجاح' : 'Table added successfully');
       setShowAddTableDialog(false);
       setTableForm({ tableNumber: '', capacity: '4', sectionId: '' });
       fetchData();
     } catch (err: any) {
-      console.error('Add table error:', err);
       toast.error(err.message || (isRTL ? 'خطأ في إضافة الطاولة' : 'Error adding table'));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleEditTable = async () => {
-    if (!selectedTable) return;
-    setSubmitting(true);
+  const generateQR = async (table: TableItem) => {
     try {
-      const { error } = await supabase
-        .from('cafeteria_tables')
-        .update({
-          table_number: parseInt(tableForm.tableNumber),
-          capacity: parseInt(tableForm.capacity),
-          section_id: tableForm.sectionId,
-        })
-        .eq('id', selectedTable.id);
-      
-      if (error) throw error;
-      
-      toast.success(isRTL ? 'تم تحديث الطاولة' : 'Table updated');
-      setShowEditTableDialog(false);
-      fetchData();
-    } catch (err: any) {
-      toast.error(err.message || (isRTL ? 'خطأ في تحديث الطاولة' : 'Error updating table'));
-    } finally {
-      setSubmitting(false);
+      const orderUrl = `${window.location.origin}/order/${table.tableToken}`;
+      const url = await QRCode.toDataURL(orderUrl, { width: 512, margin: 2 });
+      setQrDataUrl(url);
+      setSelectedTable(table);
+      setShowQRPreviewDialog(true);
+    } catch (err) {
+      toast.error(isRTL ? 'خطأ في توليد الباركود' : 'Error generating QR');
     }
   };
 
-  const handleDeleteTable = async () => {
-    if (!selectedTable) return;
-    setSubmitting(true);
-    try {
-      const { error } = await supabase
-        .from('cafeteria_tables')
-        .delete()
-        .eq('id', selectedTable.id);
-      
-      if (error) throw error;
-      
-      toast.success(isRTL ? 'تم حذف الطاولة' : 'Table deleted');
-      setShowDeleteTableDialog(false);
-      fetchData();
-    } catch (err: any) {
-      toast.error(err.message || (isRTL ? 'خطأ في حذف الطاولة' : 'Error deleting table'));
-    } finally {
-      setSubmitting(false);
-    }
+  const printAllQRs = async () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const qrCodes = await Promise.all(tables.map(async (t) => {
+      const url = await QRCode.toDataURL(`${window.location.origin}/order/${t.tableToken}`, { width: 400, margin: 2 });
+      return { url, number: t.tableNumber };
+    }));
+
+    const html = `
+      <html>
+        <head>
+          <title>Table QR Codes</title>
+          <style>
+            @page { size: A4; margin: 0; }
+            body { margin: 0; font-family: sans-serif; }
+            .page { width: 210mm; height: 297mm; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; page-break-after: always; }
+            .qr-container { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed #ccc; padding: 20px; }
+            .qr-image { width: 140mm; height: 140mm; object-fit: contain; }
+            .table-number { font-size: 48pt; font-weight: bold; margin-top: 20px; color: #333; }
+            .cafeteria-name { font-size: 18pt; color: #666; margin-bottom: 10px; }
+          </style>
+        </head>
+        <body>
+          ${Array.from({ length: Math.ceil(qrCodes.length / 4) }).map((_, pageIdx) => `
+            <div class="page">
+              ${qrCodes.slice(pageIdx * 4, (pageIdx + 1) * 4).map(qr => `
+                <div class="qr-container">
+                  <div class="cafeteria-name">${user?.cafeteriaName || 'Cafeteria'}</div>
+                  <img src="${qr.url}" class="qr-image" />
+                  <div class="table-number">${isRTL ? 'طاولة' : 'Table'} ${qr.number}</div>
+                </div>
+              `).join('')}
+            </div>
+          `).join('')}
+          <script>window.onload = () => { window.print(); window.close(); }</script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
-  const openEditTableDialog = (table: TableItem) => {
-    setSelectedTable(table);
-    setTableForm({
-      tableNumber: String(table.tableNumber),
-      capacity: String(table.capacity),
-      sectionId: table.sectionId,
-    });
-    setShowEditTableDialog(true);
-  };
-
-  if (authLoading) {
-    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
-  }
-
-  if (!cafeteriaId) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 text-center">
-        <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
-        <h1 className="text-2xl font-bold mb-2">{isRTL ? 'خطأ في الصلاحيات' : 'Permission Error'}</h1>
-        <p className="text-slate-600 max-w-md">
-          {isRTL 
-            ? 'لم يتم العثور على معرف الكافيتيريا الخاص بحسابك. يرجى التواصل مع الإدارة لتحديث بيانات حسابك.' 
-            : 'No cafeteria ID found for your account. Please contact administration to update your account details.'}
-        </p>
-        <Button onClick={() => window.location.href = '/'} className="mt-6 bg-blue-600 text-white">
-          {isRTL ? 'العودة للرئيسية' : 'Back to Home'}
-        </Button>
-      </div>
-    );
-  }
+  if (authLoading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20" dir={isRTL ? 'rtl' : 'ltr'}>
       <DashboardHeader title={isRTL ? 'إدارة الطاولات' : 'Tables Management'} onMenuClick={() => setMenuOpen(true)} />
       <DashboardNavigation isOpen={menuOpen} onClose={() => setMenuOpen(false)} items={navigationItems} />
 
-      <main className="container mx-auto px-4 py-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      <main className="container mx-auto px-4 py-6 max-w-6xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">{isRTL ? 'الطاولات والأقسام' : 'Tables & Sections'}</h1>
-            <p className="text-slate-500">{isRTL ? 'تنظيم طاولات الكافيتيريا وتوزيعها على الأقسام' : 'Organize tables and assign them to sections'}</p>
+            <h1 className="text-3xl font-black text-slate-900">{isRTL ? 'الطاولات والأقسام' : 'Tables & Sections'}</h1>
+            <p className="text-slate-500">{isRTL ? 'تنظيم طاولات الكافيتيريا وتوليد باركود الطلب' : 'Organize tables and generate order QR codes'}</p>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={() => setShowAddSectionDialog(true)} variant="outline" className="flex items-center gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={printAllQRs} variant="outline" className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50">
+              <Printer className="w-4 h-4" /> {isRTL ? 'طباعة الكل (PDF)' : 'Print All (PDF)'}
+            </Button>
+            <Button onClick={() => setShowAddSectionDialog(true)} variant="outline" className="gap-2">
               <Layers className="w-4 h-4" /> {isRTL ? 'إضافة قسم' : 'Add Section'}
             </Button>
-            <Button onClick={() => setShowAddTableDialog(true)} className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
+            <Button onClick={() => setShowAddTableDialog(true)} className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-md">
               <Plus className="w-4 h-4" /> {isRTL ? 'إضافة طاولة' : 'Add Table'}
             </Button>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>
-        ) : tables.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {tables.map(table => (
-              <Card key={table.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="bg-blue-50 text-blue-700 w-12 h-12 rounded-lg flex items-center justify-center font-bold text-xl">
+          <div className="text-center py-20 text-slate-400"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>{isRTL ? 'جاري التحميل...' : 'Loading...'}</div>
+        ) : tables.length === 0 ? (
+          <Card className="border-dashed border-2 bg-transparent py-20 text-center">
+            <Table2 className="w-16 h-16 text-slate-200 mx-auto mb-4" />
+            <p className="text-slate-500 font-medium">{isRTL ? 'لا توجد طاولات مضافة حالياً' : 'No tables added yet'}</p>
+            <Button onClick={() => setShowAddTableDialog(true)} variant="link" className="text-blue-600 mt-2">{isRTL ? 'أضف أول طاولة الآن' : 'Add your first table now'}</Button>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {tables.map((table) => (
+              <Card key={table.id} className="group hover:shadow-xl transition-all border-0 shadow-md overflow-hidden rounded-2xl">
+                <CardHeader className="bg-slate-50 pb-4 flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-2xl font-black text-blue-600 border border-slate-100">
                       {table.tableNumber}
                     </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => openEditTableDialog(table)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Edit className="w-4 h-4" /></button>
-                      <button onClick={() => { setSelectedTable(table); setShowDeleteTableDialog(true); }} className="p-2 text-slate-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    <div>
+                      <CardTitle className="text-sm font-bold">{isRTL ? 'طاولة' : 'Table'} {table.tableNumber}</CardTitle>
+                      <Badge variant="outline" className="text-[10px] py-0 h-5 bg-white">{table.sectionName || (isRTL ? 'بدون قسم' : 'No Section')}</Badge>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">{isRTL ? 'القسم:' : 'Section:'}</span>
-                      <span className="font-medium text-slate-900">{table.sectionName || (isRTL ? 'غير محدد' : 'Unassigned')}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">{isRTL ? 'السعة:' : 'Capacity:'}</span>
-                      <span className="font-medium text-slate-900">{table.capacity} {isRTL ? 'أشخاص' : 'Persons'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">{isRTL ? 'الحالة:' : 'Status:'}</span>
-                      <Badge variant={table.status === 'available' ? 'outline' : 'secondary'} className={table.status === 'available' ? 'text-green-600 border-green-200 bg-green-50' : ''}>
-                        {table.status === 'available' ? (isRTL ? 'متاحة' : 'Available') : (isRTL ? 'مشغولة' : 'Occupied')}
-                      </Badge>
-                    </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button size="icon" variant="ghost" onClick={() => generateQR(table)} className="h-8 w-8 text-blue-600 hover:bg-blue-50"><QrCode className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => { setSelectedTable(table); setShowDeleteTableDialog(true); }} className="h-8 w-8 text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" /></Button>
                   </div>
-                  <Button variant="outline" className="w-full mt-4 flex items-center justify-center gap-2 text-xs py-1 h-8">
-                    <QrCode className="w-3.5 h-3.5" /> {isRTL ? 'عرض رمز QR' : 'View QR Code'}
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between text-xs text-slate-500 mb-4">
+                    <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {table.capacity} {isRTL ? 'أشخاص' : 'Persons'}</span>
+                    <Badge className={table.status === 'available' ? 'bg-green-100 text-green-700 border-0' : 'bg-red-100 text-red-700 border-0'}>
+                      {isRTL ? (table.status === 'available' ? 'متاحة' : 'مشغولة') : table.status}
+                    </Badge>
+                  </div>
+                  <Button onClick={() => generateQR(table)} className="w-full bg-slate-900 hover:bg-black text-white gap-2 rounded-xl">
+                    <QrCode className="w-4 h-4" /> {isRTL ? 'عرض الباركود' : 'View QR Code'}
                   </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
-        ) : (
-          <Card className="p-12 text-center">
-            <Table2 className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-900">{isRTL ? 'لا توجد طاولات' : 'No tables found'}</h3>
-            <p className="text-slate-500 mb-6">{isRTL ? 'ابدأ بإضافة طاولات الكافيتيريا وتنظيمها' : 'Start by adding and organizing your cafeteria tables'}</p>
-            <Button onClick={() => setShowAddTableDialog(true)} className="bg-blue-600 text-white">
-              <Plus className="w-4 h-4 mr-2" /> {isRTL ? 'إضافة أول طاولة' : 'Add First Table'}
-            </Button>
-          </Card>
         )}
       </main>
 
+      {/* QR Preview Dialog */}
+      <Dialog open={showQRPreviewDialog} onOpenChange={setShowQRPreviewDialog}>
+        <DialogContent className="max-w-sm rounded-3xl">
+          <DialogHeader><DialogTitle className="text-center">{isRTL ? `باركود طاولة ${selectedTable?.tableNumber}` : `QR Code Table ${selectedTable?.tableNumber}`}</DialogTitle></DialogHeader>
+          <div className="flex flex-col items-center justify-center py-6 space-y-6">
+            <div className="p-4 bg-white rounded-3xl shadow-inner border-8 border-slate-50">
+              <img src={qrDataUrl} alt="QR Code" className="w-64 h-64" />
+            </div>
+            <div className="text-center">
+              <p className="text-slate-500 text-sm mb-4">{isRTL ? 'امسح الكود للبدء في الطلب' : 'Scan to start ordering'}</p>
+              <div className="flex gap-2">
+                <Button onClick={() => {
+                  const link = document.createElement('a');
+                  link.download = `table-${selectedTable?.tableNumber}-qr.png`;
+                  link.href = qrDataUrl;
+                  link.click();
+                }} className="bg-blue-600 hover:bg-blue-700 text-white gap-2 rounded-xl">
+                  <Download className="w-4 h-4" /> {isRTL ? 'تحميل الصورة' : 'Download Image'}
+                </Button>
+                <Button onClick={() => window.print()} variant="outline" className="gap-2 rounded-xl">
+                  <Printer className="w-4 h-4" /> {isRTL ? 'طباعة' : 'Print'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Add Section Dialog */}
       <Dialog open={showAddSectionDialog} onOpenChange={setShowAddSectionDialog}>
-        <DialogContent className="max-w-sm" dir={isRTL ? 'rtl' : 'ltr'}>
+        <DialogContent className={isRTL ? 'rtl' : 'ltr'} dir={isRTL ? 'rtl' : 'ltr'}>
           <DialogHeader><DialogTitle>{isRTL ? 'إضافة قسم جديد' : 'Add New Section'}</DialogTitle></DialogHeader>
-          <div className="py-2">
-            <Label>{isRTL ? 'اسم القسم *' : 'Section Name *'}</Label>
-            <Input 
-              value={sectionForm.name} 
-              onChange={e => setSectionForm({ name: e.target.value })} 
-              className="mt-1" 
-              placeholder={isRTL ? 'مثال: الصالة الرئيسية' : 'e.g. Main Hall'}
-              autoFocus
-            />
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>{isRTL ? 'اسم القسم' : 'Section Name'}</Label>
+              <Input value={sectionForm.name} onChange={e => setSectionForm({ name: e.target.value })} placeholder={isRTL ? 'مثال: الصالة الرئيسية' : 'e.g. Main Hall'} />
+            </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowAddSectionDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
-            <Button onClick={handleAddSection} disabled={submitting} className="bg-blue-600 hover:bg-blue-700 text-white">
-              {submitting ? '...' : (isRTL ? 'إضافة' : 'Add')}
-            </Button>
+            <Button variant="outline" onClick={() => setShowAddSectionDialog(false)} className="flex-1">{isRTL ? 'إلغاء' : 'Cancel'}</Button>
+            <Button onClick={handleAddSection} disabled={submitting} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">{submitting ? '...' : (isRTL ? 'إضافة' : 'Add')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Add Table Dialog */}
       <Dialog open={showAddTableDialog} onOpenChange={setShowAddTableDialog}>
-        <DialogContent className="max-w-sm" dir={isRTL ? 'rtl' : 'ltr'}>
+        <DialogContent className={isRTL ? 'rtl' : 'ltr'} dir={isRTL ? 'rtl' : 'ltr'}>
           <DialogHeader><DialogTitle>{isRTL ? 'إضافة طاولة جديدة' : 'Add New Table'}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label>{isRTL ? 'رقم الطاولة *' : 'Table Number *'}</Label>
-              <Input type="number" value={tableForm.tableNumber} onChange={e => setTableForm({ ...tableForm, tableNumber: e.target.value })} className="mt-1" />
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{isRTL ? 'رقم الطاولة' : 'Table Number'}</Label>
+                <Input type="number" value={tableForm.tableNumber} onChange={e => setTableForm({ ...tableForm, tableNumber: e.target.value })} placeholder="1" />
+              </div>
+              <div className="space-y-2">
+                <Label>{isRTL ? 'السعة (أشخاص)' : 'Capacity'}</Label>
+                <Input type="number" value={tableForm.capacity} onChange={e => setTableForm({ ...tableForm, capacity: e.target.value })} placeholder="4" />
+              </div>
             </div>
-            <div>
-              <Label>{isRTL ? 'القسم *' : 'Section *'}</Label>
-              <Select value={tableForm.sectionId} onValueChange={v => setTableForm({ ...tableForm, sectionId: v })}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder={isRTL ? 'اختر قسماً' : 'Select section'} /></SelectTrigger>
-                <SelectContent>
-                  {sections.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {sections.length === 0 && (
-                <p className="text-[10px] text-red-500 mt-1">{isRTL ? 'يجب إضافة قسم أولاً' : 'Add a section first'}</p>
-              )}
-            </div>
-            <div>
-              <Label>{isRTL ? 'السعة (أشخاص)' : 'Capacity (Persons)'}</Label>
-              <Input type="number" value={tableForm.capacity} onChange={e => setTableForm({ ...tableForm, capacity: e.target.value })} className="mt-1" />
+            <div className="space-y-2">
+              <Label>{isRTL ? 'القسم' : 'Section'}</Label>
+              <select 
+                value={tableForm.sectionId} 
+                onChange={e => setTableForm({ ...tableForm, sectionId: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="">{isRTL ? 'اختر القسم' : 'Select Section'}</option>
+                {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowAddTableDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
-            <Button onClick={handleAddTable} disabled={submitting || sections.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white">
-              {submitting ? '...' : (isRTL ? 'إضافة' : 'Add')}
-            </Button>
+            <Button variant="outline" onClick={() => setShowAddTableDialog(false)} className="flex-1">{isRTL ? 'إلغاء' : 'Cancel'}</Button>
+            <Button onClick={handleAddTable} disabled={submitting} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">{submitting ? '...' : (isRTL ? 'إضافة' : 'Add')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Table Dialog */}
-      <Dialog open={showEditTableDialog} onOpenChange={setShowEditTableDialog}>
-        <DialogContent className="max-w-sm" dir={isRTL ? 'rtl' : 'ltr'}>
-          <DialogHeader><DialogTitle>{isRTL ? 'تعديل الطاولة' : 'Edit Table'}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label>{isRTL ? 'رقم الطاولة *' : 'Table Number *'}</Label>
-              <Input type="number" value={tableForm.tableNumber} onChange={e => setTableForm({ ...tableForm, tableNumber: e.target.value })} className="mt-1" />
-            </div>
-            <div>
-              <Label>{isRTL ? 'القسم *' : 'Section *'}</Label>
-              <Select value={tableForm.sectionId} onValueChange={v => setTableForm({ ...tableForm, sectionId: v })}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {sections.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>{isRTL ? 'السعة (أشخاص)' : 'Capacity (Persons)'}</Label>
-              <Input type="number" value={tableForm.capacity} onChange={e => setTableForm({ ...tableForm, capacity: e.target.value })} className="mt-1" />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowEditTableDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
-            <Button onClick={handleEditTable} disabled={submitting} className="bg-blue-600 hover:bg-blue-700 text-white">
-              {submitting ? '...' : (isRTL ? 'حفظ' : 'Save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Table */}
+      {/* Delete Table Alert */}
       <AlertDialog open={showDeleteTableDialog} onOpenChange={setShowDeleteTableDialog}>
-        <AlertDialogContent dir={isRTL ? 'rtl' : 'ltr'}>
+        <AlertDialogContent className={isRTL ? 'rtl' : 'ltr'} dir={isRTL ? 'rtl' : 'ltr'}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{isRTL ? 'حذف الطاولة' : 'Delete Table'}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {isRTL ? `هل تريد حذف الطاولة رقم ${selectedTable?.tableNumber}؟` : `Delete table number ${selectedTable?.tableNumber}?`}
-            </AlertDialogDescription>
+            <AlertDialogTitle>{isRTL ? 'هل أنت متأكد؟' : 'Are you sure?'}</AlertDialogTitle>
+            <AlertDialogDescription>{isRTL ? 'سيتم حذف الطاولة نهائياً ولن يتمكن العملاء من الطلب عبر الباركود الخاص بها.' : 'This will permanently delete the table and customers will no longer be able to order using its QR code.'}</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{isRTL ? 'إلغاء' : 'Cancel'}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteTable} className="bg-red-600 hover:bg-red-700">{isRTL ? 'حذف' : 'Delete'}</AlertDialogAction>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="flex-1">{isRTL ? 'إلغاء' : 'Cancel'}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTable} className="flex-1 bg-red-600 hover:bg-red-700 text-white">{isRTL ? 'حذف' : 'Delete'}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

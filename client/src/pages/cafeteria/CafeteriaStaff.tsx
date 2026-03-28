@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
 import { DashboardHeader } from '@/components/DashboardHeader';
@@ -9,13 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import {
   Users, LayoutDashboard, UtensilsCrossed, Table2, BarChart3, CreditCard, Settings,
-  Plus, MoreVertical, Edit, Trash2, Lock, Unlock, ChefHat, UserCheck
+  Plus, Edit, Trash2, Lock, Unlock, ChefHat, UserCheck, Phone, Mail, ShieldCheck, ShieldAlert
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
@@ -32,7 +31,7 @@ interface StaffMember {
 }
 
 export default function CafeteriaStaff() {
-  const { user } = useAuth({ redirectOnUnauthenticated: true });
+  const { user, loading: authLoading } = useAuth({ redirectOnUnauthenticated: true });
   const { language } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const isRTL = language === 'ar';
@@ -65,7 +64,7 @@ export default function CafeteriaStaff() {
     { label: isRTL ? 'الإعدادات' : 'Settings', path: '/dashboard/cafeteria-admin/settings', icon: <Settings className="w-5 h-5" /> },
   ];
 
-  const fetchStaff = async () => {
+  const fetchStaff = useCallback(async () => {
     if (!cafeteriaId) return;
     setLoading(true);
     try {
@@ -87,16 +86,17 @@ export default function CafeteriaStaff() {
       }));
       setStaffList(mapped);
     } catch (err: any) {
-      console.error('Error fetching staff:', err);
       toast.error(isRTL ? 'خطأ في تحميل بيانات الموظفين' : 'Error loading staff data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [cafeteriaId, isRTL]);
 
   useEffect(() => {
-    fetchStaff();
-  }, [cafeteriaId]);
+    if (!authLoading && cafeteriaId) {
+      fetchStaff();
+    }
+  }, [cafeteriaId, authLoading, fetchStaff]);
 
   const handleAddStaff = async () => {
     if (!cafeteriaId) return;
@@ -129,30 +129,21 @@ export default function CafeteriaStaff() {
     }
   };
 
-  const handleEditStaff = async () => {
-    if (!selectedStaff) return;
-    setSubmitting(true);
+  const handleToggleLogin = async (staff: StaffMember) => {
     try {
-      const updates: any = {
-        name: formData.name,
-        role: formData.role,
-        phone: formData.phone || null,
-      };
-      if (formData.password) {
-        updates.password_hash = formData.password;
-      }
       const { error } = await supabase
         .from('cafeteria_staff')
-        .update(updates)
-        .eq('id', selectedStaff.id);
+        .update({ can_login: !staff.canLogin })
+        .eq('id', staff.id);
       if (error) throw error;
-      toast.success(isRTL ? 'تم تحديث بيانات الموظف' : 'Staff member updated');
-      setShowEditDialog(false);
+      toast.success(
+        staff.canLogin
+          ? (isRTL ? 'تم تعطيل تسجيل الدخول' : 'Login disabled')
+          : (isRTL ? 'تم تفعيل تسجيل الدخول' : 'Login enabled')
+      );
       fetchStaff();
     } catch (err: any) {
-      toast.error(err.message || (isRTL ? 'خطأ في تحديث الموظف' : 'Error updating staff'));
-    } finally {
-      setSubmitting(false);
+      toast.error(isRTL ? 'خطأ في تغيير الصلاحية' : 'Error toggling login');
     }
   };
 
@@ -175,51 +166,6 @@ export default function CafeteriaStaff() {
     }
   };
 
-  const handleToggleLogin = async (staff: StaffMember) => {
-    try {
-      const { error } = await supabase
-        .from('cafeteria_staff')
-        .update({ can_login: !staff.canLogin })
-        .eq('id', staff.id);
-      if (error) throw error;
-      toast.success(
-        staff.canLogin
-          ? (isRTL ? 'تم تعطيل تسجيل الدخول' : 'Login disabled')
-          : (isRTL ? 'تم تفعيل تسجيل الدخول' : 'Login enabled')
-      );
-      fetchStaff();
-    } catch (err: any) {
-      toast.error(isRTL ? 'خطأ في تغيير الصلاحية' : 'Error toggling login');
-    }
-  };
-
-  const handleToggleStatus = async (staff: StaffMember) => {
-    const newStatus = staff.status === 'active' ? 'inactive' : 'active';
-    try {
-      const { error } = await supabase
-        .from('cafeteria_staff')
-        .update({ status: newStatus })
-        .eq('id', staff.id);
-      if (error) throw error;
-      toast.success(isRTL ? 'تم تغيير حالة الموظف' : 'Status updated');
-      fetchStaff();
-    } catch (err: any) {
-      toast.error(isRTL ? 'خطأ في تغيير الحالة' : 'Error updating status');
-    }
-  };
-
-  const openEditDialog = (staff: StaffMember) => {
-    setSelectedStaff(staff);
-    setFormData({
-      name: staff.name,
-      role: staff.role,
-      loginUsername: staff.loginUsername,
-      password: '',
-      phone: staff.phone || '',
-    });
-    setShowEditDialog(true);
-  };
-
   const getRoleBadge = (role: string) => {
     const roleMap: Record<string, { label: string; labelAr: string; color: string }> = {
       cafeteria_admin: { label: 'Admin', labelAr: 'مدير كافيتريا', color: 'bg-purple-100 text-purple-700' },
@@ -229,341 +175,135 @@ export default function CafeteriaStaff() {
     };
     const r = roleMap[role] || { label: role, labelAr: role, color: 'bg-gray-100 text-gray-700' };
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${r.color}`}>
+      <Badge className={`${r.color} border-0 font-bold`}>
         {isRTL ? r.labelAr : r.label}
-      </span>
+      </Badge>
     );
   };
 
-  const activeCount = staffList.filter(s => s.status === 'active').length;
-  const waitersCount = staffList.filter(s => s.role === 'waiter').length;
-  const chefsCount = staffList.filter(s => s.role === 'chef').length;
+  if (authLoading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
 
   return (
-    <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <DashboardHeader
-        title={isRTL ? 'إدارة الموظفين' : 'Staff Management'}
-        icon={<Users className="w-5 h-5" />}
-        onMenuToggle={setMenuOpen}
-        menuOpen={menuOpen}
-      />
-      <div className="flex">
-        <DashboardNavigation items={navigationItems} open={menuOpen} onClose={() => setMenuOpen(false)} />
-        <main className="flex-1 p-4 md:p-6">
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{staffList.length}</p>
-                  <p className="text-xs text-gray-500">{isRTL ? 'إجمالي الموظفين' : 'Total Staff'}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <UserCheck className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{activeCount}</p>
-                  <p className="text-xs text-gray-500">{isRTL ? 'نشط' : 'Active'}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <UtensilsCrossed className="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{waitersCount}</p>
-                  <p className="text-xs text-gray-500">{isRTL ? 'نادلين' : 'Waiters'}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <ChefHat className="w-5 h-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{chefsCount}</p>
-                  <p className="text-xs text-gray-500">{isRTL ? 'شيفات' : 'Chefs'}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+    <div className={`min-h-screen bg-slate-50 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+      <DashboardHeader title={isRTL ? 'إدارة الموظفين' : 'Staff Management'} onMenuClick={() => setMenuOpen(true)} />
+      <DashboardNavigation isOpen={menuOpen} onClose={() => setMenuOpen(false)} items={navigationItems} />
 
-          {/* Staff Table */}
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-              <CardTitle className="text-lg font-bold text-gray-800">
-                {isRTL ? 'قائمة الموظفين' : 'Staff List'}
-              </CardTitle>
-              <Button
-                onClick={() => {
-                  setFormData({ name: '', role: 'waiter', loginUsername: '', password: '', phone: '' });
-                  setShowAddDialog(true);
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                {isRTL ? 'إضافة موظف' : 'Add Staff'}
-              </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="text-center py-12 text-gray-400">
-                  {isRTL ? 'جاري التحميل...' : 'Loading...'}
-                </div>
-              ) : staffList.length === 0 ? (
-                <div className="text-center py-12">
-                  <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 font-medium">{isRTL ? 'لا يوجد موظفون بعد' : 'No staff members yet'}</p>
-                  <Button
-                    onClick={() => setShowAddDialog(true)}
-                    className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    {isRTL ? 'أضف أول موظف' : 'Add First Staff'}
-                  </Button>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gray-50">
-                        <TableHead className="font-semibold text-gray-700">{isRTL ? 'الاسم' : 'Name'}</TableHead>
-                        <TableHead className="font-semibold text-gray-700">{isRTL ? 'الدور' : 'Role'}</TableHead>
-                        <TableHead className="font-semibold text-gray-700">{isRTL ? 'اسم المستخدم' : 'Username'}</TableHead>
-                        <TableHead className="font-semibold text-gray-700">{isRTL ? 'الهاتف' : 'Phone'}</TableHead>
-                        <TableHead className="font-semibold text-gray-700">{isRTL ? 'الحالة' : 'Status'}</TableHead>
-                        <TableHead className="font-semibold text-gray-700">{isRTL ? 'تسجيل الدخول' : 'Login'}</TableHead>
-                        <TableHead className="font-semibold text-gray-700">{isRTL ? 'إجراءات' : 'Actions'}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {staffList.map((staff) => (
-                        <TableRow key={staff.id} className="hover:bg-gray-50">
-                          <TableCell className="font-medium text-gray-800">{staff.name}</TableCell>
-                          <TableCell>{getRoleBadge(staff.role)}</TableCell>
-                          <TableCell className="text-gray-600 font-mono text-sm">{staff.loginUsername}</TableCell>
-                          <TableCell className="text-gray-600">{staff.phone || '-'}</TableCell>
-                          <TableCell>
-                            <button
-                              onClick={() => handleToggleStatus(staff)}
-                              className={`px-2 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
-                                staff.status === 'active'
-                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                  : 'bg-red-100 text-red-700 hover:bg-red-200'
-                              }`}
-                            >
-                              {staff.status === 'active' ? (isRTL ? 'نشط' : 'Active') : (isRTL ? 'غير نشط' : 'Inactive')}
-                            </button>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Switch
-                                checked={staff.canLogin}
-                                onCheckedChange={() => handleToggleLogin(staff)}
-                              />
-                              <span className="text-xs text-gray-500">
-                                {staff.canLogin ? (isRTL ? 'مفعّل' : 'On') : (isRTL ? 'معطّل' : 'Off')}
-                              </span>
+      <main className="container mx-auto px-4 py-6 max-w-6xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900">{isRTL ? 'طاقم العمل' : 'Staff Members'}</h1>
+            <p className="text-slate-500">{isRTL ? 'إدارة الموظفين وصلاحيات تسجيل الدخول الخاصة بهم' : 'Manage staff members and their login permissions'}</p>
+          </div>
+          <Button onClick={() => setShowAddDialog(true)} className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-md">
+            <Plus className="w-4 h-4" /> {isRTL ? 'إضافة موظف جديد' : 'Add New Staff'}
+          </Button>
+        </div>
+
+        <Card className="border-0 shadow-md overflow-hidden rounded-2xl">
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="text-center py-20 text-slate-400"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>{isRTL ? 'جاري التحميل...' : 'Loading...'}</div>
+            ) : staffList.length === 0 ? (
+              <div className="text-center py-20">
+                <Users className="w-16 h-16 text-slate-200 mx-auto mb-4" />
+                <p className="text-slate-500">{isRTL ? 'لا يوجد موظفين مضافين حالياً' : 'No staff members found'}</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-slate-50">
+                    <TableRow>
+                      <TableHead>{isRTL ? 'الموظف' : 'Staff Member'}</TableHead>
+                      <TableHead>{isRTL ? 'الدور' : 'Role'}</TableHead>
+                      <TableHead>{isRTL ? 'اسم المستخدم' : 'Username'}</TableHead>
+                      <TableHead className="text-center">{isRTL ? 'صلاحية الدخول' : 'Login Permission'}</TableHead>
+                      <TableHead className="text-center">{isRTL ? 'إجراءات' : 'Actions'}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {staffList.map((staff) => (
+                      <TableRow key={staff.id} className="hover:bg-slate-50/50">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 font-bold">
+                              {staff.name.charAt(0)}
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <MoreVertical className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align={isRTL ? 'start' : 'end'}>
-                                <DropdownMenuItem onClick={() => openEditDialog(staff)}>
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  {isRTL ? 'تعديل' : 'Edit'}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleToggleLogin(staff)}
-                                  className={staff.canLogin ? 'text-orange-600' : 'text-green-600'}
-                                >
-                                  {staff.canLogin ? (
-                                    <><Lock className="w-4 h-4 mr-2" />{isRTL ? 'تعطيل الدخول' : 'Disable Login'}</>
-                                  ) : (
-                                    <><Unlock className="w-4 h-4 mr-2" />{isRTL ? 'تفعيل الدخول' : 'Enable Login'}</>
-                                  )}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => { setSelectedStaff(staff); setShowDeleteDialog(true); }}
-                                  className="text-red-600"
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  {isRTL ? 'حذف' : 'Delete'}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </main>
-      </div>
+                            <div>
+                              <div className="font-bold text-slate-900">{staff.name}</div>
+                              <div className="text-[10px] text-slate-400 flex items-center gap-1"><Phone className="w-3 h-3" /> {staff.phone || '---'}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getRoleBadge(staff.role)}</TableCell>
+                        <TableCell className="font-mono text-xs text-slate-600">{staff.loginUsername}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            <Switch 
+                              checked={staff.canLogin} 
+                              onCheckedChange={() => handleToggleLogin(staff)}
+                              className="data-[state=checked]:bg-green-500"
+                            />
+                            <span className={`text-[10px] font-bold ${staff.canLogin ? 'text-green-600' : 'text-red-600'}`}>
+                              {staff.canLogin ? (isRTL ? 'مسموح' : 'Allowed') : (isRTL ? 'محظور' : 'Blocked')}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button size="icon" variant="ghost" onClick={() => { setSelectedStaff(staff); setShowDeleteDialog(true); }} className="text-red-600 hover:bg-red-50">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </main>
 
       {/* Add Staff Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-md" dir={isRTL ? 'rtl' : 'ltr'}>
-          <DialogHeader>
-            <DialogTitle>{isRTL ? 'إضافة موظف جديد' : 'Add New Staff Member'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label>{isRTL ? 'الاسم *' : 'Name *'}</Label>
-              <Input
-                value={formData.name}
-                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                placeholder={isRTL ? 'اسم الموظف' : 'Staff name'}
-                className="mt-1"
-              />
+        <DialogContent className={isRTL ? 'rtl' : 'ltr'} dir={isRTL ? 'rtl' : 'ltr'}>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-blue-600" /> {isRTL ? 'إضافة موظف جديد' : 'Add New Staff'}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2"><Label>{isRTL ? 'الاسم الكامل' : 'Full Name'}</Label><Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="John Doe" /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{isRTL ? 'الدور الوظيفي' : 'Role'}</Label>
+                <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="waiter">{isRTL ? 'نادل' : 'Waiter'}</option>
+                  <option value="chef">{isRTL ? 'شيف' : 'Chef'}</option>
+                  <option value="manager">{isRTL ? 'مدير' : 'Manager'}</option>
+                </select>
+              </div>
+              <div className="space-y-2"><Label>{isRTL ? 'رقم الهاتف' : 'Phone'}</Label><Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="0123456789" /></div>
             </div>
-            <div>
-              <Label>{isRTL ? 'الدور *' : 'Role *'}</Label>
-              <Select value={formData.role} onValueChange={v => setFormData({ ...formData, role: v })}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="waiter">{isRTL ? 'نادل' : 'Waiter'}</SelectItem>
-                  <SelectItem value="chef">{isRTL ? 'شيف' : 'Chef'}</SelectItem>
-                  <SelectItem value="manager">{isRTL ? 'مدير' : 'Manager'}</SelectItem>
-                  <SelectItem value="cafeteria_admin">{isRTL ? 'مدير كافيتريا' : 'Cafeteria Admin'}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>{isRTL ? 'اسم المستخدم *' : 'Username *'}</Label>
-              <Input
-                value={formData.loginUsername}
-                onChange={e => setFormData({ ...formData, loginUsername: e.target.value })}
-                placeholder={isRTL ? 'اسم الدخول' : 'Login username'}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>{isRTL ? 'كلمة المرور *' : 'Password *'}</Label>
-              <Input
-                type="password"
-                value={formData.password}
-                onChange={e => setFormData({ ...formData, password: e.target.value })}
-                placeholder={isRTL ? 'كلمة المرور' : 'Password'}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>{isRTL ? 'رقم الهاتف' : 'Phone'}</Label>
-              <Input
-                value={formData.phone}
-                onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                placeholder={isRTL ? 'رقم الهاتف (اختياري)' : 'Phone (optional)'}
-                className="mt-1"
-              />
+            <div className="space-y-2"><Label>{isRTL ? 'اسم المستخدم للدخول' : 'Login Username'}</Label><Input value={formData.loginUsername} onChange={e => setFormData({...formData, loginUsername: e.target.value})} placeholder="john_waiter" /></div>
+            <div className="space-y-2"><Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label><Input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></div>
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 flex gap-2">
+              <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+              <p className="text-[10px] text-blue-700">{isRTL ? 'سيتم تفعيل صلاحية تسجيل الدخول تلقائياً لهذا الموظف.' : 'Login permission will be enabled automatically for this staff member.'}</p>
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              {isRTL ? 'إلغاء' : 'Cancel'}
-            </Button>
-            <Button onClick={handleAddStaff} disabled={submitting} className="bg-blue-600 hover:bg-blue-700 text-white">
-              {submitting ? (isRTL ? 'جاري الإضافة...' : 'Adding...') : (isRTL ? 'إضافة' : 'Add')}
-            </Button>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)} className="flex-1">{isRTL ? 'إلغاء' : 'Cancel'}</Button>
+            <Button onClick={handleAddStaff} disabled={submitting} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">{submitting ? '...' : (isRTL ? 'إضافة' : 'Add')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Staff Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-md" dir={isRTL ? 'rtl' : 'ltr'}>
-          <DialogHeader>
-            <DialogTitle>{isRTL ? 'تعديل بيانات الموظف' : 'Edit Staff Member'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label>{isRTL ? 'الاسم *' : 'Name *'}</Label>
-              <Input
-                value={formData.name}
-                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>{isRTL ? 'الدور *' : 'Role *'}</Label>
-              <Select value={formData.role} onValueChange={v => setFormData({ ...formData, role: v })}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="waiter">{isRTL ? 'نادل' : 'Waiter'}</SelectItem>
-                  <SelectItem value="chef">{isRTL ? 'شيف' : 'Chef'}</SelectItem>
-                  <SelectItem value="manager">{isRTL ? 'مدير' : 'Manager'}</SelectItem>
-                  <SelectItem value="cafeteria_admin">{isRTL ? 'مدير كافيتريا' : 'Cafeteria Admin'}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>{isRTL ? 'كلمة المرور الجديدة (اتركها فارغة للإبقاء)' : 'New Password (leave blank to keep)'}</Label>
-              <Input
-                type="password"
-                value={formData.password}
-                onChange={e => setFormData({ ...formData, password: e.target.value })}
-                placeholder={isRTL ? 'كلمة مرور جديدة' : 'New password'}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>{isRTL ? 'رقم الهاتف' : 'Phone'}</Label>
-              <Input
-                value={formData.phone}
-                onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                className="mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
-              {isRTL ? 'إلغاء' : 'Cancel'}
-            </Button>
-            <Button onClick={handleEditStaff} disabled={submitting} className="bg-blue-600 hover:bg-blue-700 text-white">
-              {submitting ? (isRTL ? 'جاري الحفظ...' : 'Saving...') : (isRTL ? 'حفظ' : 'Save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation */}
+      {/* Delete Staff Alert */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent dir={isRTL ? 'rtl' : 'ltr'}>
+        <AlertDialogContent className={isRTL ? 'rtl' : 'ltr'} dir={isRTL ? 'rtl' : 'ltr'}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{isRTL ? 'تأكيد الحذف' : 'Confirm Delete'}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {isRTL
-                ? `هل أنت متأكد من حذف الموظف "${selectedStaff?.name}"؟ لا يمكن التراجع.`
-                : `Are you sure you want to delete "${selectedStaff?.name}"? This cannot be undone.`}
-            </AlertDialogDescription>
+            <AlertDialogTitle>{isRTL ? 'هل أنت متأكد؟' : 'Are you sure?'}</AlertDialogTitle>
+            <AlertDialogDescription>{isRTL ? 'سيتم حذف الموظف نهائياً وإلغاء صلاحية دخوله للنظام.' : 'This will permanently delete the staff member and revoke their login access.'}</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{isRTL ? 'إلغاء' : 'Cancel'}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteStaff} className="bg-red-600 hover:bg-red-700">
-              {isRTL ? 'حذف' : 'Delete'}
-            </AlertDialogAction>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="flex-1">{isRTL ? 'إلغاء' : 'Cancel'}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteStaff} className="flex-1 bg-red-600 hover:bg-red-700 text-white">{isRTL ? 'حذف' : 'Delete'}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
