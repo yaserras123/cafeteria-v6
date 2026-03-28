@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   UtensilsCrossed, LayoutDashboard, Table2, Users, BarChart3, CreditCard, Settings,
-  Plus, Edit, Trash2, Tag, DollarSign, Eye, EyeOff
+  Plus, Edit, Trash2, Tag, DollarSign, Eye, EyeOff, AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
@@ -40,7 +40,7 @@ interface MenuItem {
 }
 
 export default function CafeteriaMenu() {
-  const { user } = useAuth({ redirectOnUnauthenticated: true });
+  const { user, loading: authLoading } = useAuth({ redirectOnUnauthenticated: true });
   const { language } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const isRTL = language === 'ar';
@@ -64,6 +64,7 @@ export default function CafeteriaMenu() {
   const [categoryForm, setCategoryForm] = useState({ name: '' });
   const [itemForm, setItemForm] = useState({ name: '', description: '', price: '', categoryId: '', isAvailable: true });
 
+  // Use cafeteriaId from user metadata
   const cafeteriaId = user?.cafeteriaId;
 
   const navigationItems = [
@@ -77,20 +78,35 @@ export default function CafeteriaMenu() {
   ];
 
   const fetchData = async () => {
-    if (!cafeteriaId) return;
+    if (!cafeteriaId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const [catRes, itemsRes] = await Promise.all([
-        supabase.from('menu_categories').select('*').eq('cafeteria_id', cafeteriaId).order('display_order'),
-        supabase.from('menu_items').select('*, menu_categories(name)').eq('cafeteria_id', cafeteriaId).order('name'),
-      ]);
-      if (catRes.error) throw catRes.error;
-      if (itemsRes.error) throw itemsRes.error;
+      // Fetch categories
+      const { data: catData, error: catError } = await supabase
+        .from('menu_categories')
+        .select('*')
+        .eq('cafeteria_id', cafeteriaId)
+        .order('display_order');
+      
+      if (catError) throw catError;
 
-      setCategories((catRes.data || []).map((c: any) => ({
+      // Fetch items
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('menu_items')
+        .select('*, menu_categories(name)')
+        .eq('cafeteria_id', cafeteriaId)
+        .order('name');
+      
+      if (itemsError) throw itemsError;
+
+      setCategories((catData || []).map((c: any) => ({
         id: c.id, name: c.name, displayOrder: c.display_order || 0, cafeteriaId: c.cafeteria_id,
       })));
-      setMenuItems((itemsRes.data || []).map((i: any) => ({
+      
+      setMenuItems((itemsData || []).map((i: any) => ({
         id: i.id,
         name: i.name,
         description: i.description,
@@ -108,27 +124,38 @@ export default function CafeteriaMenu() {
     }
   };
 
-  useEffect(() => { fetchData(); }, [cafeteriaId]);
+  useEffect(() => {
+    if (!authLoading && cafeteriaId) {
+      fetchData();
+    }
+  }, [cafeteriaId, authLoading]);
 
   const handleAddCategory = async () => {
-    if (!cafeteriaId || !categoryForm.name) {
+    if (!cafeteriaId) {
+      toast.error(isRTL ? 'معرف الكافيتيريا مفقود' : 'Cafeteria ID is missing');
+      return;
+    }
+    if (!categoryForm.name.trim()) {
       toast.error(isRTL ? 'أدخل اسم الفئة' : 'Enter category name');
       return;
     }
     setSubmitting(true);
     try {
-      const { error } = await supabase.from('menu_categories').insert({
+      const { data, error } = await supabase.from('menu_categories').insert({
         cafeteria_id: cafeteriaId,
-        name: categoryForm.name,
+        name: categoryForm.name.trim(),
         display_order: categories.length,
         created_at: new Date().toISOString(),
-      });
+      }).select();
+
       if (error) throw error;
-      toast.success(isRTL ? 'تم إضافة الفئة' : 'Category added');
+      
+      toast.success(isRTL ? 'تم إضافة الفئة بنجاح' : 'Category added successfully');
       setShowAddCategoryDialog(false);
       setCategoryForm({ name: '' });
       fetchData();
     } catch (err: any) {
+      console.error('Add category error:', err);
       toast.error(err.message || (isRTL ? 'خطأ في إضافة الفئة' : 'Error adding category'));
     } finally {
       setSubmitting(false);
@@ -136,14 +163,16 @@ export default function CafeteriaMenu() {
   };
 
   const handleEditCategory = async () => {
-    if (!selectedCategory) return;
+    if (!selectedCategory || !categoryForm.name.trim()) return;
     setSubmitting(true);
     try {
       const { error } = await supabase
         .from('menu_categories')
-        .update({ name: categoryForm.name })
+        .update({ name: categoryForm.name.trim() })
         .eq('id', selectedCategory.id);
+      
       if (error) throw error;
+      
       toast.success(isRTL ? 'تم تحديث الفئة' : 'Category updated');
       setShowEditCategoryDialog(false);
       fetchData();
@@ -171,7 +200,11 @@ export default function CafeteriaMenu() {
   };
 
   const handleAddItem = async () => {
-    if (!cafeteriaId || !itemForm.name || !itemForm.price || !itemForm.categoryId) {
+    if (!cafeteriaId) {
+      toast.error(isRTL ? 'معرف الكافيتيريا مفقود' : 'Cafeteria ID is missing');
+      return;
+    }
+    if (!itemForm.name.trim() || !itemForm.price || !itemForm.categoryId) {
       toast.error(isRTL ? 'يرجى ملء جميع الحقول المطلوبة' : 'Please fill all required fields');
       return;
     }
@@ -180,18 +213,21 @@ export default function CafeteriaMenu() {
       const { error } = await supabase.from('menu_items').insert({
         cafeteria_id: cafeteriaId,
         category_id: itemForm.categoryId,
-        name: itemForm.name,
+        name: itemForm.name.trim(),
         description: itemForm.description || null,
         price: parseFloat(itemForm.price),
         is_available: itemForm.isAvailable,
         created_at: new Date().toISOString(),
       });
+      
       if (error) throw error;
-      toast.success(isRTL ? 'تم إضافة الصنف' : 'Item added');
+      
+      toast.success(isRTL ? 'تم إضافة الصنف بنجاح' : 'Item added successfully');
       setShowAddItemDialog(false);
       setItemForm({ name: '', description: '', price: '', categoryId: '', isAvailable: true });
       fetchData();
     } catch (err: any) {
+      console.error('Add item error:', err);
       toast.error(err.message || (isRTL ? 'خطأ في إضافة الصنف' : 'Error adding item'));
     } finally {
       setSubmitting(false);
@@ -205,14 +241,16 @@ export default function CafeteriaMenu() {
       const { error } = await supabase
         .from('menu_items')
         .update({
-          name: itemForm.name,
+          name: itemForm.name.trim(),
           description: itemForm.description || null,
           price: parseFloat(itemForm.price),
           category_id: itemForm.categoryId,
           is_available: itemForm.isAvailable,
         })
         .eq('id', selectedItem.id);
+      
       if (error) throw error;
+      
       toast.success(isRTL ? 'تم تحديث الصنف' : 'Item updated');
       setShowEditItemDialog(false);
       fetchData();
@@ -265,240 +303,163 @@ export default function CafeteriaMenu() {
     setShowEditItemDialog(true);
   };
 
-  const filteredItems = activeCategory === 'all'
-    ? menuItems
-    : menuItems.filter(i => i.categoryId === activeCategory);
+  const openEditCategoryDialog = (category: Category) => {
+    setSelectedCategory(category);
+    setCategoryForm({ name: category.name });
+    setShowEditCategoryDialog(true);
+  };
 
-  const availableItems = menuItems.filter(i => i.isAvailable).length;
+  const filteredItems = activeCategory === 'all' 
+    ? menuItems 
+    : menuItems.filter(item => item.categoryId === activeCategory);
+
+  if (authLoading) {
+    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+  }
+
+  if (!cafeteriaId) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 text-center">
+        <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+        <h1 className="text-2xl font-bold mb-2">{isRTL ? 'خطأ في الصلاحيات' : 'Permission Error'}</h1>
+        <p className="text-slate-600 max-w-md">
+          {isRTL 
+            ? 'لم يتم العثور على معرف الكافيتيريا الخاص بحسابك. يرجى التواصل مع الإدارة لتحديث بيانات حسابك.' 
+            : 'No cafeteria ID found for your account. Please contact administration to update your account details.'}
+        </p>
+        <Button onClick={() => window.location.href = '/'} className="mt-6 bg-blue-600 text-white">
+          {isRTL ? 'العودة للرئيسية' : 'Back to Home'}
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <DashboardHeader
-        title={isRTL ? 'إدارة المنيو' : 'Menu Management'}
-        icon={<UtensilsCrossed className="w-5 h-5" />}
-        onMenuToggle={setMenuOpen}
-        menuOpen={menuOpen}
-      />
-      <div className="flex">
-        <DashboardNavigation items={navigationItems} open={menuOpen} onClose={() => setMenuOpen(false)} />
-        <main className="flex-1 p-4 md:p-6">
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <Tag className="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{categories.length}</p>
-                  <p className="text-xs text-gray-500">{isRTL ? 'الفئات' : 'Categories'}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <UtensilsCrossed className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{menuItems.length}</p>
-                  <p className="text-xs text-gray-500">{isRTL ? 'إجمالي الأصناف' : 'Total Items'}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Eye className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{availableItems}</p>
-                  <p className="text-xs text-gray-500">{isRTL ? 'متاح' : 'Available'}</p>
-                </div>
-              </CardContent>
-            </Card>
+    <div className="min-h-screen bg-slate-50 pb-20" dir={isRTL ? 'rtl' : 'ltr'}>
+      <DashboardHeader title={isRTL ? 'إدارة المنيو' : 'Menu Management'} onMenuClick={() => setMenuOpen(true)} />
+      <DashboardNavigation isOpen={menuOpen} onClose={() => setMenuOpen(false)} items={navigationItems} />
+
+      <main className="container mx-auto px-4 py-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">{isRTL ? 'قائمة الطعام' : 'Food Menu'}</h1>
+            <p className="text-slate-500">{isRTL ? 'إدارة الأصناف والفئات والأسعار' : 'Manage items, categories and prices'}</p>
           </div>
+          <div className="flex gap-2">
+            <Button onClick={() => setShowAddCategoryDialog(true)} variant="outline" className="flex items-center gap-2">
+              <Plus className="w-4 h-4" /> {isRTL ? 'إضافة فئة' : 'Add Category'}
+            </Button>
+            <Button onClick={() => setShowAddItemDialog(true)} className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
+              <Plus className="w-4 h-4" /> {isRTL ? 'إضافة صنف' : 'Add Item'}
+            </Button>
+          </div>
+        </div>
 
-          <Tabs defaultValue="items">
-            <TabsList className="mb-4">
-              <TabsTrigger value="items">{isRTL ? 'الأصناف' : 'Items'}</TabsTrigger>
-              <TabsTrigger value="categories">{isRTL ? 'الفئات' : 'Categories'}</TabsTrigger>
-            </TabsList>
-
-            {/* Items Tab */}
-            <TabsContent value="items">
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => setActiveCategory('all')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      activeCategory === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    {isRTL ? 'الكل' : 'All'}
-                  </button>
-                  {categories.map(c => (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Categories Sidebar */}
+          <Card className="lg:col-span-1 h-fit">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Tag className="w-5 h-5 text-blue-600" /> {isRTL ? 'الفئات' : 'Categories'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-2">
+              <div className="flex flex-col gap-1">
+                <button
+                  onClick={() => setActiveCategory('all')}
+                  className={`w-full text-start px-4 py-2 rounded-md transition-colors ${activeCategory === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-100 text-slate-600'}`}
+                >
+                  {isRTL ? 'الكل' : 'All Items'}
+                </button>
+                {categories.map(cat => (
+                  <div key={cat.id} className="group flex items-center justify-between px-1">
                     <button
-                      key={c.id}
-                      onClick={() => setActiveCategory(c.id)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                        activeCategory === c.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                      }`}
+                      onClick={() => setActiveCategory(cat.id)}
+                      className={`flex-1 text-start px-3 py-2 rounded-md transition-colors ${activeCategory === cat.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-100 text-slate-600'}`}
                     >
-                      {c.name}
+                      {cat.name}
                     </button>
-                  ))}
-                </div>
-                <Button
-                  onClick={() => {
-                    setItemForm({ name: '', description: '', price: '', categoryId: categories[0]?.id || '', isAvailable: true });
-                    setShowAddItemDialog(true);
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {isRTL ? 'إضافة صنف' : 'Add Item'}
-                </Button>
+                    <div className="hidden group-hover:flex items-center gap-1">
+                      <button onClick={() => openEditCategoryDialog(cat)} className="p-1 text-slate-400 hover:text-blue-600"><Edit className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => { setSelectedCategory(cat); setShowDeleteCategoryDialog(true); }} className="p-1 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </div>
+                ))}
+                {categories.length === 0 && !loading && (
+                  <p className="text-xs text-center py-4 text-slate-400">{isRTL ? 'لا توجد فئات' : 'No categories found'}</p>
+                )}
               </div>
+            </CardContent>
+          </Card>
 
-              <Card className="border-0 shadow-sm">
-                <CardContent className="p-0">
-                  {loading ? (
-                    <div className="text-center py-12 text-gray-400">{isRTL ? 'جاري التحميل...' : 'Loading...'}</div>
-                  ) : filteredItems.length === 0 ? (
-                    <div className="text-center py-12">
-                      <UtensilsCrossed className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-500">{isRTL ? 'لا توجد أصناف بعد' : 'No items yet'}</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-gray-50">
-                            <TableHead>{isRTL ? 'الاسم' : 'Name'}</TableHead>
-                            <TableHead>{isRTL ? 'الفئة' : 'Category'}</TableHead>
-                            <TableHead>{isRTL ? 'السعر' : 'Price'}</TableHead>
-                            <TableHead>{isRTL ? 'الوصف' : 'Description'}</TableHead>
-                            <TableHead>{isRTL ? 'متاح' : 'Available'}</TableHead>
-                            <TableHead>{isRTL ? 'إجراءات' : 'Actions'}</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredItems.map((item) => (
-                            <TableRow key={item.id} className="hover:bg-gray-50">
-                              <TableCell className="font-medium text-gray-800">{item.name}</TableCell>
-                              <TableCell>
-                                <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
-                                  {item.categoryName || '-'}
-                                </span>
-                              </TableCell>
-                              <TableCell className="font-semibold text-green-700">
-                                {item.price.toFixed(2)}
-                              </TableCell>
-                              <TableCell className="text-gray-500 text-sm max-w-[200px] truncate">
-                                {item.description || '-'}
-                              </TableCell>
-                              <TableCell>
-                                <Switch
-                                  checked={item.isAvailable}
-                                  onCheckedChange={() => handleToggleAvailability(item)}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => openEditItemDialog(item)}
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                    onClick={() => { setSelectedItem(item); setShowDeleteItemDialog(true); }}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Categories Tab */}
-            <TabsContent value="categories">
-              <div className="flex justify-end mb-4">
-                <Button
-                  onClick={() => { setCategoryForm({ name: '' }); setShowAddCategoryDialog(true); }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {isRTL ? 'إضافة فئة' : 'Add Category'}
-                </Button>
+          {/* Items List */}
+          <div className="lg:col-span-3 space-y-4">
+            {loading ? (
+              <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>
+            ) : filteredItems.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredItems.map(item => (
+                  <Card key={item.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                    <CardContent className="p-0">
+                      <div className="p-4 flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-bold text-slate-900">{item.name}</h3>
+                            {!item.isAvailable && (
+                              <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded uppercase font-bold">
+                                {isRTL ? 'غير متوفر' : 'Unavailable'}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-slate-500 line-clamp-2 mb-2">{item.description || (isRTL ? 'لا يوجد وصف' : 'No description')}</p>
+                          <div className="flex items-center gap-4">
+                            <span className="text-blue-600 font-bold flex items-center gap-0.5">
+                              {item.price.toFixed(2)} <span className="text-xs font-normal text-slate-400">USD</span>
+                            </span>
+                            <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded">
+                              {item.categoryName || isRTL ? 'فئة عامة' : 'General'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <button 
+                            onClick={() => handleToggleAvailability(item)}
+                            className={`p-2 rounded-full transition-colors ${item.isAvailable ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                            title={item.isAvailable ? (isRTL ? 'إيقاف التوفر' : 'Make unavailable') : (isRTL ? 'تفعيل التوفر' : 'Make available')}
+                          >
+                            {item.isAvailable ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                          </button>
+                          <button 
+                            onClick={() => openEditItemDialog(item)}
+                            className="p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => { setSelectedItem(item); setShowDeleteItemDialog(true); }}
+                            className="p-2 bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-              <Card className="border-0 shadow-sm">
-                <CardContent className="p-0">
-                  {categories.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Tag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-500">{isRTL ? 'لا توجد فئات بعد' : 'No categories yet'}</p>
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-gray-50">
-                          <TableHead>{isRTL ? 'اسم الفئة' : 'Category Name'}</TableHead>
-                          <TableHead>{isRTL ? 'عدد الأصناف' : 'Items Count'}</TableHead>
-                          <TableHead>{isRTL ? 'إجراءات' : 'Actions'}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {categories.map((cat) => (
-                          <TableRow key={cat.id} className="hover:bg-gray-50">
-                            <TableCell className="font-medium text-gray-800">{cat.name}</TableCell>
-                            <TableCell className="text-gray-600">
-                              {menuItems.filter(i => i.categoryId === cat.id).length}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0"
-                                  onClick={() => { setSelectedCategory(cat); setCategoryForm({ name: cat.name }); setShowEditCategoryDialog(true); }}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                  onClick={() => { setSelectedCategory(cat); setShowDeleteCategoryDialog(true); }}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
+            ) : (
+              <Card className="p-12 text-center">
+                <UtensilsCrossed className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-slate-900">{isRTL ? 'لا توجد أصناف' : 'No items found'}</h3>
+                <p className="text-slate-500 mb-6">{isRTL ? 'ابدأ بإضافة أصناف جديدة لقائمة الطعام' : 'Start by adding new items to your menu'}</p>
+                <Button onClick={() => setShowAddItemDialog(true)} className="bg-blue-600 text-white">
+                  <Plus className="w-4 h-4 mr-2" /> {isRTL ? 'إضافة أول صنف' : 'Add First Item'}
+                </Button>
               </Card>
-            </TabsContent>
-          </Tabs>
-        </main>
-      </div>
+            )}
+          </div>
+        </div>
+      </main>
 
       {/* Add Category Dialog */}
       <Dialog open={showAddCategoryDialog} onOpenChange={setShowAddCategoryDialog}>
@@ -506,7 +467,13 @@ export default function CafeteriaMenu() {
           <DialogHeader><DialogTitle>{isRTL ? 'إضافة فئة جديدة' : 'Add New Category'}</DialogTitle></DialogHeader>
           <div className="py-2">
             <Label>{isRTL ? 'اسم الفئة *' : 'Category Name *'}</Label>
-            <Input value={categoryForm.name} onChange={e => setCategoryForm({ name: e.target.value })} className="mt-1" />
+            <Input 
+              value={categoryForm.name} 
+              onChange={e => setCategoryForm({ name: e.target.value })} 
+              className="mt-1" 
+              placeholder={isRTL ? 'مثال: مشروبات باردة' : 'e.g. Cold Drinks'}
+              autoFocus
+            />
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowAddCategoryDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
@@ -551,6 +518,9 @@ export default function CafeteriaMenu() {
                   {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {categories.length === 0 && (
+                <p className="text-[10px] text-red-500 mt-1">{isRTL ? 'يجب إضافة فئة أولاً' : 'Add a category first'}</p>
+              )}
             </div>
             <div>
               <Label>{isRTL ? 'السعر *' : 'Price *'}</Label>
@@ -567,7 +537,7 @@ export default function CafeteriaMenu() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowAddItemDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
-            <Button onClick={handleAddItem} disabled={submitting} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button onClick={handleAddItem} disabled={submitting || categories.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white">
               {submitting ? '...' : (isRTL ? 'إضافة' : 'Add')}
             </Button>
           </DialogFooter>
