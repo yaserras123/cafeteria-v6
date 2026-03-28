@@ -90,6 +90,12 @@ export default function OwnerCafeterias() {
       return;
     }
 
+    // Password validation (min 8 chars)
+    if (formData.password.length < 8) {
+      toast.error(isRTL ? 'كلمة المرور يجب أن تكون 8 خانات على الأقل' : 'Password must be at least 8 characters');
+      return;
+    }
+
     setSubmitting(true);
     try {
       let insertData: any = {
@@ -106,8 +112,8 @@ export default function OwnerCafeterias() {
       if (user?.role === 'owner') {
         // Owner creates Level 1 Cafeterias
         insertData.marketerId = 'owner'; // Or a specific system ID
-        insertData.country = formData.country;
-        insertData.currency = formData.currency;
+        insertData.country = formData.country.trim().substring(0, 2).toUpperCase();
+        insertData.currency = formData.currency.trim().substring(0, 3).toUpperCase();
         insertData.language = formData.language;
       } else {
         // Marketer creates Cafeterias (Inheritance)
