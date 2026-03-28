@@ -94,49 +94,56 @@ export default function DashboardLayout({
       }
     >
       <style dangerouslySetInnerHTML={{ __html: `
-        /* NUCLEAR FIX: DELETE ALL FLOATING BUTTONS AND OVERLAYS */
-        [class*="fixed"][class*="bottom-"], 
-        [class*="fixed"][class*="inset-0"],
-        [class*="absolute"][class*="bottom-"],
-        .fixed.bottom-8, .fixed.bottom-4,
+        /* ULTIMATE FIX: DELETE ALL SIDEBAR OVERLAYS AND BLOCKING LAYERS */
         [data-sidebar-overlay],
-        div[class*="fixed"][class*="z-50"] {
+        div[class*="fixed"][class*="inset-0"][class*="z-50"],
+        div[class*="absolute"][class*="inset-0"][class*="z-50"],
+        .fixed.inset-0, .absolute.inset-0 {
           display: none !important;
           pointer-events: none !important;
           visibility: hidden !important;
           opacity: 0 !important;
+          z-index: -1 !important;
         }
         
-        /* Force clear any invisible layers */
-        body, #root, main, .flex-1 {
+        /* Ensure the main container and root don't have blocking pointer events */
+        #root, body, html {
           pointer-events: auto !important;
-          cursor: auto !important;
         }
 
-        /* Ensure interactive elements are ALWAYS clickable */
-        button, a, input, select, textarea, [role="button"] {
+        /* Force Main Content to the TOP when sidebar is closed */
+        main, .flex-1, .w-full {
           pointer-events: auto !important;
-          position: relative;
-          z-index: 100 !important;
+          position: relative !important;
+          z-index: 10 !important;
         }
 
-        /* RTL Sidebar Fix */
+        /* Ensure ALL buttons and inputs are always clickable */
+        button, a, input, select, textarea, [role="button"], .cursor-pointer {
+          pointer-events: auto !important;
+          position: relative !important;
+          z-index: 50 !important;
+        }
+
+        /* Sidebar RTL & Mobile Fix */
         [dir="rtl"] .group-data-\\[side\\=left\\] {
           right: 0 !important;
           left: auto !important;
         }
-        [dir="rtl"] .group-data-\\[side\\=left\\][data-state="collapsed"] {
-          transform: translateX(100%) !important;
-        }
         
         @media (max-width: 768px) {
+          /* Completely hide sidebar when collapsed on mobile */
           .group-data-\\[state\\=collapsed\\] {
             display: none !important;
             visibility: hidden !important;
+            pointer-events: none !important;
+            width: 0 !important;
           }
-          main, .flex-1 {
-            z-index: 1 !important;
-            position: relative;
+          /* Ensure sidebar is only on top when OPEN */
+          .group-data-\\[state\\=open\\] {
+            z-index: 100 !important;
+            pointer-events: auto !important;
+            display: flex !important;
           }
         }
       `}} />
