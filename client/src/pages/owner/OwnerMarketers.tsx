@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
 import { useLocation } from 'wouter';
@@ -10,9 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Users, LayoutDashboard, Store, Wallet, BarChart3, Settings,
-  Plus, Edit, Trash2, Mail, Phone, RefreshCw, ArrowLeft, Home, AlertCircle
+  Plus, Edit, Trash2, Mail, Phone, RefreshCw, ArrowLeft, Home, AlertCircle, Globe, Coins
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
@@ -24,7 +25,19 @@ interface Marketer {
   createdAt: string;
   referenceCode?: string;
   isRoot?: boolean;
+  country?: string;
+  currency?: string;
 }
+
+const countries = [
+  { code: 'EG', name: 'Egypt', arName: 'مصر', currency: 'EGP', language: 'ar' },
+  { code: 'SA', name: 'Saudi Arabia', arName: 'السعودية', currency: 'SAR', language: 'ar' },
+  { code: 'AE', name: 'UAE', arName: 'الإمارات', currency: 'AED', language: 'ar' },
+  { code: 'KW', name: 'Kuwait', arName: 'الكويت', currency: 'KWD', language: 'ar' },
+  { code: 'JO', name: 'Jordan', arName: 'الأردن', currency: 'JOD', language: 'ar' },
+  { code: 'US', name: 'USA', arName: 'الولايات المتحدة', currency: 'USD', language: 'en' },
+  { code: 'GB', name: 'UK', arName: 'المملكة المتحدة', currency: 'GBP', language: 'en' },
+].sort((a, b) => a.arName.localeCompare(b.arName));
 
 export default function OwnerMarketers() {
   const { user, loading: authLoading } = useAuth({ redirectOnUnauthenticated: true });
@@ -40,18 +53,18 @@ export default function OwnerMarketers() {
   const [selectedMarketer, setSelectedMarketer] = useState<Marketer | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [countrySearch, setCountrySearch] = useState('');
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    loginUsername: "", // Add loginUsername to formData
     password: "",
     country: "SA",
     currency: "SAR",
     language: "ar",
   });
 
-  const fetchMarketers = async () => {
+  const fetchMarketers = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -67,13 +80,25 @@ export default function OwnerMarketers() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isRTL]);
 
   useEffect(() => {
     if (!authLoading) {
       fetchMarketers();
     }
-  }, [authLoading]);
+  }, [authLoading, fetchMarketers]);
+
+  const handleCountryChange = (code: string) => {
+    const selected = countries.find(c => c.code === code);
+    if (selected) {
+      setFormData(prev => ({
+        ...prev,
+        country: selected.code,
+        currency: selected.currency,
+        language: selected.language
+      }));
+    }
+  };
 
   const handleAddMarketer = async () => {
     if (!formData.name.trim() || !formData.email.trim()) {
@@ -81,60 +106,75 @@ export default function OwnerMarketers() {
       return;
     }
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email.trim())) {
-      toast.error(isRTL ? 'البريد الإلكتروني غير صالح' : 'Invalid email address');
-      return;
-    }
-
-    // Password validation (min 8 chars)
-    if (formData.password.length < 8) {
-      toast.error(isRTL ? 'كلمة المرور يجب أن تكون 8 خانات على الأقل' : 'Password must be at least 8 characters');
+    if (formData.password.length < 6) {
+      toast.error(isRTL ? 'كلمة المرور قصيرة جداً' : 'Password too short');
       return;
     }
 
     setSubmitting(true);
     try {
-      let insertData: any = {
-        id: crypto.randomUUID ? crypto.randomUUID() : undefined,
+      // 1. Determine Parent and Reference Code
+      let parentRefCode = '10';
+      let parentId = null;
+      let isRoot = true;
+      
+      const isSystemOwner = user?.email === 'owner@cafeteria.com' || user?.role === 'owner';
+      
+      if (!isSystemOwner) {
+        const { data: parent } = await supabase
+          .from('marketers')
+          .select('id, referenceCode, country, currency, language')
+          .eq('email', user?.email)
+          .single();
+        
+        if (parent) {
+          parentRefCode = parent.referenceCode;
+          parentId = parent.id;
+          isRoot = false;
+          // Inheritance
+          formData.country = parent.country;
+          formData.currency = parent.currency;
+          formData.language = parent.language;
+        }
+      }
+
+      // 2. Generate Reference Code
+      const { data: existing } = await supabase
+        .from('marketers')
+        .select('referenceCode')
+        .like('referenceCode', `${parentRefCode}%`)
+        .not('referenceCode', 'eq', parentRefCode)
+        .order('referenceCode', { ascending: false })
+        .limit(1);
+      
+      let nextNum = 1;
+      if (existing && existing.length > 0 && existing[0].referenceCode) {
+        const lastCode = existing[0].referenceCode;
+        const lastTwo = lastCode.slice(-2);
+        if (!isNaN(parseInt(lastTwo))) nextNum = parseInt(lastTwo) + 1;
+      }
+      const newRefCode = `${parentRefCode}${String(nextNum).padStart(2, '0')}`;
+
+      const insertData = {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
-        loginUsername: formData.email.trim().toLowerCase(), // Add loginUsername
-        passwordHash: formData.password, // Simple password for now
+        loginUsername: formData.email.trim().toLowerCase(),
+        passwordHash: formData.password,
+        referenceCode: newRefCode,
+        parentId,
+        isRoot,
+        country: formData.country,
+        currency: formData.currency,
+        language: formData.language,
         createdAt: new Date().toISOString(),
       };
 
-      if (user?.role === 'owner') {
-        // Owner creates Level 1 Marketers (Root)
-        insertData.isRoot = true;
-        insertData.country = formData.country.trim().substring(0, 2).toUpperCase();
-        insertData.currency = formData.currency.trim().substring(0, 3).toUpperCase();
-        insertData.language = formData.language;
-      } else {
-        // Marketer creates Child Marketers (Inheritance)
-        const { data: currentUserMarketer, error: fetchError } = await supabase
-          .from('marketers')
-          .select('id, country, currency, language')
-          .eq('email', user?.email)
-          .single();
-
-        if (fetchError) throw new Error(isRTL ? 'فشل في جلب بيانات المسوق الحالي' : 'Failed to fetch current marketer data');
-
-        insertData.isRoot = false;
-        insertData.parentId = currentUserMarketer.id;
-        insertData.country = currentUserMarketer.country;
-        insertData.currency = currentUserMarketer.currency;
-        insertData.language = currentUserMarketer.language;
-      }
-
-      const { data, error } = await supabase.from('marketers').insert([insertData]).select();
-
+      const { error } = await supabase.from('marketers').insert([insertData]);
       if (error) throw error;
       
       toast.success(isRTL ? 'تم إضافة المسوق بنجاح' : 'Marketer added successfully');
       setShowAddDialog(false);
-      setFormData({ name: '', email: '', password: '' });
+      setFormData({ name: '', email: '', password: '', country: 'SA', currency: 'SAR', language: 'ar' });
       fetchMarketers();
     } catch (err: any) {
       console.error('Add marketer error:', err);
@@ -144,290 +184,157 @@ export default function OwnerMarketers() {
     }
   };
 
-  const handleEditMarketer = async () => {
-    if (!selectedMarketer || !formData.name.trim()) {
-      toast.error(isRTL ? 'البيانات غير كاملة' : 'Incomplete data');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const { error } = await supabase
-        .from('marketers')
-        .update({
-          name: formData.name.trim(),
-          email: formData.email.trim().toLowerCase(),
-        })
-        .eq('id', selectedMarketer.id);
-
-      if (error) throw error;
-      toast.success(isRTL ? 'تم تحديث المسوق بنجاح' : 'Marketer updated successfully');
-      setShowEditDialog(false);
-      fetchMarketers();
-    } catch (err: any) {
-      toast.error(err.message || (isRTL ? 'خطأ في تحديث المسوق' : 'Error updating marketer'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDeleteMarketer = async () => {
-    if (!selectedMarketer) return;
-
-    setSubmitting(true);
-    try {
-      const { error } = await supabase
-        .from('marketers')
-        .delete()
-        .eq('id', selectedMarketer.id);
-
-      if (error) throw error;
-      toast.success(isRTL ? 'تم حذف المسوق بنجاح' : 'Marketer deleted successfully');
-      setShowDeleteDialog(false);
-      fetchMarketers();
-    } catch (err: any) {
-      toast.error(err.message || (isRTL ? 'خطأ في حذف المسوق' : 'Error deleting marketer'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const openEditDialog = (marketer: Marketer) => {
-    setSelectedMarketer(marketer);
-    setFormData({
-      name: marketer.name,
-      email: marketer.email,
-      password: '',
-    });
-    setShowEditDialog(true);
-  };
-
-  const filteredMarketers = marketers.filter((m) =>
-    m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCountries = countries.filter(c => 
+    c.arName.includes(countrySearch) || c.name.toLowerCase().includes(countrySearch.toLowerCase())
   );
 
-  if (authLoading) {
-    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div></div>;
-  }
+  const isSystemOwner = user?.email === 'owner@cafeteria.com' || user?.role === 'owner';
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* Header */}
-      <header className="bg-white border-b-4 border-purple-500 sticky top-0 z-40 shadow-lg">
-        <div className="px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-purple-500 to-purple-700 p-3 rounded-xl shadow-lg">
-              <Users className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-slate-900">
-                {isRTL ? 'إدارة المسوقين' : 'Manage Marketers'}
-              </h1>
-              <p className="text-xs text-purple-600 font-bold">{isRTL ? 'نظام المالك' : 'Owner System'}</p>
-            </div>
+    <div className={`min-h-screen bg-slate-50 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+      <header className="bg-white border-b p-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="bg-purple-600 p-2 rounded-lg text-white">
+            <Users className="w-6 h-6" />
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={fetchMarketers} className="h-10 w-10 text-slate-600 hover:text-purple-600">
-              <RefreshCw className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setLocation('/dashboard/owner')} className="h-10 w-10 text-slate-600 hover:text-purple-600">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          </div>
+          <h1 className="text-xl font-bold text-slate-800">
+            {isRTL ? 'إدارة المسوقين' : 'Marketers Management'}
+          </h1>
         </div>
+        <Button onClick={() => setShowAddDialog(true)} className="bg-purple-600 hover:bg-purple-700">
+          <Plus className="w-4 h-4 mr-2" />
+          {isRTL ? 'إضافة مسوق' : 'Add Marketer'}
+        </Button>
       </header>
 
-      <main className="px-4 py-6 max-w-6xl mx-auto">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card className="border-0 shadow-md bg-gradient-to-br from-purple-500 to-purple-700 text-white">
-            <CardContent className="p-4">
-              <p className="text-3xl font-black">{marketers.length}</p>
-              <p className="text-xs opacity-80">{isRTL ? 'إجمالي المسوقين' : 'Total Marketers'}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-700 text-white">
-            <CardContent className="p-4">
-              <p className="text-3xl font-black">{marketers.filter(m => m.isRoot).length}</p>
-              <p className="text-xs opacity-80">{isRTL ? 'مسوقين رئيسيين' : 'Root Marketers'}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-md bg-gradient-to-br from-orange-500 to-orange-700 text-white">
-            <CardContent className="p-4">
-              <p className="text-3xl font-black">{marketers.filter(m => !m.isRoot).length}</p>
-              <p className="text-xs opacity-80">{isRTL ? 'مسوقين فرعيين' : 'Child Marketers'}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters & Actions */}
-        <div className="flex flex-col md:flex-row gap-3 mb-6">
-          <Input
-            placeholder={isRTL ? 'ابحث عن مسوق...' : 'Search marketer...'}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1"
-          />
-          <Button
-            onClick={() => {
-              setFormData({ name: '', email: '', password: '' });
-              setShowAddDialog(true);
-            }}
-            className="bg-purple-600 hover:bg-purple-700 text-white gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            {isRTL ? 'إضافة مسوق' : 'Add Marketer'}
-          </Button>
-        </div>
-
-        {/* Marketers Table */}
-        <Card className="border-0 shadow-md">
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="text-center py-12 text-gray-400">{isRTL ? 'جاري التحميل...' : 'Loading...'}</div>
-            ) : filteredMarketers.length === 0 ? (
-              <div className="text-center py-12">
-                <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">{isRTL ? 'لا يوجد مسوقين' : 'No marketers found'}</p>
+      <main className="p-4 max-w-7xl mx-auto space-y-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Users className="w-5 h-5 text-purple-600" />
+                {isRTL ? 'قائمة المسوقين' : 'Marketers List'}
+              </CardTitle>
+              <div className="relative w-full md:w-72">
+                <Input
+                  placeholder={isRTL ? 'بحث عن مسوق...' : 'Search marketers...'}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+                <RefreshCw className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      <TableHead>{isRTL ? 'الاسم' : 'Name'}</TableHead>
-                      <TableHead>{isRTL ? 'البريد الإلكتروني' : 'Email'}</TableHead>
-                      <TableHead>{isRTL ? 'النوع' : 'Type'}</TableHead>
-                      <TableHead>{isRTL ? 'الرقم المرجعي' : 'Reference Code'}</TableHead>
-                      <TableHead>{isRTL ? 'إجراءات' : 'Actions'}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredMarketers.map((marketer) => (
-                      <TableRow key={marketer.id} className="hover:bg-gray-50">
-                        <TableCell className="font-semibold text-gray-900">{marketer.name}</TableCell>
-                        <TableCell className="text-gray-600 text-sm">{marketer.email}</TableCell>
-                        <TableCell>
-                          <Badge className={marketer.isRoot ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}>
-                            {marketer.isRoot ? (isRTL ? 'رئيسي' : 'Root') : (isRTL ? 'فرعي' : 'Child')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-purple-600 font-bold">{marketer.referenceCode || '---'}</TableCell>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{isRTL ? 'الرقم المرجعي' : 'Ref Code'}</TableHead>
+                    <TableHead>{isRTL ? 'الاسم' : 'Name'}</TableHead>
+                    <TableHead>{isRTL ? 'البريد الإلكتروني' : 'Email'}</TableHead>
+                    <TableHead>{isRTL ? 'البلد/العملة' : 'Country/Currency'}</TableHead>
+                    <TableHead className="text-right">{isRTL ? 'إجراءات' : 'Actions'}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-10"><RefreshCw className="w-6 h-6 animate-spin mx-auto text-purple-600" /></TableCell></TableRow>
+                  ) : marketers.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-10 text-slate-500">{isRTL ? 'لا يوجد مسوقين' : 'No marketers found'}</TableCell></TableRow>
+                  ) : (
+                    marketers.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase())).map((marketer) => (
+                      <TableRow key={marketer.id}>
+                        <TableCell className="font-mono font-bold text-purple-600">{marketer.referenceCode || '---'}</TableCell>
+                        <TableCell className="font-bold">{marketer.name}</TableCell>
+                        <TableCell>{marketer.email}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(marketer)} className="h-8 w-8 text-blue-600 hover:bg-blue-50">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setSelectedMarketer(marketer); setShowDeleteDialog(true); }} className="h-8 w-8 text-red-600 hover:bg-red-50">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <Badge variant="outline">{marketer.country}</Badge>
+                            <span className="text-xs text-slate-500">{marketer.currency}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => { setSelectedMarketer(marketer); setShowEditDialog(true); }}><Edit className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-red-600" onClick={() => { setSelectedMarketer(marketer); setShowDeleteDialog(true); }}><Trash2 className="w-4 h-4" /></Button>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </main>
 
       {/* Add Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-md" dir={isRTL ? 'rtl' : 'ltr'}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{isRTL ? 'إضافة مسوق جديد' : 'Add New Marketer'}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5 text-purple-600" />
+              {isRTL ? 'إضافة مسوق جديد' : 'Add New Marketer'}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>{isRTL ? 'الاسم الكامل' : 'Full Name'}</Label>
-              <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={isRTL ? 'أدخل الاسم' : 'Enter name'} />
+              <Label>{isRTL ? 'اسم المسوق' : 'Marketer Name'}</Label>
+              <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder={isRTL ? 'مثال: أحمد محمد' : 'e.g. Ahmed Mohamed'} />
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1"><Globe className="w-3 h-3" /> {isRTL ? 'البلد' : 'Country'}</Label>
+                {isSystemOwner ? (
+                  <Select value={formData.country} onValueChange={handleCountryChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={isRTL ? 'اختر البلد' : 'Select Country'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <div className="p-2 border-b">
+                        <Input 
+                          placeholder={isRTL ? 'بحث...' : 'Search...'} 
+                          value={countrySearch} 
+                          onChange={e => setCountrySearch(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      {filteredCountries.map(c => (
+                        <SelectItem key={c.code} value={c.code}>{isRTL ? c.arName : c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={formData.country} disabled className="bg-slate-50" />
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1"><Coins className="w-3 h-3" /> {isRTL ? 'العملة' : 'Currency'}</Label>
+                <Input value={formData.currency} disabled className="bg-slate-50" />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label>{isRTL ? 'البريد الإلكتروني (اسم المستخدم)' : 'Email (Login Username)'}</Label>
-              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="example@mail.com" />
+              <Label>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Label>
+              <Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="marketer@example.com" />
             </div>
             <div className="space-y-2">
               <Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label>
-              <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="******" />
+              <Input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="••••••••" />
             </div>
-            {user?.role === 'owner' && (
-              <>
-                <div className="space-y-2">
-                  <Label>{isRTL ? 'البلد' : 'Country'}</Label>
-                  <Input value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="SA, EG, etc." />
-                </div>
-                <div className="space-y-2">
-                  <Label>{isRTL ? 'العملة' : 'Currency'}</Label>
-                  <Input value={formData.currency} onChange={(e) => setFormData({ ...formData, currency: e.target.value })} placeholder="SAR, EGP, etc." />
-                </div>
-                <div className="space-y-2">
-                  <Label>{isRTL ? 'اللغة' : 'Language'}</Label>
-                  <select 
-                    className="w-full p-2 border rounded-md"
-                    value={formData.language}
-                    onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-                  >
-                    <option value="ar">العربية</option>
-                    <option value="en">English</option>
-                  </select>
-                </div>
-              </>
-            )}
           </div>
-          <DialogFooter className="gap-2">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
-            <Button onClick={handleAddMarketer} disabled={submitting} className="bg-purple-600 text-white">
-              {submitting ? '...' : (isRTL ? 'إضافة' : 'Add')}
+            <Button onClick={handleAddMarketer} disabled={submitting} className="bg-purple-600">
+              {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : (isRTL ? 'إضافة' : 'Add')}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Edit Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-md" dir={isRTL ? 'rtl' : 'ltr'}>
-          <DialogHeader>
-            <DialogTitle>{isRTL ? 'تعديل بيانات المسوق' : 'Edit Marketer'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>{isRTL ? 'الاسم الكامل' : 'Full Name'}</Label>
-              <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-                      <Label>{isRTL ? 'البريد الإلكتروني (اسم المستخدم)' : 'Email (Login Username)'}</Label>
-              <Input value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
-            <Button onClick={handleEditMarketer} disabled={submitting} className="bg-purple-600 text-white">
-              {submitting ? '...' : (isRTL ? 'حفظ التعديلات' : 'Save Changes')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent dir={isRTL ? 'rtl' : 'ltr'}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{isRTL ? 'هل أنت متأكد من الحذف؟' : 'Are you sure?'}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {isRTL ? `سيتم حذف المسوق "${selectedMarketer?.name}" نهائياً من النظام.` : `This will permanently delete marketer "${selectedMarketer?.name}".`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{isRTL ? 'إلغاء' : 'Cancel'}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteMarketer} className="bg-red-600 text-white">
-              {isRTL ? 'حذف' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

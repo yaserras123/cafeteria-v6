@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
 import { useLocation } from 'wouter';
@@ -10,9 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Store, LayoutDashboard, Users, Wallet, BarChart3, Settings,
-  Plus, Edit, Trash2, Eye, RefreshCw, ArrowLeft, Home, AlertCircle
+  Plus, Edit, Trash2, Eye, RefreshCw, ArrowLeft, Home, AlertCircle, Globe, Coins, Languages, MapPin
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
@@ -26,7 +27,21 @@ interface Cafeteria {
   createdAt: string;
   pointsBalance?: number;
   freeOperationEndDate?: string;
+  referenceCode?: string;
+  country?: string;
+  currency?: string;
+  language?: string;
 }
+
+const countries = [
+  { code: 'EG', name: 'Egypt', arName: 'مصر', currency: 'EGP', language: 'ar' },
+  { code: 'SA', name: 'Saudi Arabia', arName: 'السعودية', currency: 'SAR', language: 'ar' },
+  { code: 'AE', name: 'UAE', arName: 'الإمارات', currency: 'AED', language: 'ar' },
+  { code: 'KW', name: 'Kuwait', arName: 'الكويت', currency: 'KWD', language: 'ar' },
+  { code: 'JO', name: 'Jordan', arName: 'الأردن', currency: 'JOD', language: 'ar' },
+  { code: 'US', name: 'USA', arName: 'الولايات المتحدة', currency: 'USD', language: 'en' },
+  { code: 'GB', name: 'UK', arName: 'المملكة المتحدة', currency: 'GBP', language: 'en' },
+].sort((a, b) => a.arName.localeCompare(b.arName));
 
 export default function OwnerCafeterias() {
   const { user, loading: authLoading } = useAuth({ redirectOnUnauthenticated: true });
@@ -39,10 +54,10 @@ export default function OwnerCafeterias() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showFreeperiodDialog, setShowFreePeriodDialog] = useState(false);
   const [selectedCafeteria, setSelectedCafeteria] = useState<Cafeteria | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [countrySearch, setCountrySearch] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -54,11 +69,7 @@ export default function OwnerCafeterias() {
     language: 'ar',
   });
 
-  const [freePeriodData, setFreePeriodData] = useState({
-    months: 1,
-  });
-
-  const fetchCafeterias = async () => {
+  const fetchCafeterias = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -74,15 +85,26 @@ export default function OwnerCafeterias() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isRTL]);
 
   useEffect(() => {
     if (!authLoading) {
       fetchCafeterias();
     }
-  }, [authLoading]);
+  }, [authLoading, fetchCafeterias]);
 
-  // Email validation helper
+  const handleCountryChange = (code: string) => {
+    const selected = countries.find(c => c.code === code);
+    if (selected) {
+      setFormData(prev => ({
+        ...prev,
+        country: selected.code,
+        currency: selected.currency,
+        language: selected.language
+      }));
+    }
+  };
+
   const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -94,72 +116,82 @@ export default function OwnerCafeterias() {
       return;
     }
 
-    // loginUsername (email) validation
-    if (!formData.loginUsername.trim()) {
-      toast.error(isRTL ? 'البريد الإلكتروني (اسم المستخدم) مطلوب' : 'Login email (username) is required');
+    if (!formData.loginUsername.trim() || !isValidEmail(formData.loginUsername.trim())) {
+      toast.error(isRTL ? 'بريد إلكتروني غير صحيح' : 'Invalid email');
       return;
     }
 
-    if (!isValidEmail(formData.loginUsername.trim())) {
-      toast.error(isRTL ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format');
-      return;
-    }
-
-    // Password validation (min 8 chars)
-    if (formData.password.length < 8) {
-      toast.error(isRTL ? 'كلمة المرور يجب أن تكون 8 خانات على الأقل' : 'Password must be at least 8 characters');
+    if (formData.password.length < 6) {
+      toast.error(isRTL ? 'كلمة المرور قصيرة جداً' : 'Password too short');
       return;
     }
 
     setSubmitting(true);
     try {
-      let insertData: any = {
-        id: crypto.randomUUID ? crypto.randomUUID() : undefined,
+      // 1. Get Parent Reference Code (Owner or Marketer)
+      let parentRefCode = '10'; // Default Owner
+      let marketerId = 'owner';
+      
+      const isSystemOwner = user?.email === 'owner@cafeteria.com' || user?.role === 'owner';
+      
+      if (!isSystemOwner) {
+        const { data: marketer } = await supabase
+          .from('marketers')
+          .select('id, referenceCode, country, currency, language')
+          .eq('email', user?.email)
+          .single();
+        
+        if (marketer) {
+          parentRefCode = marketer.referenceCode;
+          marketerId = marketer.id;
+          // Enforce inheritance for non-owners
+          formData.country = marketer.country;
+          formData.currency = marketer.currency;
+          formData.language = marketer.language;
+        }
+      }
+
+      // 2. Generate Reference Code (Simplified for Client-side, ideally should be server-side)
+      const { data: existing } = await supabase
+        .from('cafeterias')
+        .select('referenceCode')
+        .like('referenceCode', `${parentRefCode}P%`)
+        .order('referenceCode', { ascending: false })
+        .limit(1);
+      
+      let nextNum = 1;
+      if (existing && existing.length > 0 && existing[0].referenceCode) {
+        const lastCode = existing[0].referenceCode;
+        const match = lastCode.match(/P(\d+)$/);
+        if (match) nextNum = parseInt(match[1]) + 1;
+      }
+      const newRefCode = `${parentRefCode}P${String(nextNum).padStart(2, '0')}`;
+
+      const insertData: any = {
         name: formData.name.trim(),
         location: formData.location.trim() || null,
         loginUsername: formData.loginUsername.trim().toLowerCase(),
         passwordHash: formData.password,
-        subscriptionPlan: 'starter',
+        marketerId,
+        referenceCode: newRefCode,
+        country: formData.country,
+        currency: formData.currency,
+        language: formData.language,
+        pointsBalance: 0,
         subscriptionStatus: 'active',
-        pointsBalance: '0',
         createdAt: new Date().toISOString(),
       };
 
-      // In this system, owner@cafeteria.com is the top-level owner.
-      // We check the email to determine if it's the system owner or a marketer.
-      const isSystemOwner = user?.email === 'owner@cafeteria.com' || user?.role === 'owner';
-
-      if (isSystemOwner) {
-        // Owner creates Level 1 Cafeterias
-        insertData.marketerId = 'owner';
-        insertData.country = formData.country.trim().substring(0, 2).toUpperCase() || 'SA';
-        insertData.currency = formData.currency.trim().substring(0, 3).toUpperCase() || 'SAR';
-        insertData.language = formData.language || 'ar';
-      } else {
-        // Marketer creates Cafeterias (Inheritance)
-        const { data: currentUserMarketer, error: fetchError } = await supabase
-          .from('marketers')
-          .select('id, country, currency, language')
-          .eq('email', user?.email)
-          .maybeSingle();
-
-        if (fetchError || !currentUserMarketer) {
-          // Fallback if marketer record not found but user is logged in
-          insertData.marketerId = 'owner';
-          insertData.country = formData.country.trim().substring(0, 2).toUpperCase() || 'SA';
-          insertData.currency = formData.currency.trim().substring(0, 3).toUpperCase() || 'SAR';
-          insertData.language = formData.language || 'ar';
-        } else {
-          insertData.marketerId = currentUserMarketer.id;
-          insertData.country = currentUserMarketer.country;
-          insertData.currency = currentUserMarketer.currency;
-          insertData.language = currentUserMarketer.language;
-        }
+      // Try to insert with subscriptionPlan, if it fails, try without it
+      const { error } = await supabase.from('cafeterias').insert([insertData]);
+      
+      if (error && error.message.includes('subscriptionPlan')) {
+        delete insertData.subscriptionPlan;
+        const { error: retryError } = await supabase.from('cafeterias').insert([insertData]);
+        if (retryError) throw retryError;
+      } else if (error) {
+        throw error;
       }
-
-      const { data, error } = await supabase.from('cafeterias').insert([insertData]).select();
-
-      if (error) throw error;
       
       toast.success(isRTL ? 'تم إضافة الكافيتريا بنجاح' : 'Cafeteria added successfully');
       setShowAddDialog(false);
@@ -173,401 +205,168 @@ export default function OwnerCafeterias() {
     }
   };
 
-  const handleEditCafeteria = async () => {
-    if (!selectedCafeteria || !formData.name.trim()) {
-      toast.error(isRTL ? 'البيانات غير كاملة' : 'Incomplete data');
-      return;
-    }
+  const filteredCountries = countries.filter(c => 
+    c.arName.includes(countrySearch) || c.name.toLowerCase().includes(countrySearch.toLowerCase())
+  );
 
-    // Validate loginUsername if provided
-    if (formData.loginUsername.trim() && !isValidEmail(formData.loginUsername.trim())) {
-      toast.error(isRTL ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const updateData: any = {
-        name: formData.name.trim(),
-        location: formData.location.trim() || null,
-      };
-
-      if (formData.loginUsername.trim()) {
-        updateData.loginUsername = formData.loginUsername.trim().toLowerCase();
-      }
-
-      const { error } = await supabase
-        .from('cafeterias')
-        .update(updateData)
-        .eq('id', selectedCafeteria.id);
-
-      if (error) throw error;
-      toast.success(isRTL ? 'تم تحديث الكافيتريا بنجاح' : 'Cafeteria updated successfully');
-      setShowEditDialog(false);
-      fetchCafeterias();
-    } catch (err: any) {
-      toast.error(err.message || (isRTL ? 'خطأ في تحديث الكافيتريا' : 'Error updating cafeteria'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDeleteCafeteria = async () => {
-    if (!selectedCafeteria) return;
-
-    setSubmitting(true);
-    try {
-      const { error } = await supabase
-        .from('cafeterias')
-        .delete()
-        .eq('id', selectedCafeteria.id);
-
-      if (error) throw error;
-      toast.success(isRTL ? 'تم حذف الكافيتريا بنجاح' : 'Cafeteria deleted successfully');
-      setShowDeleteDialog(false);
-      fetchCafeterias();
-    } catch (err: any) {
-      toast.error(err.message || (isRTL ? 'خطأ في حذف الكافيتريا' : 'Error deleting cafeteria'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleGrantFreePeriod = async () => {
-    if (!selectedCafeteria) return;
-
-    setSubmitting(true);
-    try {
-      const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + freePeriodData.months);
-
-      const { error } = await supabase
-        .from('cafeterias')
-        .update({
-          free_operation_end_date: endDate.toISOString(),
-        })
-        .eq('id', selectedCafeteria.id);
-
-      if (error) throw error;
-      toast.success(isRTL ? 'تم منح الفترة المجانية بنجاح' : 'Free period granted successfully');
-      setShowFreePeriodDialog(false);
-      setFreePeriodData({ months: 1 });
-      fetchCafeterias();
-    } catch (err: any) {
-      toast.error(err.message || (isRTL ? 'خطأ في منح الفترة المجانية' : 'Error granting free period'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const openEditDialog = (cafeteria: Cafeteria) => {
-    setSelectedCafeteria(cafeteria);
-    setFormData({
-      name: cafeteria.name,
-      location: cafeteria.location || '',
-      loginUsername: cafeteria.loginUsername || '',
-      password: '',
-      country: 'SA',
-      currency: 'SAR',
-      language: 'ar',
-    });
-    setShowEditDialog(true);
-  };
-
-  const filteredCafeterias = cafeterias.filter((c) => {
-    return c.name.toLowerCase().includes(searchTerm.toLowerCase());
-  });
-
-  if (authLoading) {
-    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
-  }
+  const isSystemOwner = user?.email === 'owner@cafeteria.com' || user?.role === 'owner';
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* Header */}
-      <header className="bg-white border-b-4 border-blue-500 sticky top-0 z-40 shadow-lg">
-        <div className="px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-700 p-3 rounded-xl shadow-lg">
-              <Store className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-slate-900">
-                {isRTL ? 'إدارة الكافيتريات' : 'Manage Cafeterias'}
-              </h1>
-              <p className="text-xs text-blue-600 font-bold">{isRTL ? 'نظام المالك' : 'Owner System'}</p>
-            </div>
+    <div className={`min-h-screen bg-slate-50 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+      <header className="bg-white border-b p-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-600 p-2 rounded-lg text-white">
+            <Store className="w-6 h-6" />
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={fetchCafeterias} className="h-10 w-10 text-slate-600 hover:text-blue-600">
-              <RefreshCw className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setLocation('/dashboard/owner')} className="h-10 w-10 text-slate-600 hover:text-blue-600">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          </div>
+          <h1 className="text-xl font-bold text-slate-800">
+            {isRTL ? 'إدارة الكافيتريات' : 'Cafeterias Management'}
+          </h1>
         </div>
+        <Button onClick={() => setShowAddDialog(true)} className="bg-blue-600 hover:bg-blue-700">
+          <Plus className="w-4 h-4 mr-2" />
+          {isRTL ? 'إضافة كافيتريا' : 'Add Cafeteria'}
+        </Button>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Card className="border-0 shadow-md bg-gradient-to-br from-blue-500 to-blue-700 text-white">
-            <CardContent className="p-4 text-center">
-              <p className="text-3xl font-black">{cafeterias.length}</p>
-              <p className="text-xs opacity-80">{isRTL ? 'إجمالي الكافيتريات' : 'Total Cafeterias'}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-700 text-white">
-            <CardContent className="p-4 text-center">
-              <p className="text-3xl font-black">{cafeterias.filter(c => c.subscriptionStatus === 'active').length}</p>
-              <p className="text-xs opacity-80">{isRTL ? 'نشطة' : 'Active'}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-md bg-gradient-to-br from-orange-500 to-orange-700 text-white">
-            <CardContent className="p-4 text-center">
-              <p className="text-3xl font-black">{cafeterias.filter(c => c.freeOperationEndDate && new Date(c.freeOperationEndDate) > new Date()).length}</p>
-              <p className="text-xs opacity-80">{isRTL ? 'فترة مجانية' : 'Free Period'}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-md bg-gradient-to-br from-slate-600 to-slate-800 text-white">
-            <CardContent className="p-4 text-center">
-              <p className="text-3xl font-black">{cafeterias.filter(c => c.subscriptionStatus !== 'active').length}</p>
-              <p className="text-xs opacity-80">{isRTL ? 'غير نشطة' : 'Inactive'}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters & Actions */}
-        <div className="flex flex-col md:flex-row gap-3 mb-6">
-          <Input
-            placeholder={isRTL ? 'ابحث عن كافيتريا...' : 'Search cafeteria...'}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1"
-          />
-          <Button
-            onClick={() => {
-              setFormData({ name: '', location: '', loginUsername: '', password: '', country: 'SA', currency: 'SAR', language: 'ar' });
-              setShowAddDialog(true);
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            {isRTL ? 'إضافة كافيتريا' : 'Add Cafeteria'}
-          </Button>
-        </div>
-
-        {/* Cafeterias Table */}
-        <Card className="border-0 shadow-md">
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="text-center py-12 text-gray-400">{isRTL ? 'جاري التحميل...' : 'Loading...'}</div>
-            ) : filteredCafeterias.length === 0 ? (
-              <div className="text-center py-12">
-                <Store className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">{isRTL ? 'لا يوجد كافيتريات' : 'No cafeterias found'}</p>
+      <main className="p-4 max-w-7xl mx-auto space-y-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Store className="w-5 h-5 text-blue-600" />
+                {isRTL ? 'قائمة الكافيتريات' : 'Cafeterias List'}
+              </CardTitle>
+              <div className="relative w-full md:w-72">
+                <Input
+                  placeholder={isRTL ? 'بحث عن كافيتريا...' : 'Search cafeterias...'}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+                <RefreshCw className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      <TableHead>{isRTL ? 'الاسم' : 'Name'}</TableHead>
-                      <TableHead>{isRTL ? 'الموقع' : 'Location'}</TableHead>
-                      <TableHead>{isRTL ? 'البريد الإلكتروني' : 'Email (Username)'}</TableHead>
-                      <TableHead>{isRTL ? 'الحالة' : 'Status'}</TableHead>
-                      <TableHead>{isRTL ? 'إجراءات' : 'Actions'}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredCafeterias.map((cafeteria) => (
-                      <TableRow key={cafeteria.id} className="hover:bg-gray-50">
-                        <TableCell className="font-semibold text-gray-900">{cafeteria.name}</TableCell>
-                        <TableCell className="text-gray-600 text-sm">{cafeteria.location || '---'}</TableCell>
-                        <TableCell className="text-gray-600 text-sm font-mono">{cafeteria.loginUsername || '---'}</TableCell>
-                        <TableCell>
-                          <Badge variant={(cafeteria.subscriptionStatus || 'active') === 'active' ? 'outline' : 'secondary'} className={(cafeteria.subscriptionStatus || 'active') === 'active' ? 'text-green-600 border-green-200 bg-green-50' : ''}>
-                            {(cafeteria.subscriptionStatus || 'active') === 'active' ? (isRTL ? 'نشطة' : 'Active') : (isRTL ? 'متوقفة' : 'Inactive')}
-                          </Badge>
-                        </TableCell>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{isRTL ? 'الرقم المرجعي' : 'Ref Code'}</TableHead>
+                    <TableHead>{isRTL ? 'الاسم' : 'Name'}</TableHead>
+                    <TableHead>{isRTL ? 'البلد/العملة' : 'Country/Currency'}</TableHead>
+                    <TableHead>{isRTL ? 'الرصيد' : 'Balance'}</TableHead>
+                    <TableHead>{isRTL ? 'الحالة' : 'Status'}</TableHead>
+                    <TableHead className="text-right">{isRTL ? 'إجراءات' : 'Actions'}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow><TableCell colSpan={6} className="text-center py-10"><RefreshCw className="w-6 h-6 animate-spin mx-auto text-blue-600" /></TableCell></TableRow>
+                  ) : cafeterias.length === 0 ? (
+                    <TableRow><TableCell colSpan={6} className="text-center py-10 text-slate-500">{isRTL ? 'لا توجد كافيتريات' : 'No cafeterias found'}</TableCell></TableRow>
+                  ) : (
+                    cafeterias.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase())).map((cafeteria) => (
+                      <TableRow key={cafeteria.id}>
+                        <TableCell className="font-mono font-bold text-blue-600">{cafeteria.referenceCode || '---'}</TableCell>
+                        <TableCell className="font-bold">{cafeteria.name}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(cafeteria)} className="h-8 w-8 text-blue-600 hover:bg-blue-50">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setSelectedCafeteria(cafeteria); setShowDeleteDialog(true); }} className="h-8 w-8 text-red-600 hover:bg-red-50">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <Badge variant="outline">{cafeteria.country}</Badge>
+                            <span className="text-xs text-slate-500">{cafeteria.currency}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-bold text-green-600">{cafeteria.pointsBalance || 0} pts</TableCell>
+                        <TableCell>
+                          <Badge className={cafeteria.subscriptionStatus === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                            {cafeteria.subscriptionStatus}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => { setSelectedCafeteria(cafeteria); setShowEditDialog(true); }}><Edit className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-red-600" onClick={() => { setSelectedCafeteria(cafeteria); setShowDeleteDialog(true); }}><Trash2 className="w-4 h-4" /></Button>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </main>
 
       {/* Add Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-md" dir={isRTL ? 'rtl' : 'ltr'}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{isRTL ? 'إضافة كافيتريا جديدة' : 'Add New Cafeteria'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>{isRTL ? 'اسم الكافيتريا' : 'Cafeteria Name'} <span className="text-red-500">*</span></Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder={isRTL ? 'أدخل الاسم' : 'Enter name'}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{isRTL ? 'الموقع / العنوان' : 'Location / Address'}</Label>
-              <Input
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder={isRTL ? 'أدخل الموقع' : 'Enter location'}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{isRTL ? 'البريد الإلكتروني (اسم المستخدم)' : 'Email (Login Username)'} <span className="text-red-500">*</span></Label>
-              <Input
-                type="email"
-                value={formData.loginUsername}
-                onChange={(e) => setFormData({ ...formData, loginUsername: e.target.value })}
-                placeholder="admin@cafeteria.com"
-                className={formData.loginUsername && !isValidEmail(formData.loginUsername) ? 'border-red-400 focus:ring-red-400' : ''}
-              />
-              {formData.loginUsername && !isValidEmail(formData.loginUsername) && (
-                <p className="text-xs text-red-500 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  {isRTL ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format'}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>{isRTL ? 'كلمة المرور' : 'Password'} <span className="text-red-500">*</span></Label>
-              <Input
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="••••••••"
-              />
-              {formData.password && formData.password.length < 8 && (
-                <p className="text-xs text-red-500 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  {isRTL ? 'كلمة المرور يجب أن تكون 8 خانات على الأقل' : 'Password must be at least 8 characters'}
-                </p>
-              )}
-            </div>
-            {user?.role === 'owner' && (
-              <>
-                <div className="space-y-2">
-                  <Label>{isRTL ? 'البلد' : 'Country'}</Label>
-                  <Input
-                    value={formData.country}
-                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                    placeholder="SA, EG, etc."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{isRTL ? 'العملة' : 'Currency'}</Label>
-                  <Input
-                    value={formData.currency}
-                    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                    placeholder="SAR, EGP, etc."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{isRTL ? 'اللغة' : 'Language'}</Label>
-                  <select
-                    className="w-full p-2 border rounded-md"
-                    value={formData.language}
-                    onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-                  >
-                    <option value="ar">العربية</option>
-                    <option value="en">English</option>
-                  </select>
-                </div>
-              </>
-            )}
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
-            <Button
-              onClick={handleAddCafeteria}
-              disabled={submitting}
-              className="bg-blue-600 text-white"
-            >
-              {submitting ? '...' : (isRTL ? 'إضافة' : 'Add')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-md" dir={isRTL ? 'rtl' : 'ltr'}>
-          <DialogHeader>
-            <DialogTitle>{isRTL ? 'تعديل بيانات الكافيتريا' : 'Edit Cafeteria'}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5 text-blue-600" />
+              {isRTL ? 'إضافة كافيتريا جديدة' : 'Add New Cafeteria'}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>{isRTL ? 'اسم الكافيتريا' : 'Cafeteria Name'}</Label>
-              <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+              <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder={isRTL ? 'مثال: كافيتريا السعادة' : 'e.g. Happiness Cafeteria'} />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1"><Globe className="w-3 h-3" /> {isRTL ? 'البلد' : 'Country'}</Label>
+                {isSystemOwner ? (
+                  <Select value={formData.country} onValueChange={handleCountryChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={isRTL ? 'اختر البلد' : 'Select Country'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <div className="p-2 border-b">
+                        <Input 
+                          placeholder={isRTL ? 'بحث...' : 'Search...'} 
+                          value={countrySearch} 
+                          onChange={e => setCountrySearch(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      {filteredCountries.map(c => (
+                        <SelectItem key={c.code} value={c.code}>{isRTL ? c.arName : c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={formData.country} disabled className="bg-slate-50" />
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1"><Coins className="w-3 h-3" /> {isRTL ? 'العملة' : 'Currency'}</Label>
+                <Input value={formData.currency} disabled className="bg-slate-50" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {isRTL ? 'الموقع (اختياري)' : 'Location (Optional)'}</Label>
+              <Input value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} placeholder={isRTL ? 'العنوان أو الإحداثيات' : 'Address or Coordinates'} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{isRTL ? 'البريد الإلكتروني للدخول' : 'Login Email'}</Label>
+              <Input type="email" value={formData.loginUsername} onChange={e => setFormData({...formData, loginUsername: e.target.value})} placeholder="admin@cafeteria.com" />
             </div>
             <div className="space-y-2">
-              <Label>{isRTL ? 'الموقع / العنوان' : 'Location / Address'}</Label>
-              <Input value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>{isRTL ? 'البريد الإلكتروني (اسم المستخدم)' : 'Email (Login Username)'}</Label>
-              <Input
-                type="email"
-                value={formData.loginUsername}
-                onChange={(e) => setFormData({ ...formData, loginUsername: e.target.value })}
-                placeholder="admin@cafeteria.com"
-                className={formData.loginUsername && !isValidEmail(formData.loginUsername) ? 'border-red-400 focus:ring-red-400' : ''}
-              />
-              {formData.loginUsername && !isValidEmail(formData.loginUsername) && (
-                <p className="text-xs text-red-500 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  {isRTL ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format'}
-                </p>
-              )}
+              <Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label>
+              <Input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="••••••••" />
             </div>
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
-            <Button onClick={handleEditCafeteria} disabled={submitting} className="bg-blue-600 text-white">
-              {submitting ? '...' : (isRTL ? 'حفظ التعديلات' : 'Save Changes')}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
+            <Button onClick={handleAddCafeteria} disabled={submitting} className="bg-blue-600">
+              {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : (isRTL ? 'إضافة' : 'Add')}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Delete Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent dir={isRTL ? 'rtl' : 'ltr'}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{isRTL ? 'هل أنت متأكد من الحذف؟' : 'Are you sure?'}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {isRTL ? `سيتم حذف الكافيتريا "${selectedCafeteria?.name}" نهائياً من النظام.` : `This will permanently delete cafeteria "${selectedCafeteria?.name}".`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{isRTL ? 'إلغاء' : 'Cancel'}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteCafeteria} className="bg-red-600 text-white">
-              {isRTL ? 'حذف' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

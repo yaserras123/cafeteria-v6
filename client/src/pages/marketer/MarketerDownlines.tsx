@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Users, LayoutDashboard, Wallet, BarChart3, Plus, Store, Hash, Globe, Mail, Phone, ShieldCheck, UserPlus } from 'lucide-react';
+import { Users, LayoutDashboard, Wallet, BarChart3, Plus, Store, Hash, Globe, Mail, Phone, ShieldCheck, UserPlus, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 
@@ -64,42 +64,42 @@ export default function MarketerDownlines() {
     if (!user?.id) return;
     setLoading(true);
     try {
-      // Fetch Sub-Marketers
+      // Fetch Sub-Marketers from 'marketers' table
       const { data: mData, error: mError } = await supabase
-        .from('users')
+        .from('marketers')
         .select('*')
-        .eq('parent_id', user.id)
-        .eq('role', 'marketer');
+        .eq('parentId', user.id);
       
       if (mError) throw mError;
       setSubMarketers((mData || []).map(m => ({
         id: m.id,
         name: m.name,
         email: m.email,
-        referenceCode: m.reference_code,
+        referenceCode: m.referenceCode,
         country: m.country,
         currency: m.currency,
-        createdAt: m.created_at
+        createdAt: m.createdAt
       })));
 
       // Fetch Sub-Cafeterias
       const { data: cData, error: cError } = await supabase
         .from('cafeterias')
         .select('*')
-        .eq('parent_id', user.id);
+        .eq('marketerId', user.id);
       
       if (cError) throw cError;
       setSubCafeterias((cData || []).map(c => ({
         id: c.id,
         name: c.name,
-        referenceCode: c.reference_code,
+        referenceCode: c.referenceCode,
         country: c.country,
         currency: c.currency,
         subscriptionStatus: c.subscriptionStatus,
-        createdAt: c.created_at
+        createdAt: c.createdAt
       })));
 
     } catch (err: any) {
+      console.error('Fetch error:', err);
       toast.error(isRTL ? 'خطأ في تحميل البيانات' : 'Error loading data');
     } finally {
       setLoading(false);
@@ -117,22 +117,49 @@ export default function MarketerDownlines() {
     }
     setSubmitting(true);
     try {
-      // Logic to create sub-marketer inheriting parent's country/currency/refCode prefix
-      const refCode = `${user?.referenceCode}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
+      // 1. Get Parent Data (Inheritance)
+      const { data: parent } = await supabase
+        .from('marketers')
+        .select('id, referenceCode, country, currency, language')
+        .eq('id', user?.id)
+        .single();
       
-      const { error } = await supabase.from('users').insert({
-        name: marketerForm.name,
-        email: marketerForm.email,
-        password: marketerForm.password, // In real app, this would be handled by auth
-        role: 'marketer',
-        parent_id: user?.id,
-        country: user?.country,
-        currency: user?.currency,
-        reference_code: refCode,
-        created_at: new Date().toISOString()
-      });
+      if (!parent) throw new Error("Parent marketer not found");
 
+      // 2. Generate Reference Code (ParentCode + 2 digits)
+      const { data: existing } = await supabase
+        .from('marketers')
+        .select('referenceCode')
+        .like('referenceCode', `${parent.referenceCode}%`)
+        .not('referenceCode', 'eq', parent.referenceCode)
+        .order('referenceCode', { ascending: false })
+        .limit(1);
+      
+      let nextNum = 1;
+      if (existing && existing.length > 0 && existing[0].referenceCode) {
+        const lastCode = existing[0].referenceCode;
+        const lastTwo = lastCode.slice(-2);
+        if (!isNaN(parseInt(lastTwo))) nextNum = parseInt(lastTwo) + 1;
+      }
+      const newRefCode = `${parent.referenceCode}${String(nextNum).padStart(2, '0')}`;
+
+      const insertData = {
+        name: marketerForm.name,
+        email: marketerForm.email.trim().toLowerCase(),
+        loginUsername: marketerForm.email.trim().toLowerCase(),
+        passwordHash: marketerForm.password,
+        parentId: parent.id,
+        isRoot: false,
+        country: parent.country,
+        currency: parent.currency,
+        language: parent.language,
+        referenceCode: newRefCode,
+        createdAt: new Date().toISOString()
+      };
+
+      const { error } = await supabase.from('marketers').insert([insertData]);
       if (error) throw error;
+
       toast.success(isRTL ? 'تم إضافة المسوق بنجاح' : 'Marketer added successfully');
       setShowMarketerDialog(false);
       setMarketerForm({ name: '', email: '', password: '' });
@@ -149,33 +176,57 @@ export default function MarketerDownlines() {
       toast.error(isRTL ? 'يرجى ملء جميع الحقول' : 'Please fill all fields');
       return;
     }
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(cafeteriaForm.email.trim())) {
-      toast.error(isRTL ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format');
-      return;
-    }
-    if (cafeteriaForm.password.length < 8) {
-      toast.error(isRTL ? 'كلمة المرور يجب أن تكون 8 خانات على الأقل' : 'Password must be at least 8 characters');
-      return;
-    }
     setSubmitting(true);
     try {
-      const refCode = `${user?.referenceCode}-CAF-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
+      // 1. Get Parent Data (Inheritance)
+      const { data: parent } = await supabase
+        .from('marketers')
+        .select('id, referenceCode, country, currency, language')
+        .eq('id', user?.id)
+        .single();
       
-      const { error } = await supabase.from('cafeterias').insert({
+      if (!parent) throw new Error("Parent marketer not found");
+
+      // 2. Generate Reference Code (ParentCode + P + 2 digits)
+      const { data: existing } = await supabase
+        .from('cafeterias')
+        .select('referenceCode')
+        .like('referenceCode', `${parent.referenceCode}P%`)
+        .order('referenceCode', { ascending: false })
+        .limit(1);
+      
+      let nextNum = 1;
+      if (existing && existing.length > 0 && existing[0].referenceCode) {
+        const lastCode = existing[0].referenceCode;
+        const match = lastCode.match(/P(\d+)$/);
+        if (match) nextNum = parseInt(match[1]) + 1;
+      }
+      const newRefCode = `${parent.referenceCode}P${String(nextNum).padStart(2, '0')}`;
+
+      const insertData: any = {
         name: cafeteriaForm.name,
         loginUsername: cafeteriaForm.email.trim().toLowerCase(),
         passwordHash: cafeteriaForm.password,
-        marketerId: user?.id,
-        country: user?.country,
-        currency: user?.currency,
-        referenceCode: refCode,
+        marketerId: parent.id,
+        country: parent.country,
+        currency: parent.currency,
+        language: parent.language,
+        referenceCode: newRefCode,
+        pointsBalance: 0,
         subscriptionStatus: 'active',
         createdAt: new Date().toISOString()
-      });
+      };
 
-      if (error) throw error;
+      const { error } = await supabase.from('cafeterias').insert([insertData]);
+      
+      if (error && error.message.includes('subscriptionPlan')) {
+        delete insertData.subscriptionPlan;
+        const { error: retryError } = await supabase.from('cafeterias').insert([insertData]);
+        if (retryError) throw retryError;
+      } else if (error) {
+        throw error;
+      }
+
       toast.success(isRTL ? 'تم إضافة الكافيتريا بنجاح' : 'Cafeteria added successfully');
       setShowCafeteriaDialog(false);
       setCafeteriaForm({ name: '', email: '', password: '' });
@@ -190,43 +241,48 @@ export default function MarketerDownlines() {
   if (authLoading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
 
   return (
-    <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen bg-gray-50 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <DashboardHeader title={isRTL ? 'أبنائي' : 'My Downlines'} onMenuClick={() => setMenuOpen(true)} />
       <DashboardNavigation isOpen={menuOpen} onClose={() => setMenuOpen(false)} items={navigationItems} />
 
       <main className="container mx-auto px-4 py-6 max-w-6xl">
-        <Tabs defaultValue="marketers" className="space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <TabsList className="bg-white shadow-sm border">
-              <TabsTrigger value="marketers" className="gap-2"><Users className="w-4 h-4" /> {isRTL ? 'المسوقين' : 'Marketers'}</TabsTrigger>
-              <TabsTrigger value="cafeterias" className="gap-2"><Store className="w-4 h-4" /> {isRTL ? 'الكافيتريات' : 'Cafeterias'}</TabsTrigger>
-            </TabsList>
-            <div className="flex gap-2">
-              <Button onClick={() => setShowMarketerDialog(true)} className="bg-purple-600 hover:bg-purple-700 text-white gap-2 shadow-sm">
-                <UserPlus className="w-4 h-4" /> {isRTL ? 'إضافة مسوق' : 'Add Marketer'}
-              </Button>
-              <Button onClick={() => setShowCafeteriaDialog(true)} className="bg-green-600 hover:bg-green-700 text-white gap-2 shadow-sm">
-                <Plus className="w-4 h-4" /> {isRTL ? 'إضافة كافيتريا' : 'Add Cafeteria'}
-              </Button>
-            </div>
+        <div className="bg-white p-4 rounded-xl shadow-sm border mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">{isRTL ? 'إدارة الشبكة' : 'Network Management'}</h2>
+            <p className="text-sm text-slate-500">{isRTL ? 'إضافة مسوقين أو كافيتريات تابعة لك' : 'Add sub-marketers or cafeterias under you'}</p>
           </div>
+          <div className="flex gap-2 w-full md:w-auto">
+            <Button onClick={() => setShowMarketerDialog(true)} className="flex-1 md:flex-none bg-purple-600 hover:bg-purple-700 text-white gap-2">
+              <UserPlus className="w-4 h-4" /> {isRTL ? 'إضافة مسوق' : 'Add Marketer'}
+            </Button>
+            <Button onClick={() => setShowCafeteriaDialog(true)} className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white gap-2">
+              <Plus className="w-4 h-4" /> {isRTL ? 'إضافة كافيتريا' : 'Add Cafeteria'}
+            </Button>
+          </div>
+        </div>
+
+        <Tabs defaultValue="marketers" className="space-y-6">
+          <TabsList className="bg-white shadow-sm border">
+            <TabsTrigger value="marketers" className="gap-2"><Users className="w-4 h-4" /> {isRTL ? 'المسوقين' : 'Marketers'}</TabsTrigger>
+            <TabsTrigger value="cafeterias" className="gap-2"><Store className="w-4 h-4" /> {isRTL ? 'الكافيتريات' : 'Cafeterias'}</TabsTrigger>
+          </TabsList>
 
           <TabsContent value="marketers">
             <Card className="border-0 shadow-md overflow-hidden">
               <CardContent className="p-0">
                 {loading ? (
-                  <div className="text-center py-20 text-gray-400"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mx-auto mb-4"></div>{isRTL ? 'جاري التحميل...' : 'Loading...'}</div>
+                  <div className="text-center py-20"><RefreshCw className="w-8 h-8 animate-spin mx-auto text-purple-600" /></div>
                 ) : subMarketers.length === 0 ? (
-                  <div className="text-center py-20">
-                    <Users className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-                    <p className="text-gray-500">{isRTL ? 'لا يوجد مسوقين تابعين حالياً' : 'No sub-marketers found'}</p>
+                  <div className="text-center py-20 text-slate-400">
+                    <Users className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                    {isRTL ? 'لا يوجد مسوقين تابعين' : 'No sub-marketers found'}
                   </div>
                 ) : (
                   <Table>
-                    <TableHeader className="bg-gray-50">
+                    <TableHeader className="bg-slate-50">
                       <TableRow>
-                        <TableHead>{isRTL ? 'الاسم' : 'Name'}</TableHead>
                         <TableHead>{isRTL ? 'الرقم المرجعي' : 'Ref Code'}</TableHead>
+                        <TableHead>{isRTL ? 'الاسم' : 'Name'}</TableHead>
                         <TableHead>{isRTL ? 'البلد' : 'Country'}</TableHead>
                         <TableHead>{isRTL ? 'التاريخ' : 'Date'}</TableHead>
                       </TableRow>
@@ -234,10 +290,10 @@ export default function MarketerDownlines() {
                     <TableBody>
                       {subMarketers.map(m => (
                         <TableRow key={m.id}>
-                          <TableCell className="font-bold">{m.name}<div className="text-[10px] text-gray-400 font-normal">{m.email}</div></TableCell>
-                          <TableCell><Badge variant="outline" className="font-mono text-purple-600 border-purple-100">{m.referenceCode}</Badge></TableCell>
-                          <TableCell className="text-sm">{m.country}</TableCell>
-                          <TableCell className="text-xs text-gray-500">{new Date(m.createdAt).toLocaleDateString()}</TableCell>
+                          <TableCell className="font-mono font-bold text-purple-600">{m.referenceCode}</TableCell>
+                          <TableCell className="font-bold">{m.name}<div className="text-xs text-slate-400 font-normal">{m.email}</div></TableCell>
+                          <TableCell><Badge variant="outline">{m.country}</Badge></TableCell>
+                          <TableCell className="text-xs text-slate-500">{new Date(m.createdAt).toLocaleDateString()}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -251,29 +307,29 @@ export default function MarketerDownlines() {
             <Card className="border-0 shadow-md overflow-hidden">
               <CardContent className="p-0">
                 {loading ? (
-                  <div className="text-center py-20 text-gray-400"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600 mx-auto mb-4"></div>{isRTL ? 'جاري التحميل...' : 'Loading...'}</div>
+                  <div className="text-center py-20"><RefreshCw className="w-8 h-8 animate-spin mx-auto text-green-600" /></div>
                 ) : subCafeterias.length === 0 ? (
-                  <div className="text-center py-20">
-                    <Store className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-                    <p className="text-gray-500">{isRTL ? 'لا يوجد كافيتريات تابعة حالياً' : 'No sub-cafeterias found'}</p>
+                  <div className="text-center py-20 text-slate-400">
+                    <Store className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                    {isRTL ? 'لا يوجد كافيتريات تابعة' : 'No sub-cafeterias found'}
                   </div>
                 ) : (
                   <Table>
-                    <TableHeader className="bg-gray-50">
+                    <TableHeader className="bg-slate-50">
                       <TableRow>
-                        <TableHead>{isRTL ? 'اسم الكافيتريا' : 'Cafeteria Name'}</TableHead>
                         <TableHead>{isRTL ? 'الرقم المرجعي' : 'Ref Code'}</TableHead>
-                        <TableHead>{isRTL ? 'الحالة' : 'Status'}</TableHead>
+                        <TableHead>{isRTL ? 'الاسم' : 'Name'}</TableHead>
                         <TableHead>{isRTL ? 'البلد' : 'Country'}</TableHead>
+                        <TableHead>{isRTL ? 'الحالة' : 'Status'}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {subCafeterias.map(c => (
                         <TableRow key={c.id}>
+                          <TableCell className="font-mono font-bold text-green-600">{c.referenceCode}</TableCell>
                           <TableCell className="font-bold">{c.name}</TableCell>
-                          <TableCell><Badge variant="outline" className="font-mono text-green-600 border-green-100">{c.referenceCode}</Badge></TableCell>
-                          <TableCell><Badge className="bg-green-100 text-green-800 border-0">{c.subscriptionStatus}</Badge></TableCell>
-                          <TableCell className="text-sm">{c.country}</TableCell>
+                          <TableCell><Badge variant="outline">{c.country}</Badge></TableCell>
+                          <TableCell><Badge className="bg-green-100 text-green-700">{c.subscriptionStatus}</Badge></TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -287,62 +343,58 @@ export default function MarketerDownlines() {
 
       {/* Add Marketer Dialog */}
       <Dialog open={showMarketerDialog} onOpenChange={setShowMarketerDialog}>
-        <DialogContent className={isRTL ? 'rtl' : 'ltr'} dir={isRTL ? 'rtl' : 'ltr'}>
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><UserPlus className="w-5 h-5 text-purple-600" /> {isRTL ? 'إضافة مسوق تابع جديد' : 'Add New Sub-Marketer'}</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{isRTL ? 'إضافة مسوق تابع' : 'Add Sub-Marketer'}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2"><Label>{isRTL ? 'الاسم الكامل' : 'Full Name'}</Label><Input value={marketerForm.name} onChange={e => setMarketerForm({...marketerForm, name: e.target.value})} placeholder="John Doe" /></div>
-            <div className="space-y-2"><Label>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Label><Input type="email" value={marketerForm.email} onChange={e => setMarketerForm({...marketerForm, email: e.target.value})} placeholder="email@example.com" /></div>
-            <div className="space-y-2"><Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label><Input type="password" value={marketerForm.password} onChange={e => setMarketerForm({...marketerForm, password: e.target.value})} /></div>
-            <div className="p-3 bg-purple-50 rounded-lg border border-purple-100 flex gap-2">
-              <ShieldCheck className="w-4 h-4 text-purple-600 shrink-0" />
-              <p className="text-[10px] text-purple-700">{isRTL ? `سيرث المسوق الجديد بلدك (${user?.country}) وعملتك (${user?.currency}) تلقائياً.` : `New marketer will inherit your country (${user?.country}) and currency (${user?.currency}) automatically.`}</p>
+            <div className="space-y-2">
+              <Label>{isRTL ? 'الاسم' : 'Name'}</Label>
+              <Input value={marketerForm.name} onChange={e => setMarketerForm({...marketerForm, name: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Label>
+              <Input type="email" value={marketerForm.email} onChange={e => setMarketerForm({...marketerForm, email: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label>
+              <Input type="password" value={marketerForm.password} onChange={e => setMarketerForm({...marketerForm, password: e.target.value})} />
+            </div>
+            <div className="p-3 bg-blue-50 rounded-lg text-xs text-blue-700 flex items-center gap-2">
+              <Globe className="w-4 h-4" />
+              {isRTL ? `سيرث المسوق البلد (${user?.country}) والعملة (${user?.currency}) تلقائياً` : `Will inherit Country (${user?.country}) and Currency (${user?.currency})`}
             </div>
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowMarketerDialog(false)} className="flex-1">{isRTL ? 'إلغاء' : 'Cancel'}</Button>
-            <Button onClick={handleAddMarketer} disabled={submitting} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white">{submitting ? '...' : (isRTL ? 'إضافة' : 'Add')}</Button>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMarketerDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
+            <Button onClick={handleAddMarketer} disabled={submitting} className="bg-purple-600">{submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : (isRTL ? 'إضافة' : 'Add')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Add Cafeteria Dialog */}
       <Dialog open={showCafeteriaDialog} onOpenChange={setShowCafeteriaDialog}>
-        <DialogContent className={isRTL ? 'rtl' : 'ltr'} dir={isRTL ? 'rtl' : 'ltr'}>
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Store className="w-5 h-5 text-green-600" /> {isRTL ? 'إضافة كافيتريا تابعة جديدة' : 'Add New Sub-Cafeteria'}</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{isRTL ? 'إضافة كافيتريا تابعة' : 'Add Sub-Cafeteria'}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2"><Label>{isRTL ? 'اسم الكافيتريا' : 'Cafeteria Name'}</Label><Input value={cafeteriaForm.name} onChange={e => setCafeteriaForm({...cafeteriaForm, name: e.target.value})} placeholder="My Cafeteria" /></div>
             <div className="space-y-2">
-              <Label>{isRTL ? 'البريد الإلكتروني (اسم المستخدم)' : 'Email (Login Username)'} <span className="text-red-500">*</span></Label>
-              <Input
-                type="email"
-                value={cafeteriaForm.email}
-                onChange={e => setCafeteriaForm({...cafeteriaForm, email: e.target.value})}
-                placeholder="admin@cafeteria.com"
-                className={cafeteriaForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cafeteriaForm.email) ? 'border-red-400' : ''}
-              />
-              {cafeteriaForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cafeteriaForm.email) && (
-                <p className="text-xs text-red-500">{isRTL ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format'}</p>
-              )}
+              <Label>{isRTL ? 'اسم الكافيتريا' : 'Cafeteria Name'}</Label>
+              <Input value={cafeteriaForm.name} onChange={e => setCafeteriaForm({...cafeteriaForm, name: e.target.value})} />
             </div>
             <div className="space-y-2">
-              <Label>{isRTL ? 'كلمة المرور' : 'Password'} <span className="text-red-500">*</span></Label>
-              <Input
-                type="password"
-                value={cafeteriaForm.password}
-                onChange={e => setCafeteriaForm({...cafeteriaForm, password: e.target.value})}
-              />
-              {cafeteriaForm.password && cafeteriaForm.password.length < 8 && (
-                <p className="text-xs text-red-500">{isRTL ? 'كلمة المرور يجب أن تكون 8 خانات على الأقل' : 'Password must be at least 8 characters'}</p>
-              )}
+              <Label>{isRTL ? 'البريد الإلكتروني للدخول' : 'Login Email'}</Label>
+              <Input type="email" value={cafeteriaForm.email} onChange={e => setCafeteriaForm({...cafeteriaForm, email: e.target.value})} />
             </div>
-            <div className="p-3 bg-green-50 rounded-lg border border-green-100 flex gap-2">
-              <Globe className="w-4 h-4 text-green-600 shrink-0" />
-              <p className="text-[10px] text-green-700">{isRTL ? `ستتبع الكافيتريا بلدك (${user?.country}) وعملتك (${user?.currency}) تلقائياً.` : `Cafeteria will follow your country (${user?.country}) and currency (${user?.currency}) automatically.`}</p>
+            <div className="space-y-2">
+              <Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label>
+              <Input type="password" value={cafeteriaForm.password} onChange={e => setCafeteriaForm({...cafeteriaForm, password: e.target.value})} />
+            </div>
+            <div className="p-3 bg-green-50 rounded-lg text-xs text-green-700 flex items-center gap-2">
+              <Globe className="w-4 h-4" />
+              {isRTL ? `ستورث الكافيتريا البلد (${user?.country}) والعملة (${user?.currency}) تلقائياً` : `Will inherit Country (${user?.country}) and Currency (${user?.currency})`}
             </div>
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowCafeteriaDialog(false)} className="flex-1">{isRTL ? 'إلغاء' : 'Cancel'}</Button>
-            <Button onClick={handleAddCafeteria} disabled={submitting} className="flex-1 bg-green-600 hover:bg-green-700 text-white">{submitting ? '...' : (isRTL ? 'إضافة' : 'Add')}</Button>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCafeteriaDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
+            <Button onClick={handleAddCafeteria} disabled={submitting} className="bg-green-600">{submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : (isRTL ? 'إضافة' : 'Add')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
