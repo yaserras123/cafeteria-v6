@@ -119,6 +119,7 @@ export default function OwnerCafeterias() {
         location: formData.location.trim() || null,
         loginUsername: formData.loginUsername.trim().toLowerCase(),
         passwordHash: formData.password,
+        subscriptionPlan: 'starter',
         subscriptionStatus: 'active',
         pointsBalance: '0',
         createdAt: new Date().toISOString(),
