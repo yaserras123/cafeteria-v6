@@ -11,9 +11,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DashboardHeader } from '@/components/DashboardHeader';
+import { DashboardNavigation } from '@/components/DashboardNavigation';
 import {
   Users, LayoutDashboard, Store, Wallet, BarChart3, Settings,
-  Plus, Edit, Trash2, Mail, Phone, RefreshCw, ArrowLeft, Home, AlertCircle, Globe, Coins
+  Plus, Edit, Trash2, Mail, Phone, RefreshCw, ArrowLeft, Home, AlertCircle, Globe, Coins, Search
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
@@ -54,6 +56,7 @@ export default function OwnerMarketers() {
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -63,6 +66,15 @@ export default function OwnerMarketers() {
     currency: "SAR",
     language: "ar",
   });
+
+  const navigationItems = [
+    { label: isRTL ? 'لوحة التحكم' : 'Dashboard', path: '/dashboard/owner', icon: <LayoutDashboard className="w-5 h-5" /> },
+    { label: isRTL ? 'المسوقين' : 'Marketers', path: '/dashboard/owner/marketers', icon: <Users className="w-5 h-5" /> },
+    { label: isRTL ? 'الكافيتريات' : 'Cafeterias', path: '/dashboard/owner/cafeterias', icon: <Store className="w-5 h-5" /> },
+    { label: isRTL ? 'حاسبة النقاط' : 'Calculator', path: '/dashboard/owner/calculator', icon: <Coins className="w-5 h-5" /> },
+    { label: isRTL ? 'التقارير' : 'Reports', path: '/dashboard/owner/reports', icon: <BarChart3 className="w-5 h-5" /> },
+    { label: isRTL ? 'الإعدادات' : 'Settings', path: '/dashboard/owner/settings', icon: <Settings className="w-5 h-5" /> },
+  ];
 
   const fetchMarketers = useCallback(async () => {
     setLoading(true);
@@ -156,6 +168,7 @@ export default function OwnerMarketers() {
       const newRefCode = `${parentRefCode}${String(nextNum).padStart(2, '0')}`;
 
       const insertData = {
+        id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         loginUsername: formData.email.trim().toLowerCase(),
@@ -192,22 +205,23 @@ export default function OwnerMarketers() {
 
   return (
     <div className={`min-h-screen bg-slate-50 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <header className="bg-white border-b p-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="bg-purple-600 p-2 rounded-lg text-white">
-            <Users className="w-6 h-6" />
-          </div>
-          <h1 className="text-xl font-bold text-slate-800">
-            {isRTL ? 'إدارة المسوقين' : 'Marketers Management'}
-          </h1>
-        </div>
-        <Button onClick={() => setShowAddDialog(true)} className="bg-purple-600 hover:bg-purple-700">
-          <Plus className="w-4 h-4 mr-2" />
-          {isRTL ? 'إضافة مسوق' : 'Add Marketer'}
-        </Button>
-      </header>
+      <DashboardHeader 
+        title={isRTL ? 'إدارة المسوقين' : 'Marketers Management'} 
+        onMenuClick={() => setMenuOpen(true)} 
+        showBackButton={true}
+        showHomeButton={true}
+      />
+      <DashboardNavigation isOpen={menuOpen} onClose={() => setMenuOpen(false)} items={navigationItems} />
 
       <main className="p-4 max-w-7xl mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-slate-800">{isRTL ? 'المسوقين' : 'Marketers'}</h2>
+          <Button onClick={() => setShowAddDialog(true)} className="bg-purple-600 hover:bg-purple-700">
+            <Plus className="w-4 h-4 mr-2" />
+            {isRTL ? 'إضافة مسوق' : 'Add Marketer'}
+          </Button>
+        </div>
+
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -222,7 +236,7 @@ export default function OwnerMarketers() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
-                <RefreshCw className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               </div>
             </div>
           </CardHeader>
@@ -273,32 +287,40 @@ export default function OwnerMarketers() {
 
       {/* Add Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="w-5 h-5 text-purple-600" />
               {isRTL ? 'إضافة مسوق جديد' : 'Add New Marketer'}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
-              <Label>{isRTL ? 'اسم المسوق' : 'Marketer Name'}</Label>
-              <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder={isRTL ? 'مثال: أحمد محمد' : 'e.g. Ahmed Mohamed'} />
+              <Label>{isRTL ? 'الاسم الكامل' : 'Full Name'}</Label>
+              <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Marketer Name" />
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1"><Globe className="w-3 h-3" /> {isRTL ? 'البلد' : 'Country'}</Label>
-                {isSystemOwner ? (
+            <div className="space-y-2">
+              <Label>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Label>
+              <Input value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="email@example.com" />
+            </div>
+            <div className="space-y-2">
+              <Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label>
+              <Input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="******" />
+            </div>
+
+            {isSystemOwner && (
+              <>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><Globe className="w-4 h-4" /> {isRTL ? 'البلد' : 'Country'}</Label>
                   <Select value={formData.country} onValueChange={handleCountryChange}>
                     <SelectTrigger>
-                      <SelectValue placeholder={isRTL ? 'اختر البلد' : 'Select Country'} />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <div className="p-2 border-b">
+                      <div className="p-2">
                         <Input 
-                          placeholder={isRTL ? 'بحث...' : 'Search...'} 
-                          value={countrySearch} 
+                          placeholder={isRTL ? 'بحث عن بلد...' : 'Search country...'} 
+                          value={countrySearch}
                           onChange={e => setCountrySearch(e.target.value)}
                           className="h-8 text-xs"
                         />
@@ -308,29 +330,18 @@ export default function OwnerMarketers() {
                       ))}
                     </SelectContent>
                   </Select>
-                ) : (
-                  <Input value={formData.country} disabled className="bg-slate-50" />
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1"><Coins className="w-3 h-3" /> {isRTL ? 'العملة' : 'Currency'}</Label>
-                <Input value={formData.currency} disabled className="bg-slate-50" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Label>
-              <Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="marketer@example.com" />
-            </div>
-            <div className="space-y-2">
-              <Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label>
-              <Input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="••••••••" />
-            </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><Coins className="w-4 h-4" /> {isRTL ? 'العملة' : 'Currency'}</Label>
+                  <Input value={formData.currency} disabled className="bg-slate-50 font-bold" />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
             <Button onClick={handleAddMarketer} disabled={submitting} className="bg-purple-600">
-              {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : (isRTL ? 'إضافة' : 'Add')}
+              {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : (isRTL ? 'حفظ' : 'Save')}
             </Button>
           </DialogFooter>
         </DialogContent>

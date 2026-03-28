@@ -11,9 +11,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DashboardHeader } from '@/components/DashboardHeader';
+import { DashboardNavigation } from '@/components/DashboardNavigation';
 import {
   Store, LayoutDashboard, Users, Wallet, BarChart3, Settings,
-  Plus, Edit, Trash2, Eye, RefreshCw, ArrowLeft, Home, AlertCircle, Globe, Coins, Languages, MapPin
+  Plus, Edit, Trash2, Eye, RefreshCw, ArrowLeft, Home, AlertCircle, Globe, Coins, Languages, MapPin, Search
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
@@ -58,6 +60,7 @@ export default function OwnerCafeterias() {
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -68,6 +71,15 @@ export default function OwnerCafeterias() {
     currency: 'SAR',
     language: 'ar',
   });
+
+  const navigationItems = [
+    { label: isRTL ? 'لوحة التحكم' : 'Dashboard', path: '/dashboard/owner', icon: <LayoutDashboard className="w-5 h-5" /> },
+    { label: isRTL ? 'المسوقين' : 'Marketers', path: '/dashboard/owner/marketers', icon: <Users className="w-5 h-5" /> },
+    { label: isRTL ? 'الكافيتريات' : 'Cafeterias', path: '/dashboard/owner/cafeterias', icon: <Store className="w-5 h-5" /> },
+    { label: isRTL ? 'حاسبة النقاط' : 'Calculator', path: '/dashboard/owner/calculator', icon: <Coins className="w-5 h-5" /> },
+    { label: isRTL ? 'التقارير' : 'Reports', path: '/dashboard/owner/reports', icon: <BarChart3 className="w-5 h-5" /> },
+    { label: isRTL ? 'الإعدادات' : 'Settings', path: '/dashboard/owner/settings', icon: <Settings className="w-5 h-5" /> },
+  ];
 
   const fetchCafeterias = useCallback(async () => {
     setLoading(true);
@@ -151,7 +163,7 @@ export default function OwnerCafeterias() {
         }
       }
 
-      // 2. Generate Reference Code (Simplified for Client-side, ideally should be server-side)
+      // 2. Generate Reference Code
       const { data: existing } = await supabase
         .from('cafeterias')
         .select('referenceCode')
@@ -167,7 +179,9 @@ export default function OwnerCafeterias() {
       }
       const newRefCode = `${parentRefCode}P${String(nextNum).padStart(2, '0')}`;
 
+      // 3. Prepare Data with explicit ID to avoid NULL constraint error
       const insertData: any = {
+        id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
         name: formData.name.trim(),
         location: formData.location.trim() || null,
         loginUsername: formData.loginUsername.trim().toLowerCase(),
@@ -182,15 +196,18 @@ export default function OwnerCafeterias() {
         createdAt: new Date().toISOString(),
       };
 
-      // Try to insert with subscriptionPlan, if it fails, try without it
+      // Try to insert
       const { error } = await supabase.from('cafeterias').insert([insertData]);
       
-      if (error && error.message.includes('subscriptionPlan')) {
-        delete insertData.subscriptionPlan;
-        const { error: retryError } = await supabase.from('cafeterias').insert([insertData]);
-        if (retryError) throw retryError;
-      } else if (error) {
-        throw error;
+      if (error) {
+        // If error is about subscriptionPlan, try deleting it and retry
+        if (error.message.includes('subscriptionPlan')) {
+          delete insertData.subscriptionPlan;
+          const { error: retryError } = await supabase.from('cafeterias').insert([insertData]);
+          if (retryError) throw retryError;
+        } else {
+          throw error;
+        }
       }
       
       toast.success(isRTL ? 'تم إضافة الكافيتريا بنجاح' : 'Cafeteria added successfully');
@@ -213,22 +230,23 @@ export default function OwnerCafeterias() {
 
   return (
     <div className={`min-h-screen bg-slate-50 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <header className="bg-white border-b p-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-lg text-white">
-            <Store className="w-6 h-6" />
-          </div>
-          <h1 className="text-xl font-bold text-slate-800">
-            {isRTL ? 'إدارة الكافيتريات' : 'Cafeterias Management'}
-          </h1>
-        </div>
-        <Button onClick={() => setShowAddDialog(true)} className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="w-4 h-4 mr-2" />
-          {isRTL ? 'إضافة كافيتريا' : 'Add Cafeteria'}
-        </Button>
-      </header>
+      <DashboardHeader 
+        title={isRTL ? 'إدارة الكافيتريات' : 'Cafeterias Management'} 
+        onMenuClick={() => setMenuOpen(true)} 
+        showBackButton={true}
+        showHomeButton={true}
+      />
+      <DashboardNavigation isOpen={menuOpen} onClose={() => setMenuOpen(false)} items={navigationItems} />
 
       <main className="p-4 max-w-7xl mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-slate-800">{isRTL ? 'الكافيتريات' : 'Cafeterias'}</h2>
+          <Button onClick={() => setShowAddDialog(true)} className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="w-4 h-4 mr-2" />
+            {isRTL ? 'إضافة كافيتريا' : 'Add Cafeteria'}
+          </Button>
+        </div>
+
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -243,7 +261,7 @@ export default function OwnerCafeterias() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
-                <RefreshCw className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               </div>
             </div>
           </CardHeader>
@@ -271,22 +289,19 @@ export default function OwnerCafeterias() {
                         <TableCell className="font-mono font-bold text-blue-600">{cafeteria.referenceCode || '---'}</TableCell>
                         <TableCell className="font-bold">{cafeteria.name}</TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
                             <Badge variant="outline">{cafeteria.country}</Badge>
                             <span className="text-xs text-slate-500">{cafeteria.currency}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-bold text-green-600">{cafeteria.pointsBalance || 0} pts</TableCell>
+                        <TableCell className="font-bold text-green-600">{cafeteria.pointsBalance?.toLocaleString() || 0}</TableCell>
                         <TableCell>
-                          <Badge className={cafeteria.subscriptionStatus === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                          <Badge className={cafeteria.subscriptionStatus === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
                             {cafeteria.subscriptionStatus}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => { setSelectedCafeteria(cafeteria); setShowEditDialog(true); }}><Edit className="w-4 h-4" /></Button>
-                            <Button variant="ghost" size="icon" className="text-red-600" onClick={() => { setSelectedCafeteria(cafeteria); setShowDeleteDialog(true); }}><Trash2 className="w-4 h-4" /></Button>
-                          </div>
+                          <Button variant="ghost" size="sm" className="text-blue-600"><Eye className="w-4 h-4" /></Button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -298,34 +313,46 @@ export default function OwnerCafeterias() {
         </Card>
       </main>
 
-      {/* Add Dialog */}
+      {/* Add Cafeteria Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="w-5 h-5 text-blue-600" />
               {isRTL ? 'إضافة كافيتريا جديدة' : 'Add New Cafeteria'}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label>{isRTL ? 'اسم الكافيتريا' : 'Cafeteria Name'}</Label>
-              <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder={isRTL ? 'مثال: كافيتريا السعادة' : 'e.g. Happiness Cafeteria'} />
+              <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Cafeteria Name" />
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1"><Globe className="w-3 h-3" /> {isRTL ? 'البلد' : 'Country'}</Label>
-                {isSystemOwner ? (
+            <div className="space-y-2">
+              <Label>{isRTL ? 'البريد الإلكتروني (للدخول)' : 'Email (Login)'}</Label>
+              <Input value={formData.loginUsername} onChange={e => setFormData({...formData, loginUsername: e.target.value})} placeholder="email@example.com" />
+            </div>
+            <div className="space-y-2">
+              <Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label>
+              <Input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="******" />
+            </div>
+            <div className="space-y-2">
+              <Label>{isRTL ? 'العنوان' : 'Location'}</Label>
+              <Input value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} placeholder="City, Street..." />
+            </div>
+
+            {isSystemOwner && (
+              <>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><Globe className="w-4 h-4" /> {isRTL ? 'البلد' : 'Country'}</Label>
                   <Select value={formData.country} onValueChange={handleCountryChange}>
                     <SelectTrigger>
-                      <SelectValue placeholder={isRTL ? 'اختر البلد' : 'Select Country'} />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <div className="p-2 border-b">
+                      <div className="p-2">
                         <Input 
-                          placeholder={isRTL ? 'بحث...' : 'Search...'} 
-                          value={countrySearch} 
+                          placeholder={isRTL ? 'بحث عن بلد...' : 'Search country...'} 
+                          value={countrySearch}
                           onChange={e => setCountrySearch(e.target.value)}
                           className="h-8 text-xs"
                         />
@@ -335,34 +362,22 @@ export default function OwnerCafeterias() {
                       ))}
                     </SelectContent>
                   </Select>
-                ) : (
-                  <Input value={formData.country} disabled className="bg-slate-50" />
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1"><Coins className="w-3 h-3" /> {isRTL ? 'العملة' : 'Currency'}</Label>
-                <Input value={formData.currency} disabled className="bg-slate-50" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {isRTL ? 'الموقع (اختياري)' : 'Location (Optional)'}</Label>
-              <Input value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} placeholder={isRTL ? 'العنوان أو الإحداثيات' : 'Address or Coordinates'} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>{isRTL ? 'البريد الإلكتروني للدخول' : 'Login Email'}</Label>
-              <Input type="email" value={formData.loginUsername} onChange={e => setFormData({...formData, loginUsername: e.target.value})} placeholder="admin@cafeteria.com" />
-            </div>
-            <div className="space-y-2">
-              <Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label>
-              <Input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="••••••••" />
-            </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><Coins className="w-4 h-4" /> {isRTL ? 'العملة' : 'Currency'}</Label>
+                  <Input value={formData.currency} disabled className="bg-slate-50 font-bold" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><Languages className="w-4 h-4" /> {isRTL ? 'اللغة' : 'Language'}</Label>
+                  <Input value={formData.language === 'ar' ? (isRTL ? 'العربية' : 'Arabic') : (isRTL ? 'الإنجليزية' : 'English')} disabled className="bg-slate-50" />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
             <Button onClick={handleAddCafeteria} disabled={submitting} className="bg-blue-600">
-              {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : (isRTL ? 'إضافة' : 'Add')}
+              {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : (isRTL ? 'حفظ' : 'Save')}
             </Button>
           </DialogFooter>
         </DialogContent>
