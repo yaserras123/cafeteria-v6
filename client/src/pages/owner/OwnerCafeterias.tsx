@@ -331,16 +331,16 @@ export default function OwnerCafeterias() {
                       <TableRow key={cafeteria.id} className="hover:bg-gray-50">
                         <TableCell className="font-semibold text-gray-900">{cafeteria.name}</TableCell>
                         <TableCell className="text-gray-600 text-sm">{cafeteria.location || '---'}</TableCell>
-                        <TableCell>
-                          <Badge className={getPlanColor(cafeteria.subscriptionPlan)}>
-                            {cafeteria.subscriptionPlan.toUpperCase()}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={cafeteria.subscriptionStatus === 'active' ? 'outline' : 'secondary'} className={cafeteria.subscriptionStatus === 'active' ? 'text-green-600 border-green-200 bg-green-50' : ''}>
-                            {cafeteria.subscriptionStatus === 'active' ? (isRTL ? 'نشطة' : 'Active') : (isRTL ? 'متوقفة' : 'Inactive')}
-                          </Badge>
-                        </TableCell>
+	                        <TableCell>
+	                          <Badge className={getPlanColor(cafeteria.subscriptionPlan || 'starter')}>
+	                            {(cafeteria.subscriptionPlan || 'starter').toUpperCase()}
+	                          </Badge>
+	                        </TableCell>
+	                        <TableCell>
+	                          <Badge variant={(cafeteria.subscriptionStatus || 'active') === 'active' ? 'outline' : 'secondary'} className={(cafeteria.subscriptionStatus || 'active') === 'active' ? 'text-green-600 border-green-200 bg-green-50' : ''}>
+	                            {(cafeteria.subscriptionStatus || 'active') === 'active' ? (isRTL ? 'نشطة' : 'Active') : (isRTL ? 'متوقفة' : 'Inactive')}
+	                          </Badge>
+	                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Button variant="ghost" size="icon" onClick={() => openEditDialog(cafeteria)} className="h-8 w-8 text-blue-600 hover:bg-blue-50">
@@ -385,7 +385,7 @@ export default function OwnerCafeterias() {
               >
                 <option value="">{isRTL ? 'اختر المسوق' : 'Select Marketer'}</option>
                 {marketers.map(m => (
-                  <option key={m.id} value={m.id}>{m.name} ({m.country})</option>
+                  <option key={m.id} value={m.id}>{m.name} ({m.country || '---'})</option>
                 ))}
               </select>
             </div>
