@@ -263,31 +263,7 @@ export default function OwnerDashboard() {
         </div>
       </main>
 
-      {/* Floating Action Button (FAB) */}
-      <div className={`fixed bottom-8 ${isRTL ? 'left-8' : 'right-8'} z-50`}>
-        {showFABMenu && (
-          <div className="flex flex-col gap-3 mb-4 items-end">
-            <Link href="/dashboard/owner/cafeterias">
-              <Button className="rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white gap-2">
-                <Store className="w-4 h-4" />
-                {isRTL ? 'إنشاء كافيتريا' : 'New Cafeteria'}
-              </Button>
-            </Link>
-            <Link href="/dashboard/owner/marketers">
-              <Button className="rounded-full shadow-lg bg-purple-600 hover:bg-purple-700 text-white gap-2">
-                <Users className="w-4 h-4" />
-                {isRTL ? 'إنشاء مسوق' : 'New Marketer'}
-              </Button>
-            </Link>
-          </div>
-        )}
-        <Button 
-          onClick={() => setShowFABMenu(!showFABMenu)}
-          className="w-14 h-14 rounded-full shadow-2xl bg-slate-900 hover:bg-slate-800 text-white p-0"
-        >
-          <Plus className={`w-8 h-8 transition-transform duration-300 ${showFABMenu ? 'rotate-45' : ''}`} />
-        </Button>
-      </div>
+
     </div>
   );
 }
