@@ -237,7 +237,7 @@ export default function OwnerCafeterias() {
 
   return (
     <div className={`min-h-screen bg-slate-50 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <DashboardHeader 
+      <DashboardHeader showBackButton={true} showHomeButton={true} 
         title={isRTL ? 'إدارة الكافيتريات' : 'Cafeterias Management'} 
         onMenuClick={() => setMenuOpen(true)} 
         showBackButton={true}

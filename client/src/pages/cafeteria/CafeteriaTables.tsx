@@ -232,7 +232,7 @@ export default function CafeteriaTables() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20" dir={isRTL ? 'rtl' : 'ltr'}>
-      <DashboardHeader title={isRTL ? 'إدارة الطاولات' : 'Tables Management'} onMenuClick={() => setMenuOpen(true)} showBackButton={true} showHomeButton={true} />
+      <DashboardHeader showBackButton={true} showHomeButton={true} title={isRTL ? 'إدارة الطاولات' : 'Tables Management'} onMenuClick={() => setMenuOpen(true)} showBackButton={true} showHomeButton={true} />
       <DashboardNavigation isOpen={menuOpen} onClose={() => setMenuOpen(false)} items={navigationItems} />
 
       <main className="container mx-auto px-4 py-6 max-w-6xl">

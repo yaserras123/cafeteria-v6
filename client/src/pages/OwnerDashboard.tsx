@@ -4,13 +4,17 @@ import { useTranslation } from '@/locales/useTranslation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   LayoutDashboard, Store, Users, Wallet, BarChart3, Settings,
   Activity, ShieldCheck, Plus, ChevronRight,
-  AlertCircle, CheckCircle2
+  AlertCircle, CheckCircle2, Coins
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { supabase } from '@/lib/supabaseClient';
+import { DashboardHeader } from '@/components/DashboardHeader';
+import { DashboardNavigation } from '@/components/DashboardNavigation';
 
 export default function OwnerDashboard() {
   const { user, loading: authLoading } = useAuth({ redirectOnUnauthenticated: true });
@@ -28,6 +32,7 @@ export default function OwnerDashboard() {
   const [calcData, setCalcData] = useState({ points: 100, country: 'SA' });
   const [showFABMenu, setShowFABMenu] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -59,6 +64,15 @@ export default function OwnerDashboard() {
     };
     fetchStats();
   }, []);
+
+  const navigationItems = [
+    { label: isRTL ? 'لوحة التحكم' : 'Dashboard', path: '/dashboard/owner', icon: <LayoutDashboard className="w-5 h-5" /> },
+    { label: isRTL ? 'المسوقين' : 'Marketers', path: '/dashboard/owner/marketers', icon: <Users className="w-5 h-5" /> },
+    { label: isRTL ? 'الكافيتريات' : 'Cafeterias', path: '/dashboard/owner/cafeterias', icon: <Store className="w-5 h-5" /> },
+    { label: isRTL ? 'حاسبة النقاط' : 'Calculator', path: '/dashboard/owner/calculator', icon: <Coins className="w-5 h-5" /> },
+    { label: isRTL ? 'التقارير' : 'Reports', path: '/dashboard/owner/reports', icon: <BarChart3 className="w-5 h-5" /> },
+    { label: isRTL ? 'الإعدادات' : 'Settings', path: '/dashboard/owner/settings', icon: <Settings className="w-5 h-5" /> },
+  ];
 
   const menuItems = [
     { 
@@ -102,6 +116,14 @@ export default function OwnerDashboard() {
 
   return (
     <div className={`min-h-screen bg-slate-50 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+      <DashboardHeader 
+        title={isRTL ? 'لوحة تحكم المالك' : 'System Owner Panel'} 
+        onMenuClick={() => setMenuOpen(true)} 
+        showBackButton={false}
+        showHomeButton={false}
+      />
+      <DashboardNavigation isOpen={menuOpen} onClose={() => setMenuOpen(false)} items={navigationItems} />
+
       <header className="bg-gradient-to-br from-slate-900 to-slate-800 text-white px-6 py-10 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 p-10 opacity-10 rotate-12">
           <ShieldCheck className="w-64 h-64" />
@@ -113,10 +135,10 @@ export default function OwnerDashboard() {
             </div>
             <div>
               <h1 className="text-3xl font-black tracking-tight">
-                {isRTL ? 'لوحة تحكم المالك' : 'System Owner Panel'}
+                {isRTL ? 'مرحباً بك' : 'Welcome Back'}
               </h1>
               <p className="text-slate-400 font-medium">
-                {isRTL ? 'مرحباً بك في مركز إدارة النظام الشامل' : 'Welcome to the global management center'}
+                {isRTL ? 'مركز إدارة النظام الشامل' : 'Global management center'}
               </p>
             </div>
           </div>

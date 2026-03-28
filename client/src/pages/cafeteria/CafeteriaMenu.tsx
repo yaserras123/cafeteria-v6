@@ -338,7 +338,7 @@ export default function CafeteriaMenu() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20" dir={isRTL ? 'rtl' : 'ltr'}>
-      <DashboardHeader 
+      <DashboardHeader showBackButton={true} showHomeButton={true} 
         title={isRTL ? 'إدارة المنيو' : 'Menu Management'} 
         onMenuClick={() => setMenuOpen(true)} 
         showBackButton={true}

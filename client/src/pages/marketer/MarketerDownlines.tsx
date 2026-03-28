@@ -242,7 +242,7 @@ export default function MarketerDownlines() {
 
   return (
     <div className={`min-h-screen bg-gray-50 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <DashboardHeader title={isRTL ? 'أبنائي' : 'My Downlines'} onMenuClick={() => setMenuOpen(true)} showBackButton={true} showHomeButton={true} />
+      <DashboardHeader showBackButton={true} showHomeButton={true} title={isRTL ? 'أبنائي' : 'My Downlines'} onMenuClick={() => setMenuOpen(true)} showBackButton={true} showHomeButton={true} />
       <DashboardNavigation isOpen={menuOpen} onClose={() => setMenuOpen(false)} items={navigationItems} />
 
       <main className="container mx-auto px-4 py-6 max-w-6xl">

@@ -109,7 +109,7 @@ export default function ManagerReports() {
 
   return (
     <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <DashboardHeader
+      <DashboardHeader showBackButton={true} showHomeButton={true}
         title={isRTL ? 'التقارير' : 'Reports'}
         icon={<BarChart3 className="w-5 h-5" />}
         onMenuToggle={setMenuOpen}
