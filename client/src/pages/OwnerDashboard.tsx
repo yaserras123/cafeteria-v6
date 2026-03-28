@@ -21,8 +21,13 @@ export default function OwnerDashboard() {
     totalCafeterias: 0,
     totalMarketers: 0,
     activeSubscriptions: 0,
-    freePeriodCafeterias: 0
+    freePeriodCafeterias: 0,
+    totalPointsRecharged: 0,
+    totalCommissionsPaid: 0
   });
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calcData, setCalcData] = useState({ points: 100, country: 'SA' });
+  const [showFABMenu, setShowFABMenu] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,11 +42,16 @@ export default function OwnerDashboard() {
           .not('freeOperationEndDate', 'is', null)
           .gt('freeOperationEndDate', new Date().toISOString());
         
+        const { data: pointsData } = await supabase.from('points_transactions').select('amount');
+        const totalPoints = pointsData?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+
         setStats({
           totalCafeterias: cafeCount || 0,
           totalMarketers: marketerCount || 0,
           activeSubscriptions: cafeCount ? Math.floor(cafeCount * 0.7) : 0,
-          freePeriodCafeterias: freePeriodCount || 0
+          freePeriodCafeterias: freePeriodCount || 0,
+          totalPointsRecharged: totalPoints,
+          totalCommissionsPaid: totalPoints * 0.1 // Placeholder logic
         });
       } catch (err) {
         console.error('Error fetching owner stats:', err);
@@ -113,29 +123,41 @@ export default function OwnerDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-8">
             <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">
               <CardContent className="p-4">
-                <p className="text-2xl font-bold">{stats.totalCafeterias}</p>
-                <p className="text-xs text-slate-400 uppercase tracking-wider">{isRTL ? 'الكافيتريات' : 'Cafeterias'}</p>
+                <p className="text-xl font-bold">{stats.totalCafeterias}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider">{isRTL ? 'الكافيتريات' : 'Cafeterias'}</p>
               </CardContent>
             </Card>
             <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">
               <CardContent className="p-4">
-                <p className="text-2xl font-bold">{stats.totalMarketers}</p>
-                <p className="text-xs text-slate-400 uppercase tracking-wider">{isRTL ? 'المسوقين' : 'Marketers'}</p>
+                <p className="text-xl font-bold">{stats.totalMarketers}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider">{isRTL ? 'المسوقين' : 'Marketers'}</p>
               </CardContent>
             </Card>
             <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">
               <CardContent className="p-4">
-                <p className="text-2xl font-bold">{stats.activeSubscriptions}</p>
-                <p className="text-xs text-slate-400 uppercase tracking-wider">{isRTL ? 'الاشتراكات النشطة' : 'Active Subs'}</p>
+                <p className="text-xl font-bold">{stats.activeSubscriptions}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider">{isRTL ? 'الاشتراكات' : 'Subs'}</p>
               </CardContent>
             </Card>
             <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">
               <CardContent className="p-4">
-                <p className="text-2xl font-bold">{stats.freePeriodCafeterias}</p>
-                <p className="text-xs text-slate-400 uppercase tracking-wider">{isRTL ? 'فترة مجانية' : 'Free Period'}</p>
+                <p className="text-xl font-bold">{stats.freePeriodCafeterias}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider">{isRTL ? 'فترة مجانية' : 'Free'}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">
+              <CardContent className="p-4">
+                <p className="text-xl font-bold">{stats.totalPointsRecharged}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider">{isRTL ? 'النقاط' : 'Points'}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">
+              <CardContent className="p-4">
+                <p className="text-xl font-bold">{stats.totalCommissionsPaid.toFixed(0)}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider">{isRTL ? 'العمولات' : 'Comms'}</p>
               </CardContent>
             </Card>
           </div>
@@ -186,26 +208,72 @@ export default function OwnerDashboard() {
           <Card className="border-0 shadow-xl bg-white overflow-hidden">
             <CardHeader className="bg-slate-50 border-b border-slate-100 flex flex-row items-center justify-between">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-green-500" />
-                {isRTL ? 'حالة النظام' : 'System Health'}
+                <Wallet className="w-5 h-5 text-green-500" />
+                {isRTL ? 'حاسبة النقاط' : 'Points Calculator'}
               </CardTitle>
-              <Badge className="bg-green-100 text-green-600 border-0 font-bold">{isRTL ? 'مستقر' : 'Stable'}</Badge>
+              <Button variant="ghost" size="sm" onClick={() => setShowCalculator(!showCalculator)}>
+                {showCalculator ? (isRTL ? 'إغلاق' : 'Close') : (isRTL ? 'فتح' : 'Open')}
+              </Button>
             </CardHeader>
             <CardContent className="p-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-600">{isRTL ? 'قاعدة البيانات' : 'Database'}</span>
-                  <Badge className="bg-green-100 text-green-700 border-0 text-xs">{isRTL ? 'متصل' : 'Connected'}</Badge>
+              {showCalculator ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs">{isRTL ? 'النقاط' : 'Points'}</Label>
+                      <Input type="number" value={calcData.points} onChange={(e) => setCalcData({...calcData, points: Number(e.target.value)})} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">{isRTL ? 'البلد' : 'Country'}</Label>
+                      <select className="w-full p-2 border rounded-md text-sm" value={calcData.country} onChange={(e) => setCalcData({...calcData, country: e.target.value})}>
+                        <option value="SA">Saudi Arabia (SAR)</option>
+                        <option value="EG">Egypt (EGP)</option>
+                        <option value="AE">UAE (AED)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-lg text-center">
+                    <p className="text-xs text-slate-500">{isRTL ? 'القيمة المقدرة' : 'Estimated Value'}</p>
+                    <p className="text-xl font-black text-slate-900">
+                      {calcData.country === 'SA' ? (calcData.points * 0.1).toFixed(2) + ' SAR' : 
+                       calcData.country === 'EG' ? (calcData.points * 1.5).toFixed(2) + ' EGP' : 
+                       (calcData.points * 0.1).toFixed(2) + ' AED'}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-600">{isRTL ? 'الخادم' : 'Server'}</span>
-                  <Badge className="bg-green-100 text-green-700 border-0 text-xs">{isRTL ? 'يعمل' : 'Running'}</Badge>
-                </div>
-              </div>
+              ) : (
+                <p className="text-sm text-slate-600">{isRTL ? 'استخدم الحاسبة لتقدير قيمة النقاط بالعملات المحلية' : 'Use the calculator to estimate points value in local currencies'}</p>
+              )}
             </CardContent>
           </Card>
         </div>
       </main>
+
+      {/* Floating Action Button (FAB) */}
+      <div className={`fixed bottom-8 ${isRTL ? 'left-8' : 'right-8'} z-50`}>
+        {showFABMenu && (
+          <div className="flex flex-col gap-3 mb-4 items-end">
+            <Link href="/dashboard/owner/cafeterias">
+              <Button className="rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white gap-2">
+                <Store className="w-4 h-4" />
+                {isRTL ? 'إنشاء كافيتريا' : 'New Cafeteria'}
+              </Button>
+            </Link>
+            <Link href="/dashboard/owner/marketers">
+              <Button className="rounded-full shadow-lg bg-purple-600 hover:bg-purple-700 text-white gap-2">
+                <Users className="w-4 h-4" />
+                {isRTL ? 'إنشاء مسوق' : 'New Marketer'}
+              </Button>
+            </Link>
+          </div>
+        )}
+        <Button 
+          onClick={() => setShowFABMenu(!showFABMenu)}
+          className="w-14 h-14 rounded-full shadow-2xl bg-slate-900 hover:bg-slate-800 text-white p-0"
+        >
+          <Plus className={`w-8 h-8 transition-transform duration-300 ${showFABMenu ? 'rotate-45' : ''}`} />
+        </Button>
+      </div>
     </div>
   );
 }

@@ -45,6 +45,10 @@ export default function OwnerMarketers() {
     name: '',
     email: '',
     password: '',
+    country: 'SA',
+    currency: 'SAR',
+    parentId: '',
+    isRoot: true,
   });
 
   const fetchMarketers = async () => {
@@ -82,15 +86,27 @@ export default function OwnerMarketers() {
       // 1. Create the user in Supabase Auth first (if needed) or just the record
       // For this system, we usually create the record in the 'marketers' table
       // and the user will sign up or be created via a trigger/edge function.
-      const { data, error } = await supabase.from('marketers').insert([
-        {
-          id: crypto.randomUUID ? crypto.randomUUID() : undefined, // Generate ID
-          name: formData.name.trim(),
-          email: formData.email.trim().toLowerCase(),
-          is_root: false,
-          created_at: new Date().toISOString(),
-        },
-      ]).select();
+      let insertData: any = {
+        id: crypto.randomUUID ? crypto.randomUUID() : undefined,
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        is_root: formData.isRoot,
+        created_at: new Date().toISOString(),
+      };
+
+      if (formData.isRoot) {
+        insertData.country = formData.country;
+        insertData.currency = formData.currency;
+      } else if (formData.parentId) {
+        const parent = marketers.find(m => m.id === formData.parentId);
+        if (parent) {
+          insertData.parent_id = parent.id;
+          insertData.country = (parent as any).country;
+          insertData.currency = (parent as any).currency;
+        }
+      }
+
+      const { data, error } = await supabase.from('marketers').insert([insertData]).select();
 
       if (error) throw error;
       
@@ -311,6 +327,42 @@ export default function OwnerMarketers() {
               <Label>{isRTL ? 'البريد الإلكتروني' : 'Email Address'}</Label>
               <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="example@mail.com" />
             </div>
+            <div className="flex items-center gap-2 py-2">
+              <input 
+                type="checkbox" 
+                id="isRoot" 
+                checked={formData.isRoot} 
+                onChange={(e) => setFormData({ ...formData, isRoot: e.target.checked })}
+              />
+              <Label htmlFor="isRoot">{isRTL ? 'مسوق رئيسي (Root)' : 'Root Marketer'}</Label>
+            </div>
+            {!formData.isRoot && (
+              <div className="space-y-2">
+                <Label>{isRTL ? 'المسوق الأب' : 'Parent Marketer'}</Label>
+                <select 
+                  className="w-full p-2 border rounded-md"
+                  value={formData.parentId}
+                  onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
+                >
+                  <option value="">{isRTL ? 'اختر المسوق الأب' : 'Select Parent'}</option>
+                  {marketers.filter(m => m.isRoot).map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {formData.isRoot && (
+              <>
+                <div className="space-y-2">
+                  <Label>{isRTL ? 'البلد' : 'Country'}</Label>
+                  <Input value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="SA, EG, etc." />
+                </div>
+                <div className="space-y-2">
+                  <Label>{isRTL ? 'العملة' : 'Currency'}</Label>
+                  <Input value={formData.currency} onChange={(e) => setFormData({ ...formData, currency: e.target.value })} placeholder="SAR, EGP, etc." />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>

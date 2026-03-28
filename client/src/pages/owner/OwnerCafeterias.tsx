@@ -50,7 +50,9 @@ export default function OwnerCafeterias() {
     name: '',
     location: '',
     subscriptionPlan: 'starter',
+    marketerId: '',
   });
+  const [marketers, setMarketers] = useState<any[]>([]);
 
   const [freePeriodData, setFreePeriodData] = useState({
     months: 1,
@@ -77,8 +79,14 @@ export default function OwnerCafeterias() {
   useEffect(() => {
     if (!authLoading) {
       fetchCafeterias();
+      fetchMarketers();
     }
   }, [authLoading]);
+
+  const fetchMarketers = async () => {
+    const { data } = await supabase.from('marketers').select('id, name, country, currency');
+    setMarketers(data || []);
+  };
 
   const handleAddCafeteria = async () => {
     if (!formData.name.trim()) {
@@ -88,16 +96,20 @@ export default function OwnerCafeterias() {
 
     setSubmitting(true);
     try {
+      const selectedMarketer = marketers.find(m => m.id === formData.marketerId);
+      
       // Use direct insert with proper ID generation
       const { data, error } = await supabase.from('cafeterias').insert([
         {
-          id: crypto.randomUUID ? crypto.randomUUID() : undefined, // Let DB generate if not available
+          id: crypto.randomUUID ? crypto.randomUUID() : undefined,
           name: formData.name.trim(),
           location: formData.location.trim() || null,
           subscription_plan: formData.subscriptionPlan,
           subscription_status: 'active',
           points_balance: '0',
-          marketer_id: user?.id || null,
+          marketer_id: formData.marketerId || user?.id || null,
+          country: selectedMarketer?.country || null,
+          currency: selectedMarketer?.currency || null,
           created_at: new Date().toISOString(),
         },
       ]).select();
@@ -363,6 +375,19 @@ export default function OwnerCafeterias() {
             <div className="space-y-2">
               <Label>{isRTL ? 'الموقع / العنوان' : 'Location / Address'}</Label>
               <Input value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder={isRTL ? 'أدخل الموقع' : 'Enter location'} />
+            </div>
+            <div className="space-y-2">
+              <Label>{isRTL ? 'المسوق التابع له' : 'Assigned Marketer'}</Label>
+              <select 
+                className="w-full p-2 border rounded-md"
+                value={formData.marketerId}
+                onChange={(e) => setFormData({ ...formData, marketerId: e.target.value })}
+              >
+                <option value="">{isRTL ? 'اختر المسوق' : 'Select Marketer'}</option>
+                {marketers.map(m => (
+                  <option key={m.id} value={m.id}>{m.name} ({m.country})</option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2">
               <Label>{isRTL ? 'خطة الاشتراك' : 'Subscription Plan'}</Label>

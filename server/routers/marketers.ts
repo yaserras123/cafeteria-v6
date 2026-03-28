@@ -103,6 +103,11 @@ export const marketersRouter = router({
 
       const id = nanoid();
 
+      // Enforce inheritance from parent
+      const country = parentMarketer[0].country;
+      const currency = parentMarketer[0].currency;
+      const language = parentMarketer[0].language || "en";
+
       await db.insert(marketers).values({
         id,
         name: input.name,
@@ -110,9 +115,9 @@ export const marketersRouter = router({
         parentId: parentMarketer[0].id,
         referenceCode: childReferenceCode,
         isRoot: false,
-        country: parentMarketer[0].country,
-        currency: parentMarketer[0].currency,
-        language: parentMarketer[0].language,
+        country,
+        currency,
+        language,
         createdAt: new Date(),
       });
 
@@ -180,6 +185,11 @@ export const marketersRouter = router({
         freeOperationEndDate.setMonth(freeOperationEndDate.getMonth() + freeMonths);
       }
 
+      // Enforce inheritance from marketer
+      const country = marketer[0].country;
+      const currency = marketer[0].currency;
+      const language = marketer[0].language || "en";
+
       await db.insert(cafeterias).values({
         id,
         marketerId: marketer[0].id,
@@ -188,9 +198,9 @@ export const marketersRouter = router({
         referenceCode: cafeteriaReferenceCode,
         pointsBalance: "0",
         graceMode: false,
-        country: marketer[0].country,
-        currency: marketer[0].currency,
-        language: marketer[0].language,
+        country,
+        currency,
+        language,
         freeOperationEndDate,
         createdAt: now,
       });
