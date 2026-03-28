@@ -27,6 +27,8 @@ export const marketersRouter = router({
       z.object({
         name: z.string(),
         email: z.string().email().optional(),
+        loginUsername: z.string().email(),
+        passwordHash: z.string().min(8),
         country: z.string().optional(),
         currency: z.string().optional(),
         language: z.string().optional(),
@@ -49,6 +51,8 @@ export const marketersRouter = router({
         id,
         name: input.name,
         email: input.email,
+        loginUsername: input.loginUsername,
+        passwordHash: input.passwordHash,
         referenceCode,
         isRoot: true,
         country: input.country,
@@ -74,6 +78,8 @@ export const marketersRouter = router({
         parentMarketerCode: z.string(),
         name: z.string(),
         email: z.string().email().optional(),
+        loginUsername: z.string().email(),
+        passwordHash: z.string().min(8),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -112,6 +118,8 @@ export const marketersRouter = router({
         id,
         name: input.name,
         email: input.email,
+        loginUsername: input.loginUsername,
+        passwordHash: input.passwordHash,
         parentId: parentMarketer[0].id,
         referenceCode: childReferenceCode,
         isRoot: false,
@@ -140,6 +148,8 @@ export const marketersRouter = router({
         marketerCode: z.string(),
         name: z.string(),
         location: z.string().optional(),
+        loginUsername: z.string().email(),
+        passwordHash: z.string().min(8),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -195,6 +205,8 @@ export const marketersRouter = router({
         marketerId: marketer[0].id,
         name: input.name,
         location: input.location,
+        loginUsername: input.loginUsername,
+        passwordHash: input.passwordHash,
         referenceCode: cafeteriaReferenceCode,
         pointsBalance: "0",
         graceMode: false,
@@ -202,6 +214,8 @@ export const marketersRouter = router({
         currency,
         language,
         freeOperationEndDate,
+        subscriptionPlan: "starter", // Default value
+        subscriptionStatus: "active", // Default value
         createdAt: now,
       });
 

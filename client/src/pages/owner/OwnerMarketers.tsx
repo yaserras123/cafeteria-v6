@@ -42,12 +42,13 @@ export default function OwnerMarketers() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    country: 'SA',
-    currency: 'SAR',
-    language: 'ar',
+    name: "",
+    email: "",
+    loginUsername: "", // Add loginUsername to formData
+    password: "",
+    country: "SA",
+    currency: "SAR",
+    language: "ar",
   });
 
   const fetchMarketers = async () => {
@@ -99,6 +100,7 @@ export default function OwnerMarketers() {
         id: crypto.randomUUID ? crypto.randomUUID() : undefined,
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
+        loginUsername: formData.email.trim().toLowerCase(), // Add loginUsername
         passwordHash: formData.password, // Simple password for now
         createdAt: new Date().toISOString(),
       };
@@ -344,7 +346,7 @@ export default function OwnerMarketers() {
               <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={isRTL ? 'أدخل الاسم' : 'Enter name'} />
             </div>
             <div className="space-y-2">
-              <Label>{isRTL ? 'البريد الإلكتروني' : 'Email Address'}</Label>
+              <Label>{isRTL ? 'البريد الإلكتروني (اسم المستخدم)' : 'Email (Login Username)'}</Label>
               <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="example@mail.com" />
             </div>
             <div className="space-y-2">
@@ -396,8 +398,8 @@ export default function OwnerMarketers() {
               <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>{isRTL ? 'البريد الإلكتروني' : 'Email Address'}</Label>
-              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+                      <Label>{isRTL ? 'البريد الإلكتروني (اسم المستخدم)' : 'Email (Login Username)'}</Label>
+              <Input value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
             </div>
           </div>
           <DialogFooter className="gap-2">
