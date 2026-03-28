@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 const ROLE_ROUTES: Record<string, string> = {
@@ -22,10 +22,6 @@ const ROLE_ROUTES: Record<string, string> = {
   waiter: "/dashboard/waiter",
   chef: "/dashboard/chef",
 };
-
-function getRouteForRole(role: string): string {
-  return ROLE_ROUTES[role] ?? "/dashboard/cafeteria-admin";
-}
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -39,17 +35,45 @@ export default function Login() {
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!email.trim()) {
-      setErrorMessage("Email is required.");
-      return;
-    }
-    if (!password) {
-      setErrorMessage("Password is required.");
+    if (!email.trim() || !password) {
+      setErrorMessage("Email and password are required.");
       return;
     }
 
     setIsLoading(true);
     try {
+      // 1. First check if it's a staff member by login_username
+      const { data: staffData, error: staffError } = await supabase
+        .from('cafeteria_staff')
+        .select('*')
+        .eq('login_username', email.trim())
+        .single();
+
+      if (staffData) {
+        // It's a staff member
+        if (!staffData.can_login || staffData.status !== 'active') {
+          setErrorMessage("Access Denied: Your account is not authorized to login. Please contact your admin.");
+          setIsLoading(false);
+          return;
+        }
+
+        // Verify password (in a real app, use a secure hash check on server)
+        if (staffData.password_hash !== password) {
+          setErrorMessage("Invalid username or password.");
+          setIsLoading(false);
+          return;
+        }
+
+        // Success for staff
+        localStorage.setItem('staff_user', JSON.stringify(staffData));
+        localStorage.setItem('last_activity', Date.now().toString());
+        
+        toast.success(`Welcome, ${staffData.name}!`);
+        setLocation(ROLE_ROUTES[staffData.role] || "/dashboard/waiter");
+        return;
+      }
+
+      // 2. If not staff, try standard Supabase Auth (for Owner, Marketer, Admin)
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
@@ -60,24 +84,16 @@ export default function Login() {
         return;
       }
 
-      if (!data.user) {
-        setErrorMessage("Login failed: No user returned from Supabase.");
-        return;
+      if (data.user) {
+        const role = data.user.user_metadata?.role ?? "admin";
+        const name = data.user.user_metadata?.name ?? data.user.email?.split("@")[0];
+        
+        localStorage.setItem('last_activity', Date.now().toString());
+        toast.success(`Welcome, ${name}!`);
+        setLocation(ROLE_ROUTES[role] || "/dashboard/cafeteria-admin");
       }
-
-      const role: string = data.user.user_metadata?.role ?? "admin";
-      const name: string =
-        data.user.user_metadata?.name ??
-        data.user.user_metadata?.full_name ??
-        data.user.email?.split("@")[0] ??
-        "User";
-
-      toast.success(`Welcome, ${name}!`);
-      
-      const targetRoute = getRouteForRole(role);
-      setLocation(targetRoute);
     } catch (err: any) {
-      setErrorMessage(err?.message || "An unexpected error occurred. Please try again.");
+      setErrorMessage("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -85,81 +101,54 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-      <Card className="w-full max-w-md shadow-2xl">
+      <Card className="w-full max-w-md shadow-2xl border-0 bg-white/95 backdrop-blur">
         <CardHeader className="space-y-2 text-center">
-          <CardTitle className="text-3xl font-bold">Cafeteria System</CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
+          <div className="mx-auto bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/20">
+            <ShieldAlert className="w-8 h-8 text-white" />
+          </div>
+          <CardTitle className="text-3xl font-black text-slate-900">Cafeteria System</CardTitle>
+          <CardDescription className="text-slate-500">Sign in to your dashboard</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4" noValidate>
+          <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
+              <label className="text-sm font-bold text-slate-700">Username or Email</label>
               <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
+                type="text"
+                placeholder="Enter your credentials"
                 value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (errorMessage) setErrorMessage(null);
-                }}
+                onChange={(e) => setEmail(e.target.value)}
+                className="h-12 bg-slate-50 border-slate-200 focus:ring-2 focus:ring-blue-500"
                 disabled={isLoading}
-                autoComplete="email"
-                autoFocus
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
+              <label className="text-sm font-bold text-slate-700">Password</label>
               <div className="relative">
                 <Input
-                  id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
+                  placeholder="••••••••"
                   value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (errorMessage) setErrorMessage(null);
-                  }}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-12 bg-slate-50 border-slate-200 pr-12 focus:ring-2 focus:ring-blue-500"
                   disabled={isLoading}
-                  autoComplete="current-password"
-                  className="pr-10"
                 />
                 <button
                   type="button"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
             {errorMessage && (
-              <div
-                role="alert"
-                className="rounded-md bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive"
-              >
-                {errorMessage}
+              <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-600 font-medium flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 shrink-0" /> {errorMessage}
               </div>
             )}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in…
-                </>
-              ) : (
-                "Sign In"
-              )}
+            <Button type="submit" className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg shadow-lg shadow-blue-500/20" disabled={isLoading}>
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Sign In"}
             </Button>
           </form>
         </CardContent>

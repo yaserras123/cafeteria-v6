@@ -1,7 +1,8 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -51,6 +52,7 @@ import WaiterOrders from "./pages/waiter/WaiterOrders";
 
 // Chef Dashboard Sub-pages
 import ChefKitchenBoard from "./pages/chef/ChefKitchenBoard";
+import { toast } from "sonner";
 
 function Router() {
   return (
@@ -257,6 +259,51 @@ function Router() {
 }
 
 function App() {
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    const AUTO_LOGOUT_TIME = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+    
+    const checkActivity = () => {
+      const lastActivity = localStorage.getItem('last_activity');
+      const staffUser = localStorage.getItem('staff_user');
+      
+      if (lastActivity && staffUser) {
+        const now = Date.now();
+        if (now - parseInt(lastActivity) > AUTO_LOGOUT_TIME) {
+          // Auto logout
+          localStorage.removeItem('staff_user');
+          localStorage.removeItem('last_activity');
+          toast.error("Session expired due to inactivity. Please login again.");
+          setLocation('/login');
+        }
+      }
+    };
+
+    const updateActivity = () => {
+      if (localStorage.getItem('staff_user')) {
+        localStorage.setItem('last_activity', Date.now().toString());
+      }
+    };
+
+    // Check every minute
+    const interval = setInterval(checkActivity, 60000);
+    
+    // Listen for user activity
+    window.addEventListener('mousemove', updateActivity);
+    window.addEventListener('keydown', updateActivity);
+    window.addEventListener('click', updateActivity);
+    window.addEventListener('scroll', updateActivity);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('mousemove', updateActivity);
+      window.removeEventListener('keydown', updateActivity);
+      window.removeEventListener('click', updateActivity);
+      window.removeEventListener('scroll', updateActivity);
+    };
+  }, [setLocation]);
+
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
