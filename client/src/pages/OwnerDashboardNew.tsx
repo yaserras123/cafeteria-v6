@@ -96,91 +96,80 @@ export default function OwnerDashboardNew() {
   ];
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <LayoutDashboard className="w-6 h-6 text-blue-600" />
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800">
-              {isRTL ? 'لوحة تحكم المالك' : 'Owner Dashboard'}
+    <div className={`min-h-screen bg-[#F5F1E9] ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+      {/* Custom Header based on Image */}
+      <header className="bg-[#EFE7D9] px-6 py-4 flex items-center justify-between border-b border-gray-200 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="bg-orange-100 p-2 rounded-xl">
+             <Store className="w-8 h-8 text-orange-600" />
+          </div>
+          <div>
+            <h1 className="text-xl font-black text-gray-800 leading-tight">
+              {isRTL ? 'كافيتريا السعادة' : 'Happiness Cafeteria'}
             </h1>
           </div>
-
-          {/* Desktop Controls */}
-          <div className="hidden md:flex items-center gap-4">
-            <select 
-              value={language} 
-              onChange={(e) => setLanguage(e.target.value as 'ar' | 'en')}
-              className="px-3 py-2 border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-blue-400 transition-colors"
-            >
-              <option value="en">English</option>
-              <option value="ar">العربية</option>
-            </select>
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm">
-              {user?.name?.charAt(0).toUpperCase() || 'O'}
-            </div>
-            <Button 
-              onClick={logout}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              {isRTL ? 'تسجيل خروج' : 'Logout'}
-            </Button>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button 
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
-          >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
         </div>
 
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 bg-white p-4 space-y-3">
-            <select 
-              value={language} 
-              onChange={(e) => setLanguage(e.target.value as 'ar' | 'en')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white cursor-pointer"
-            >
-              <option value="en">English</option>
-              <option value="ar">العربية</option>
-            </select>
-            <Button 
-              onClick={() => {
-                logout();
-                setMobileMenuOpen(false);
-              }}
-              variant="outline"
-              size="sm"
-              className="w-full gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              {isRTL ? 'تسجيل خروج' : 'Logout'}
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-6">
+           <div className="flex items-center gap-2">
+             <div className="text-right hidden sm:block">
+                <p className="text-xs text-gray-500 font-bold">{isRTL ? 'مرحباً،' : 'Welcome,'}</p>
+                <p className="text-sm font-black text-gray-800">{user?.name || 'ياسر'}</p>
+             </div>
+             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white border-2 border-white shadow-md overflow-hidden">
+                <Users className="w-6 h-6" />
+             </div>
+           </div>
+
+           <div className="flex items-center gap-4 border-r border-gray-300 pr-4">
+              <select 
+                value={language} 
+                onChange={(e) => setLanguage(e.target.value as 'ar' | 'en')}
+                className="bg-transparent text-xs font-bold text-gray-700 cursor-pointer outline-none"
+              >
+                <option value="en">EN</option>
+                <option value="ar">AR</option>
+              </select>
+              <button onClick={logout} className="flex flex-col items-center gap-0.5 text-gray-700 hover:text-red-600 transition-colors">
+                <LogOut className="w-5 h-5" />
+                <span className="text-[10px] font-bold">{isRTL ? 'تسجيل خروج' : 'Logout'}</span>
+              </button>
+           </div>
+        </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8 md:py-12">
-        {/* Welcome Section */}
-        <div className="mb-8 md:mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-            {isRTL ? `مرحباً ${user?.name || 'المالك'}` : `Welcome ${user?.name || 'Owner'}`}
-          </h2>
-          <p className="text-gray-600">
-            {isRTL ? 'اختر من الخيارات أدناه لإدارة النظام' : 'Select an option below to manage your system'}
-          </p>
-        </div>
+      {/* Main Content - Large Grid Buttons */}
+      <main className="max-w-md mx-auto px-6 py-10">
+        <div className="grid grid-cols-2 gap-6">
+          {dashboardItems.map((item) => {
+            const Icon = item.icon;
+            const colors: Record<string, string> = {
+              purple: 'bg-[#A855F7]',
+              green: 'bg-[#22C55E]',
+              blue: 'bg-[#3B82F6]',
+              teal: 'bg-[#14B8A6]',
+              orange: 'bg-[#F97316]',
+              gray: 'bg-[#64748B]',
+            };
+            const bgColor = colors[item.color] || 'bg-blue-500';
 
-        {/* Dashboard Grid */}
-        <DashboardGrid items={dashboardItems} columns={2} />
+            return (
+              <button
+                key={item.id}
+                onClick={() => { window.location.href = item.href; }}
+                className={`${bgColor} w-full aspect-square rounded-[32px] p-6 shadow-xl flex flex-col items-center justify-center gap-3 transform active:scale-95 transition-all duration-200 border-b-4 border-black/10`}
+              >
+                <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
+                   <Icon className="w-10 h-10 text-white" strokeWidth={2.5} />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-white font-black text-lg leading-tight">{item.title}</h3>
+                  <p className="text-white/80 text-[10px] font-bold mt-1 line-clamp-1">{item.description}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </main>
     </div>
   );

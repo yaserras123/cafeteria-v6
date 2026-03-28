@@ -84,73 +84,43 @@ export default function DashboardLayout({
   }
 
   return (
-    <SidebarProvider
-      className={language === 'ar' ? 'rtl' : 'ltr'}
-      style={
-        {
-          "--sidebar-width": `${sidebarWidth}px`,
-          "direction": language === 'ar' ? 'rtl' : 'ltr'
-        } as CSSProperties
-      }
+    <div 
+      className={`min-h-screen w-full bg-gray-50 ${language === 'ar' ? 'rtl' : 'ltr'}`} 
+      dir={language === 'ar' ? 'rtl' : 'ltr'}
+      style={{ isolation: 'isolate' }}
     >
       <style dangerouslySetInnerHTML={{ __html: `
-        /* ULTIMATE FIX: DELETE ALL SIDEBAR OVERLAYS AND BLOCKING LAYERS */
-        [data-sidebar-overlay],
-        div[class*="fixed"][class*="inset-0"][class*="z-50"],
-        div[class*="absolute"][class*="inset-0"][class*="z-50"],
-        .fixed.inset-0, .absolute.inset-0 {
+        /* REMOVE ALL SIDEBAR ELEMENTS AND OVERLAYS */
+        [data-sidebar], [data-sidebar-overlay], .sidebar-container, 
+        aside, .fixed.inset-0.z-50, .absolute.inset-0.z-50 {
           display: none !important;
-          pointer-events: none !important;
           visibility: hidden !important;
-          opacity: 0 !important;
-          z-index: -1 !important;
+          pointer-events: none !important;
+          width: 0 !important;
+          height: 0 !important;
         }
         
-        /* Ensure the main container and root don't have blocking pointer events */
-        #root, body, html {
-          pointer-events: auto !important;
-        }
-
-        /* Force Main Content to the TOP when sidebar is closed */
-        main, .flex-1, .w-full {
-          pointer-events: auto !important;
-          position: relative !important;
-          z-index: 10 !important;
-        }
-
-        /* Ensure ALL buttons and inputs are always clickable */
-        button, a, input, select, textarea, [role="button"], .cursor-pointer {
+        /* Ensure main content takes full width and is touchable */
+        main, .flex-1, #root > div {
+          width: 100% !important;
+          max-width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
           pointer-events: auto !important;
           position: relative !important;
-          z-index: 50 !important;
+          z-index: 1 !important;
         }
 
-        /* Sidebar RTL & Mobile Fix */
-        [dir="rtl"] .group-data-\\[side\\=left\\] {
-          right: 0 !important;
-          left: auto !important;
-        }
-        
-        @media (max-width: 768px) {
-          /* Completely hide sidebar when collapsed on mobile */
-          .group-data-\\[state\\=collapsed\\] {
-            display: none !important;
-            visibility: hidden !important;
-            pointer-events: none !important;
-            width: 0 !important;
-          }
-          /* Ensure sidebar is only on top when OPEN */
-          .group-data-\\[state\\=open\\] {
-            z-index: 100 !important;
-            pointer-events: auto !important;
-            display: flex !important;
-          }
+        /* Fix for touch events */
+        button, a, input, select, [role="button"] {
+          pointer-events: auto !important;
+          cursor: pointer !important;
         }
       `}} />
-      <DashboardLayoutContent setSidebarWidth={setSidebarWidth}>
+      <main className="w-full min-h-screen">
         {children}
-      </DashboardLayoutContent>
-    </SidebarProvider>
+      </main>
+    </div>
   );
 }
 
