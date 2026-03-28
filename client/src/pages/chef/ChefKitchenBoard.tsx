@@ -110,7 +110,7 @@ export default function ChefKitchenBoard() {
 
   return (
     <div className={`min-h-screen bg-slate-900 text-white ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <DashboardHeader title={isRTL ? 'لوحة تحكم المطبخ' : 'Kitchen Display System'} onMenuClick={() => setMenuOpen(true)} />
+      <DashboardHeader title={isRTL ? 'لوحة تحكم المطبخ' : 'Kitchen Display System'} onMenuClick={() => setMenuOpen(true)} showBackButton={true} showHomeButton={true} />
       <DashboardNavigation isOpen={menuOpen} onClose={() => setMenuOpen(false)} items={navigationItems} />
 
       <main className="p-4 md:p-6">

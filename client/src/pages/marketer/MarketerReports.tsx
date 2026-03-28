@@ -22,7 +22,7 @@ export default function MarketerReports() {
 
   return (
     <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <DashboardHeader title={isRTL ? 'التقارير' : 'Reports'} icon={<BarChart3 className="w-5 h-5" />} onMenuToggle={setMenuOpen} menuOpen={menuOpen} />
+      <DashboardHeader title={isRTL ? 'التقارير' : 'Reports'} icon={<BarChart3 className="w-5 h-5" />} onMenuToggle={setMenuOpen} menuOpen={menuOpen} showBackButton={true} showHomeButton={true} />
       <div className="flex">
         <DashboardNavigation items={navigationItems} open={menuOpen} onClose={() => setMenuOpen(false)} />
         <main className="flex-1 p-4 md:p-8">

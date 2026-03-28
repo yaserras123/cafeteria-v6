@@ -208,7 +208,7 @@ export default function CafeteriaSettings() {
 
   return (
     <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <DashboardHeader title={isRTL ? 'إعدادات الكافيتريا' : 'Cafeteria Settings'} onMenuClick={() => setMenuOpen(true)} />
+      <DashboardHeader title={isRTL ? 'إعدادات الكافيتريا' : 'Cafeteria Settings'} onMenuClick={() => setMenuOpen(true)} showBackButton={true} showHomeButton={true} />
       <DashboardNavigation isOpen={menuOpen} onClose={() => setMenuOpen(false)} items={navigationItems} />
 
       <main className="container mx-auto px-4 py-6 max-w-4xl">

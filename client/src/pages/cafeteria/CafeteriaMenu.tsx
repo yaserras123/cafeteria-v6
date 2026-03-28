@@ -338,7 +338,12 @@ export default function CafeteriaMenu() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20" dir={isRTL ? 'rtl' : 'ltr'}>
-      <DashboardHeader title={isRTL ? 'إدارة المنيو' : 'Menu Management'} onMenuClick={() => setMenuOpen(true)} />
+      <DashboardHeader 
+        title={isRTL ? 'إدارة المنيو' : 'Menu Management'} 
+        onMenuClick={() => setMenuOpen(true)} 
+        showBackButton={true}
+        showHomeButton={true}
+      />
       <DashboardNavigation isOpen={menuOpen} onClose={() => setMenuOpen(false)} items={navigationItems} />
 
       <main className="container mx-auto px-4 py-6">

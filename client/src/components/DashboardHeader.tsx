@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
-import { LogOut, Menu, X, Hash } from 'lucide-react';
+import { LogOut, Menu, X, Hash, ArrowLeft, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLocation } from 'wouter';
 
@@ -10,7 +10,10 @@ interface DashboardHeaderProps {
   icon?: React.ReactNode;
   onMenuToggle?: (open: boolean) => void;
   menuOpen?: boolean;
-  onMenuClick?: () => void; // Support both naming conventions
+  onMenuClick?: () => void;
+  showBackButton?: boolean;
+  showHomeButton?: boolean;
+  backPath?: string;
 }
 
 export function DashboardHeader({
@@ -19,6 +22,9 @@ export function DashboardHeader({
   onMenuToggle,
   menuOpen = false,
   onMenuClick,
+  showBackButton = false,
+  showHomeButton = false,
+  backPath,
 }: DashboardHeaderProps) {
   const { user, logout } = useAuth();
   const { language, setLanguage } = useTranslation();
@@ -30,6 +36,26 @@ export function DashboardHeader({
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const handleGoBack = () => {
+    if (backPath) {
+      navigate(backPath);
+    } else {
+      window.history.back();
+    }
+  };
+
+  const handleGoHome = () => {
+    const rolePathMap: Record<string, string> = {
+      owner: '/dashboard/owner',
+      marketer: '/dashboard/marketer',
+      cafeteria_admin: '/dashboard/cafeteria-admin',
+      manager: '/dashboard/manager',
+      waiter: '/dashboard/waiter',
+      kitchen: '/dashboard/kitchen',
+    };
+    navigate(rolePathMap[user?.role || ''] || '/login');
   };
 
   return (
@@ -75,28 +101,54 @@ export function DashboardHeader({
         </div>
 
         {/* Right Section - Controls */}
-        <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+          {/* Navigation Buttons */}
+          <div className="flex items-center gap-1 border-r pr-2 mr-1 border-gray-200">
+            {showBackButton && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleGoBack}
+                className="h-8 w-8 md:h-9 md:w-9 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                title={isRTL ? 'رجوع' : 'Back'}
+              >
+                <ArrowLeft className={`w-4 h-4 md:w-5 md:h-5 ${isRTL ? 'rotate-180' : ''}`} />
+              </Button>
+            )}
+            {showHomeButton && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleGoHome}
+                className="h-8 w-8 md:h-9 md:w-9 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                title={isRTL ? 'الرئيسية' : 'Home'}
+              >
+                <Home className="w-4 h-4 md:w-5 md:h-5" />
+              </Button>
+            )}
+          </div>
+
           {/* Language Selector */}
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value as 'ar' | 'en')}
-            className="px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-blue-400 transition-colors font-medium"
+            className="px-1.5 py-1 md:px-2 md:py-1.5 text-[10px] md:text-xs border border-gray-300 rounded-md bg-white cursor-pointer hover:border-blue-400 transition-colors font-bold"
           >
             <option value="en">EN</option>
             <option value="ar">AR</option>
           </select>
 
-          {/* User Info */}
-          <div className="flex items-center gap-2">
-            <div className="hidden sm:flex flex-col items-end">
-              <p className="text-xs md:text-sm font-semibold text-gray-800 truncate max-w-[100px]">
+          {/* User Info (Desktop) */}
+          <div className="hidden sm:flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
+            <div className="flex flex-col items-end">
+              <p className="text-[10px] md:text-xs font-bold text-gray-800 truncate max-w-[80px]">
                 {user?.name || 'User'}
               </p>
-              <p className="text-[10px] text-gray-500 capitalize">
-                {user?.role || 'Guest'}
+              <p className="text-[9px] text-gray-500 capitalize">
+                {user?.role?.replace('_', ' ') || 'Guest'}
               </p>
             </div>
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+            <div className="w-7 h-7 md:w-8 md:h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0 shadow-sm">
               {user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
           </div>
@@ -106,10 +158,10 @@ export function DashboardHeader({
             onClick={handleLogout}
             variant="ghost"
             size="sm"
-            className="p-2 hover:bg-red-50 hover:text-red-600 transition-colors"
-            title="Logout"
+            className="h-8 w-8 md:h-10 md:w-10 p-0 text-red-500 hover:bg-red-50 hover:text-red-700 transition-all rounded-full border border-transparent hover:border-red-100"
+            title={isRTL ? 'تسجيل الخروج' : 'Logout'}
           >
-            <LogOut className="w-5 h-5 md:w-6 md:h-6" />
+            <LogOut className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
         </div>
       </div>
