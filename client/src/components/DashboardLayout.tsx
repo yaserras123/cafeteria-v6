@@ -94,6 +94,18 @@ export default function DashboardLayout({
       }
     >
       <style dangerouslySetInnerHTML={{ __html: `
+        /* Force clear any invisible overlays that might block touch */
+        .fixed, .absolute {
+          pointer-events: auto;
+        }
+        
+        /* Specific fix for Sidebar Overlay in Mobile/RTL */
+        [data-sidebar-overlay] {
+          display: none !important;
+          pointer-events: none !important;
+          visibility: hidden !important;
+        }
+
         [dir="rtl"] .group-data-\\[side\\=left\\] {
           right: 0 !important;
           left: auto !important;
@@ -104,14 +116,23 @@ export default function DashboardLayout({
         [dir="rtl"] .group-data-\\[side\\=left\\][data-mobile="true"][data-state="open"] {
           transform: translateX(0) !important;
         }
+        
         @media (max-width: 768px) {
           .group-data-\\[state\\=collapsed\\] {
+            display: none !important;
             visibility: hidden !important;
             pointer-events: none !important;
           }
           .group-data-\\[state\\=open\\] {
+            display: flex !important;
             visibility: visible !important;
             pointer-events: auto !important;
+            z-index: 9999 !important;
+          }
+          /* Ensure main content is always touchable when sidebar is closed */
+          main, .flex-1 {
+            pointer-events: auto !important;
+            z-index: 10 !important;
           }
         }
       `}} />
