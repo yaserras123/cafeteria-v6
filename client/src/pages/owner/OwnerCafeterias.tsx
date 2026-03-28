@@ -50,9 +50,7 @@ export default function OwnerCafeterias() {
     name: '',
     location: '',
     subscriptionPlan: 'starter',
-    marketerId: '',
   });
-  const [marketers, setMarketers] = useState<any[]>([]);
 
   const [freePeriodData, setFreePeriodData] = useState({
     months: 1,
@@ -79,14 +77,8 @@ export default function OwnerCafeterias() {
   useEffect(() => {
     if (!authLoading) {
       fetchCafeterias();
-      fetchMarketers();
     }
   }, [authLoading]);
-
-  const fetchMarketers = async () => {
-    const { data } = await supabase.from('marketers').select('id, name, country, currency');
-    setMarketers(data || []);
-  };
 
   const handleAddCafeteria = async () => {
     if (!formData.name.trim()) {
@@ -96,8 +88,15 @@ export default function OwnerCafeterias() {
 
     setSubmitting(true);
     try {
-      const selectedMarketer = marketers.find(m => m.id === formData.marketerId);
-      
+      // Get current user's marketer data to inherit country/currency
+      const { data: currentUserMarketer, error: fetchError } = await supabase
+        .from('marketers')
+        .select('id, country, currency')
+        .eq('email', user?.email)
+        .single();
+
+      if (fetchError) throw new Error(isRTL ? 'فشل في جلب بيانات المسوق الحالي' : 'Failed to fetch current marketer data');
+
       // Use direct insert with proper ID generation
       const { data, error } = await supabase.from('cafeterias').insert([
         {
@@ -107,9 +106,9 @@ export default function OwnerCafeterias() {
           subscriptionPlan: formData.subscriptionPlan,
           subscriptionStatus: 'active',
           pointsBalance: '0',
-          marketerId: formData.marketerId || user?.id || null,
-          country: selectedMarketer?.country || null,
-          currency: selectedMarketer?.currency || null,
+          marketerId: currentUserMarketer.id,
+          country: currentUserMarketer.country,
+          currency: currentUserMarketer.currency,
           createdAt: new Date().toISOString(),
         },
       ]).select();
@@ -376,19 +375,7 @@ export default function OwnerCafeterias() {
               <Label>{isRTL ? 'الموقع / العنوان' : 'Location / Address'}</Label>
               <Input value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder={isRTL ? 'أدخل الموقع' : 'Enter location'} />
             </div>
-            <div className="space-y-2">
-              <Label>{isRTL ? 'المسوق التابع له' : 'Assigned Marketer'}</Label>
-              <select 
-                className="w-full p-2 border rounded-md"
-                value={formData.marketerId}
-                onChange={(e) => setFormData({ ...formData, marketerId: e.target.value })}
-              >
-                <option value="">{isRTL ? 'اختر المسوق' : 'Select Marketer'}</option>
-                {marketers.map(m => (
-                  <option key={m.id} value={m.id}>{m.name} ({m.country || '---'})</option>
-                ))}
-              </select>
-            </div>
+
             <div className="space-y-2">
               <Label>{isRTL ? 'خطة الاشتراك' : 'Subscription Plan'}</Label>
               <Select value={formData.subscriptionPlan} onValueChange={(v) => setFormData({ ...formData, subscriptionPlan: v })}>
