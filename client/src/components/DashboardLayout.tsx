@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useTranslation } from "@/locales/useTranslation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -46,6 +47,7 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  const { language } = useTranslation();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -83,9 +85,11 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider
+      className={language === 'ar' ? 'rtl' : 'ltr'}
       style={
         {
           "--sidebar-width": `${sidebarWidth}px`,
+          "direction": language === 'ar' ? 'rtl' : 'ltr'
         } as CSSProperties
       }
     >

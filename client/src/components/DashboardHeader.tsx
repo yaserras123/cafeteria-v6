@@ -62,7 +62,7 @@ export function DashboardHeader({
     <header
       className={`sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm ${
         isRTL ? 'rtl' : 'ltr'
-      }`}
+      } w-full overflow-visible pointer-events-auto`}
       dir={isRTL ? 'rtl' : 'ltr'}
     >
       <div className="px-4 py-3 md:py-4 flex items-center justify-between">

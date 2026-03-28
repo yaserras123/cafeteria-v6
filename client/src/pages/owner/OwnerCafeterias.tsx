@@ -153,6 +153,9 @@ export default function OwnerCafeterias() {
       const isSystemOwner = user?.email === 'owner@cafeteria.com' || user?.role === 'owner';
       
       if (!isSystemOwner) {
+        if (!user?.id) {
+          throw new Error(isRTL ? 'معرف المستخدم غير موجود' : 'User ID is missing');
+        }
         const { data: marketer } = await supabase
           .from('marketers')
           .select('id, referenceCode, country, currency, language')
