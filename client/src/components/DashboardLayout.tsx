@@ -93,6 +93,28 @@ export default function DashboardLayout({
         } as CSSProperties
       }
     >
+      <style dangerouslySetInnerHTML={{ __html: `
+        [dir="rtl"] .group-data-\\[side\\=left\\] {
+          right: 0 !important;
+          left: auto !important;
+        }
+        [dir="rtl"] .group-data-\\[side\\=left\\][data-state="collapsed"] {
+          transform: translateX(100%) !important;
+        }
+        [dir="rtl"] .group-data-\\[side\\=left\\][data-mobile="true"][data-state="open"] {
+          transform: translateX(0) !important;
+        }
+        @media (max-width: 768px) {
+          .group-data-\\[state\\=collapsed\\] {
+            visibility: hidden !important;
+            pointer-events: none !important;
+          }
+          .group-data-\\[state\\=open\\] {
+            visibility: visible !important;
+            pointer-events: auto !important;
+          }
+        }
+      `}} />
       <DashboardLayoutContent setSidebarWidth={setSidebarWidth}>
         {children}
       </DashboardLayoutContent>
