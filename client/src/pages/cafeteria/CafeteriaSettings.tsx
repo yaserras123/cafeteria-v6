@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
 import { DashboardHeader } from '@/components/DashboardHeader';
@@ -8,12 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Settings, LayoutDashboard, UtensilsCrossed, Table2, Users, BarChart3, CreditCard,
-  Store, Globe, Percent, Bell, Shield, Save, Languages
+  Store, Globe, Percent, Shield, Save, Languages, MapPin, Phone, Hash, AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
@@ -29,11 +28,22 @@ interface CafeteriaInfo {
   taxRate: number;
   serviceCharge: number;
   plan: string;
+  latitude?: number;
+  longitude?: number;
+  referenceCode?: string;
 }
 
+const countries = [
+  { code: 'EG', name: 'Egypt', arName: 'مصر', currency: 'EGP', phoneCode: '+20' },
+  { code: 'SA', name: 'Saudi Arabia', arName: 'السعودية', currency: 'SAR', phoneCode: '+966' },
+  { code: 'AE', name: 'UAE', arName: 'الإمارات', currency: 'AED', phoneCode: '+971' },
+  { code: 'KW', name: 'Kuwait', arName: 'الكويت', currency: 'KWD', phoneCode: '+965' },
+  { code: 'JO', name: 'Jordan', arName: 'الأردن', currency: 'JOD', phoneCode: '+962' },
+];
+
 export default function CafeteriaSettings() {
-  const { user } = useAuth({ redirectOnUnauthenticated: true });
-  const { language, setLanguage } = useTranslation();
+  const { user, loading: authLoading } = useAuth({ redirectOnUnauthenticated: true });
+  const { language } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const isRTL = language === 'ar';
 
@@ -46,11 +56,14 @@ export default function CafeteriaSettings() {
     description: '',
     address: '',
     phone: '',
+    phoneCode: '+20',
+    latitude: '',
+    longitude: '',
   });
 
   const [billingForm, setBillingForm] = useState({
-    currency: 'USD',
-    country: 'US',
+    currency: 'EGP',
+    country: 'EG',
     taxRate: '0',
     serviceCharge: '0',
   });
@@ -67,7 +80,7 @@ export default function CafeteriaSettings() {
     { label: isRTL ? 'الإعدادات' : 'Settings', path: '/dashboard/cafeteria-admin/settings', icon: <Settings className="w-5 h-5" /> },
   ];
 
-  const fetchCafeteriaInfo = async () => {
+  const fetchCafeteriaInfo = useCallback(async () => {
     if (!cafeteriaId) return;
     setLoading(true);
     try {
@@ -76,6 +89,7 @@ export default function CafeteriaSettings() {
         .select('*')
         .eq('id', cafeteriaId)
         .single();
+      
       if (error) throw error;
       if (data) {
         const info: CafeteriaInfo = {
@@ -84,19 +98,37 @@ export default function CafeteriaSettings() {
           description: data.description,
           address: data.address,
           phone: data.phone,
-          currency: data.currency || 'USD',
-          country: data.country || 'US',
+          currency: data.currency || 'EGP',
+          country: data.country || 'EG',
           taxRate: Number(data.tax_rate || 0),
           serviceCharge: Number(data.service_charge || 0),
           plan: data.plan || 'free',
+          latitude: data.latitude,
+          longitude: data.longitude,
+          referenceCode: data.reference_code,
         };
+        
         setCafeteriaInfo(info);
+        
+        // Extract phone code if exists
+        let pCode = '+20';
+        let pNum = info.phone || '';
+        const matchedCountry = countries.find(c => pNum.startsWith(c.phoneCode));
+        if (matchedCountry) {
+          pCode = matchedCountry.phoneCode;
+          pNum = pNum.replace(pCode, '');
+        }
+
         setGeneralForm({
           name: info.name || '',
           description: info.description || '',
           address: info.address || '',
-          phone: info.phone || '',
+          phone: pNum,
+          phoneCode: pCode,
+          latitude: info.latitude ? String(info.latitude) : '',
+          longitude: info.longitude ? String(info.longitude) : '',
         });
+        
         setBillingForm({
           currency: info.currency,
           country: info.country,
@@ -110,26 +142,48 @@ export default function CafeteriaSettings() {
     } finally {
       setLoading(false);
     }
+  }, [cafeteriaId, isRTL]);
+
+  useEffect(() => {
+    if (!authLoading && cafeteriaId) {
+      fetchCafeteriaInfo();
+    }
+  }, [cafeteriaId, authLoading, fetchCafeteriaInfo]);
+
+  const handleCountryChange = (countryCode: string) => {
+    const country = countries.find(c => c.code === countryCode);
+    if (country) {
+      setBillingForm({ ...billingForm, country: countryCode, currency: country.currency });
+      setGeneralForm({ ...generalForm, phoneCode: country.phoneCode });
+    }
   };
 
-  useEffect(() => { fetchCafeteriaInfo(); }, [cafeteriaId]);
-
   const handleSaveGeneral = async () => {
-    if (!cafeteriaId || !generalForm.name) {
+    if (!cafeteriaId) return;
+    if (!generalForm.name.trim()) {
       toast.error(isRTL ? 'اسم الكافيتريا مطلوب' : 'Cafeteria name is required');
       return;
     }
+    if (!generalForm.phone.trim()) {
+      toast.error(isRTL ? 'رقم الهاتف مطلوب' : 'Phone number is required');
+      return;
+    }
+
     setSaving(true);
     try {
+      const fullPhone = generalForm.phoneCode + generalForm.phone.replace(/^0+/, '');
       const { error } = await supabase
         .from('cafeterias')
         .update({
-          name: generalForm.name,
-          description: generalForm.description || null,
-          address: generalForm.address || null,
-          phone: generalForm.phone || null,
+          name: generalForm.name.trim(),
+          description: generalForm.description.trim() || null,
+          address: generalForm.address.trim() || null,
+          phone: fullPhone,
+          latitude: generalForm.latitude ? parseFloat(generalForm.latitude) : null,
+          longitude: generalForm.longitude ? parseFloat(generalForm.longitude) : null,
         })
         .eq('id', cafeteriaId);
+
       if (error) throw error;
       toast.success(isRTL ? 'تم حفظ الإعدادات العامة' : 'General settings saved');
       fetchCafeteriaInfo();
@@ -153,8 +207,10 @@ export default function CafeteriaSettings() {
           service_charge: parseFloat(billingForm.serviceCharge) || 0,
         })
         .eq('id', cafeteriaId);
+
       if (error) throw error;
       toast.success(isRTL ? 'تم حفظ إعدادات الفوترة' : 'Billing settings saved');
+      fetchCafeteriaInfo();
     } catch (err: any) {
       toast.error(err.message || (isRTL ? 'خطأ في الحفظ' : 'Error saving'));
     } finally {
@@ -162,344 +218,143 @@ export default function CafeteriaSettings() {
     }
   };
 
-  const getPlanBadge = (plan: string) => {
-    const plans: Record<string, { label: string; color: string }> = {
-      free: { label: 'Free', color: 'bg-gray-100 text-gray-700' },
-      basic: { label: 'Basic', color: 'bg-blue-100 text-blue-700' },
-      pro: { label: 'PRO', color: 'bg-purple-100 text-purple-700' },
-      enterprise: { label: 'Enterprise', color: 'bg-gold-100 text-yellow-700' },
-    };
-    const p = plans[plan] || plans.free;
-    return <span className={`px-3 py-1 rounded-full text-sm font-bold ${p.color}`}>{p.label}</span>;
+  const openInGoogleMaps = () => {
+    if (generalForm.latitude && generalForm.longitude) {
+      window.open(`https://www.google.com/maps?q=${generalForm.latitude},${generalForm.longitude}`, '_blank');
+    } else {
+      toast.error(isRTL ? 'يرجى إدخال الإحداثيات أولاً' : 'Please enter coordinates first');
+    }
   };
+
+  if (authLoading || loading) {
+    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+  }
 
   return (
     <div className={`min-h-screen bg-gray-50 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <DashboardHeader
-        title={isRTL ? 'إعدادات الكافيتريا' : 'Cafeteria Settings'}
-        icon={<Settings className="w-5 h-5" />}
-        onMenuToggle={setMenuOpen}
-        menuOpen={menuOpen}
-      />
-      <div className="flex">
-        <DashboardNavigation items={navigationItems} open={menuOpen} onClose={() => setMenuOpen(false)} />
-        <main className="flex-1 p-4 md:p-6">
-          {loading ? (
-            <div className="text-center py-12 text-gray-400">{isRTL ? 'جاري التحميل...' : 'Loading...'}</div>
-          ) : (
-            <Tabs defaultValue="general">
-              <TabsList className="mb-6">
-                <TabsTrigger value="general" className="gap-2">
-                  <Store className="w-4 h-4" />
-                  {isRTL ? 'عام' : 'General'}
-                </TabsTrigger>
-                <TabsTrigger value="billing" className="gap-2">
-                  <Percent className="w-4 h-4" />
-                  {isRTL ? 'الفوترة والضرائب' : 'Billing & Taxes'}
-                </TabsTrigger>
-                <TabsTrigger value="language" className="gap-2">
-                  <Languages className="w-4 h-4" />
-                  {isRTL ? 'اللغة' : 'Language'}
-                </TabsTrigger>
-                <TabsTrigger value="subscription" className="gap-2">
-                  <Shield className="w-4 h-4" />
-                  {isRTL ? 'الاشتراك' : 'Subscription'}
-                </TabsTrigger>
-              </TabsList>
+      <DashboardHeader title={isRTL ? 'إعدادات الكافيتريا' : 'Cafeteria Settings'} onMenuClick={() => setMenuOpen(true)} />
+      <DashboardNavigation isOpen={menuOpen} onClose={() => setMenuOpen(false)} items={navigationItems} />
 
-              {/* General Settings */}
-              <TabsContent value="general">
-                <Card className="border-0 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-base font-semibold text-gray-800 flex items-center gap-2">
-                      <Store className="w-5 h-5 text-blue-600" />
-                      {isRTL ? 'معلومات الكافيتريا' : 'Cafeteria Information'}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-5">
-                    <div>
-                      <Label className="font-medium">{isRTL ? 'اسم الكافيتريا *' : 'Cafeteria Name *'}</Label>
-                      <Input
-                        value={generalForm.name}
-                        onChange={e => setGeneralForm({ ...generalForm, name: e.target.value })}
-                        className="mt-1"
-                        placeholder={isRTL ? 'اسم الكافيتريا' : 'Cafeteria name'}
-                      />
-                    </div>
-                    <div>
-                      <Label className="font-medium">{isRTL ? 'الوصف' : 'Description'}</Label>
-                      <Textarea
-                        value={generalForm.description}
-                        onChange={e => setGeneralForm({ ...generalForm, description: e.target.value })}
-                        className="mt-1"
-                        rows={3}
-                        placeholder={isRTL ? 'وصف مختصر للكافيتريا' : 'Brief description'}
-                      />
-                    </div>
-                    <div>
-                      <Label className="font-medium">{isRTL ? 'العنوان' : 'Address'}</Label>
-                      <Input
-                        value={generalForm.address}
-                        onChange={e => setGeneralForm({ ...generalForm, address: e.target.value })}
-                        className="mt-1"
-                        placeholder={isRTL ? 'عنوان الكافيتريا' : 'Cafeteria address'}
-                      />
-                    </div>
-                    <div>
-                      <Label className="font-medium">{isRTL ? 'رقم الهاتف' : 'Phone Number'}</Label>
-                      <Input
-                        value={generalForm.phone}
-                        onChange={e => setGeneralForm({ ...generalForm, phone: e.target.value })}
-                        className="mt-1"
-                        placeholder="+1 234 567 8900"
-                      />
-                    </div>
-                    <Button
-                      onClick={handleSaveGeneral}
-                      disabled={saving}
-                      className="bg-blue-600 hover:bg-blue-700 text-white gap-2 w-full md:w-auto"
-                    >
-                      <Save className="w-4 h-4" />
-                      {saving ? (isRTL ? 'جاري الحفظ...' : 'Saving...') : (isRTL ? 'حفظ التغييرات' : 'Save Changes')}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+      <main className="container mx-auto px-4 py-6 max-w-4xl">
+        {/* Reference Code Banner */}
+        <Card className="mb-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-0 shadow-lg">
+          <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-xl"><Hash className="w-6 h-6" /></div>
+              <div>
+                <p className="text-blue-100 text-xs font-bold uppercase tracking-wider">{isRTL ? 'الرقم المرجعي للكافيتريا' : 'Cafeteria Reference Code'}</p>
+                <h2 className="text-2xl font-black tracking-widest">{cafeteriaInfo?.referenceCode || '---'}</h2>
+              </div>
+            </div>
+            <div className="text-center md:text-right">
+              <p className="text-blue-100 text-xs">{isRTL ? 'خطة الاشتراك الحالية' : 'Current Subscription Plan'}</p>
+              <span className="inline-block mt-1 px-3 py-1 bg-white text-blue-700 rounded-full text-xs font-bold uppercase">{cafeteriaInfo?.plan}</span>
+            </div>
+          </CardContent>
+        </Card>
 
-              {/* Billing Settings */}
-              <TabsContent value="billing">
-                <Card className="border-0 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-base font-semibold text-gray-800 flex items-center gap-2">
-                      <Percent className="w-5 h-5 text-green-600" />
-                      {isRTL ? 'إعدادات الفوترة والضرائب' : 'Billing & Tax Settings'}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-5">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="font-medium">{isRTL ? 'العملة' : 'Currency'}</Label>
-                        <Select value={billingForm.currency} onValueChange={v => setBillingForm({ ...billingForm, currency: v })}>
-                          <SelectTrigger className="mt-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="USD">USD - US Dollar</SelectItem>
-                            <SelectItem value="EUR">EUR - Euro</SelectItem>
-                            <SelectItem value="GBP">GBP - British Pound</SelectItem>
-                            <SelectItem value="SAR">SAR - Saudi Riyal</SelectItem>
-                            <SelectItem value="AED">AED - UAE Dirham</SelectItem>
-                            <SelectItem value="EGP">EGP - Egyptian Pound</SelectItem>
-                            <SelectItem value="KWD">KWD - Kuwaiti Dinar</SelectItem>
-                            <SelectItem value="QAR">QAR - Qatari Riyal</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className="font-medium">{isRTL ? 'الدولة' : 'Country'}</Label>
-                        <Select value={billingForm.country} onValueChange={v => setBillingForm({ ...billingForm, country: v })}>
-                          <SelectTrigger className="mt-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="US">United States</SelectItem>
-                            <SelectItem value="GB">United Kingdom</SelectItem>
-                            <SelectItem value="SA">Saudi Arabia</SelectItem>
-                            <SelectItem value="AE">UAE</SelectItem>
-                            <SelectItem value="EG">Egypt</SelectItem>
-                            <SelectItem value="KW">Kuwait</SelectItem>
-                            <SelectItem value="QA">Qatar</SelectItem>
-                            <SelectItem value="BH">Bahrain</SelectItem>
-                            <SelectItem value="OM">Oman</SelectItem>
-                            <SelectItem value="JO">Jordan</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="font-medium">{isRTL ? 'نسبة الضريبة (%)' : 'Tax Rate (%)'}</Label>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="100"
-                          value={billingForm.taxRate}
-                          onChange={e => setBillingForm({ ...billingForm, taxRate: e.target.value })}
-                          className="mt-1"
-                          placeholder="0"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          {isRTL ? 'مثال: 15 تعني 15%' : 'Example: 15 means 15%'}
-                        </p>
-                      </div>
-                      <div>
-                        <Label className="font-medium">{isRTL ? 'رسوم الخدمة (%)' : 'Service Charge (%)'}</Label>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="100"
-                          value={billingForm.serviceCharge}
-                          onChange={e => setBillingForm({ ...billingForm, serviceCharge: e.target.value })}
-                          className="mt-1"
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
-                    {/* Preview */}
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <p className="text-sm font-semibold text-gray-700 mb-3">{isRTL ? 'معاينة الفاتورة' : 'Bill Preview'}</p>
-                      <div className="space-y-1 text-sm text-gray-600">
-                        <div className="flex justify-between">
-                          <span>{isRTL ? 'المجموع الفرعي' : 'Subtotal'}</span>
-                          <span>100.00 {billingForm.currency}</span>
-                        </div>
-                        {parseFloat(billingForm.taxRate) > 0 && (
-                          <div className="flex justify-between text-orange-600">
-                            <span>{isRTL ? `ضريبة (${billingForm.taxRate}%)` : `Tax (${billingForm.taxRate}%)`}</span>
-                            <span>{(100 * parseFloat(billingForm.taxRate) / 100).toFixed(2)} {billingForm.currency}</span>
-                          </div>
-                        )}
-                        {parseFloat(billingForm.serviceCharge) > 0 && (
-                          <div className="flex justify-between text-blue-600">
-                            <span>{isRTL ? `خدمة (${billingForm.serviceCharge}%)` : `Service (${billingForm.serviceCharge}%)`}</span>
-                            <span>{(100 * parseFloat(billingForm.serviceCharge) / 100).toFixed(2)} {billingForm.currency}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between font-bold text-gray-800 border-t pt-1 mt-1">
-                          <span>{isRTL ? 'الإجمالي' : 'Total'}</span>
-                          <span>
-                            {(100 + (100 * parseFloat(billingForm.taxRate || '0') / 100) + (100 * parseFloat(billingForm.serviceCharge || '0') / 100)).toFixed(2)} {billingForm.currency}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={handleSaveBilling}
-                      disabled={saving}
-                      className="bg-blue-600 hover:bg-blue-700 text-white gap-2 w-full md:w-auto"
-                    >
-                      <Save className="w-4 h-4" />
-                      {saving ? (isRTL ? 'جاري الحفظ...' : 'Saving...') : (isRTL ? 'حفظ التغييرات' : 'Save Changes')}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+        <Tabs defaultValue="general" className="space-y-6">
+          <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto bg-white shadow-sm border">
+            <TabsTrigger value="general" className="gap-2"><Store className="w-4 h-4" /> {isRTL ? 'عام' : 'General'}</TabsTrigger>
+            <TabsTrigger value="billing" className="gap-2"><Globe className="w-4 h-4" /> {isRTL ? 'الدولة' : 'Country'}</TabsTrigger>
+            <TabsTrigger value="location" className="gap-2"><MapPin className="w-4 h-4" /> {isRTL ? 'الموقع' : 'Location'}</TabsTrigger>
+          </TabsList>
 
-              {/* Language Settings */}
-              <TabsContent value="language">
-                <Card className="border-0 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-base font-semibold text-gray-800 flex items-center gap-2">
-                      <Languages className="w-5 h-5 text-purple-600" />
-                      {isRTL ? 'إعدادات اللغة' : 'Language Settings'}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div>
-                      <Label className="font-medium text-gray-700">{isRTL ? 'لغة الواجهة' : 'Interface Language'}</Label>
-                      <p className="text-sm text-gray-500 mb-3">
-                        {isRTL ? 'اختر اللغة التي تريد عرض الواجهة بها' : 'Choose the language for the interface'}
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          onClick={() => setLanguage('ar')}
-                          className={`p-4 rounded-xl border-2 text-center transition-all ${
-                            language === 'ar'
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                          }`}
-                        >
-                          <p className="text-2xl mb-1">🇸🇦</p>
-                          <p className="font-bold">العربية</p>
-                          <p className="text-xs text-gray-500">Arabic</p>
-                          {language === 'ar' && (
-                            <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                              {isRTL ? 'نشط' : 'Active'}
-                            </span>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => setLanguage('en')}
-                          className={`p-4 rounded-xl border-2 text-center transition-all ${
-                            language === 'en'
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                          }`}
-                        >
-                          <p className="text-2xl mb-1">🇺🇸</p>
-                          <p className="font-bold">English</p>
-                          <p className="text-xs text-gray-500">الإنجليزية</p>
-                          {language === 'en' && (
-                            <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                              Active
-                            </span>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                      <p className="text-sm text-blue-700">
-                        {isRTL
-                          ? '✓ تم تفعيل دعم اللغة العربية بالكامل مع اتجاه RTL'
-                          : '✓ Arabic language support with RTL direction is fully enabled'}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+          {/* General Settings */}
+          <TabsContent value="general">
+            <Card className="border-0 shadow-md">
+              <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Store className="w-5 h-5 text-blue-600" /> {isRTL ? 'المعلومات الأساسية' : 'Basic Information'}</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                  <Label>{isRTL ? 'اسم الكافيتريا *' : 'Cafeteria Name *'}</Label>
+                  <Input value={generalForm.name} onChange={e => setGeneralForm({ ...generalForm, name: e.target.value })} placeholder={isRTL ? 'أدخل الاسم' : 'Enter name'} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>{isRTL ? 'رقم الهاتف *' : 'Phone Number *'}</Label>
+                  <div className="flex gap-2" dir="ltr">
+                    <div className="w-24 bg-gray-100 flex items-center justify-center rounded-md border font-mono text-sm">{generalForm.phoneCode}</div>
+                    <Input value={generalForm.phone} onChange={e => setGeneralForm({ ...generalForm, phone: e.target.value })} className="flex-1" placeholder="123456789" />
+                  </div>
+                  <p className="text-[10px] text-gray-400">{isRTL ? 'يجب أن يتطابق كود الدولة مع الدولة المختارة في تبويب الدولة' : 'Phone code must match the country selected in Country tab'}</p>
+                </div>
+                <div className="grid gap-2">
+                  <Label>{isRTL ? 'الوصف' : 'Description'}</Label>
+                  <Textarea value={generalForm.description} onChange={e => setGeneralForm({ ...generalForm, description: e.target.value })} rows={3} />
+                </div>
+                <Button onClick={handleSaveGeneral} disabled={saving} className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2"><Save className="w-4 h-4" /> {isRTL ? 'حفظ التغييرات' : 'Save Changes'}</Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              {/* Subscription */}
-              <TabsContent value="subscription">
-                <Card className="border-0 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-base font-semibold text-gray-800 flex items-center gap-2">
-                      <Shield className="w-5 h-5 text-yellow-600" />
-                      {isRTL ? 'معلومات الاشتراك' : 'Subscription Info'}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-5">
-                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-200">
-                      <div>
-                        <p className="text-sm text-gray-500">{isRTL ? 'الخطة الحالية' : 'Current Plan'}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {getPlanBadge(cafeteriaInfo?.plan || 'free')}
-                        </div>
-                      </div>
-                      <Button className="bg-purple-600 hover:bg-purple-700 text-white">
-                        {isRTL ? 'ترقية الخطة' : 'Upgrade Plan'}
-                      </Button>
-                    </div>
+          {/* Country & Billing */}
+          <TabsContent value="billing">
+            <Card className="border-0 shadow-md">
+              <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Globe className="w-5 h-5 text-blue-600" /> {isRTL ? 'الدولة والعملة' : 'Country & Currency'}</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                  <Label>{isRTL ? 'الدولة *' : 'Country *'}</Label>
+                  <Select value={billingForm.country} onValueChange={handleCountryChange}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {countries.map(c => <SelectItem key={c.code} value={c.code}>{isRTL ? c.arName : c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>{isRTL ? 'العملة' : 'Currency'}</Label>
+                  <Input value={billingForm.currency} readOnly className="bg-gray-50 font-bold" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>{isRTL ? 'نسبة الضريبة (%)' : 'Tax Rate (%)'}</Label>
+                    <Input type="number" value={billingForm.taxRate} onChange={e => setBillingForm({ ...billingForm, taxRate: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{isRTL ? 'رسوم الخدمة' : 'Service Charge'}</Label>
+                    <Input type="number" value={billingForm.serviceCharge} onChange={e => setBillingForm({ ...billingForm, serviceCharge: e.target.value })} />
+                  </div>
+                </div>
+                <Button onClick={handleSaveBilling} disabled={saving} className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2"><Save className="w-4 h-4" /> {isRTL ? 'حفظ الإعدادات' : 'Save Settings'}</Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {[
-                        { label: isRTL ? 'الطاولات' : 'Tables', limit: cafeteriaInfo?.plan === 'pro' ? 'Unlimited' : '10', icon: '🪑' },
-                        { label: isRTL ? 'الموظفين' : 'Staff', limit: cafeteriaInfo?.plan === 'pro' ? 'Unlimited' : '5', icon: '👥' },
-                        { label: isRTL ? 'أصناف المنيو' : 'Menu Items', limit: cafeteriaInfo?.plan === 'pro' ? 'Unlimited' : '50', icon: '🍽️' },
-                      ].map((item) => (
-                        <div key={item.label} className="p-4 bg-white rounded-xl border border-gray-200 text-center">
-                          <p className="text-2xl mb-1">{item.icon}</p>
-                          <p className="text-sm text-gray-500">{item.label}</p>
-                          <p className="font-bold text-gray-800">{item.limit}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                      <p className="text-sm font-medium text-yellow-800">
-                        {isRTL
-                          ? '💡 قم بالترقية إلى خطة PRO للحصول على طاولات وموظفين وأصناف غير محدودة مع تقارير متقدمة.'
-                          : '💡 Upgrade to PRO plan for unlimited tables, staff, menu items and advanced reports.'}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          )}
-        </main>
-      </div>
+          {/* Location Settings */}
+          <TabsContent value="location">
+            <Card className="border-0 shadow-md">
+              <CardHeader><CardTitle className="text-lg flex items-center gap-2"><MapPin className="w-5 h-5 text-blue-600" /> {isRTL ? 'موقع الكافيتريا (GPS)' : 'Cafeteria Location (GPS)'}</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                  <Label>{isRTL ? 'العنوان النصي' : 'Physical Address'}</Label>
+                  <Input value={generalForm.address} onChange={e => setGeneralForm({ ...generalForm, address: e.target.value })} placeholder={isRTL ? 'مثال: شارع النيل، القاهرة' : 'e.g. Nile St, Cairo'} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>{isRTL ? 'خط العرض (Latitude)' : 'Latitude'}</Label>
+                    <Input type="number" value={generalForm.latitude} onChange={e => setGeneralForm({ ...generalForm, latitude: e.target.value })} placeholder="30.0444" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{isRTL ? 'خط الطول (Longitude)' : 'Longitude'}</Label>
+                    <Input type="number" value={generalForm.longitude} onChange={e => setGeneralForm({ ...generalForm, longitude: e.target.value })} placeholder="31.2357" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={openInGoogleMaps} variant="outline" className="flex-1 gap-2"><Globe className="w-4 h-4" /> {isRTL ? 'عرض على الخريطة' : 'View on Map'}</Button>
+                  <Button onClick={handleSaveGeneral} disabled={saving} className="flex-1 bg-blue-600 text-white gap-2"><Save className="w-4 h-4" /> {isRTL ? 'حفظ الموقع' : 'Save Location'}</Button>
+                </div>
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-blue-600 shrink-0" />
+                  <p className="text-xs text-blue-700 leading-relaxed">
+                    {isRTL 
+                      ? 'تأكد من إدخال الإحداثيات بدقة لضمان وصول العملاء والمناديب لموقع الكافيتريا بسهولة عبر تطبيقات الخرائط.' 
+                      : 'Ensure coordinates are accurate to help customers and delivery staff find your location easily via map apps.'}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </main>
     </div>
   );
 }

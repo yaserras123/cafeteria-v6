@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTranslation } from '@/locales/useTranslation';
-import { LogOut, Menu, X } from 'lucide-react';
+import { LogOut, Menu, X, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLocation } from 'wouter';
 
@@ -10,6 +10,7 @@ interface DashboardHeaderProps {
   icon?: React.ReactNode;
   onMenuToggle?: (open: boolean) => void;
   menuOpen?: boolean;
+  onMenuClick?: () => void; // Support both naming conventions
 }
 
 export function DashboardHeader({
@@ -17,12 +18,14 @@ export function DashboardHeader({
   icon,
   onMenuToggle,
   menuOpen = false,
+  onMenuClick,
 }: DashboardHeaderProps) {
   const { user, logout } = useAuth();
   const { language, setLanguage } = useTranslation();
   const [, navigate] = useLocation();
 
   const isRTL = language === 'ar';
+  const handleToggle = onMenuClick || (onMenuToggle ? () => onMenuToggle(!menuOpen) : undefined);
 
   const handleLogout = async () => {
     await logout();
@@ -37,11 +40,11 @@ export function DashboardHeader({
       dir={isRTL ? 'rtl' : 'ltr'}
     >
       <div className="px-4 py-3 md:py-4 flex items-center justify-between">
-        {/* Left/Right Section - Title */}
+        {/* Left Section - Title & Menu */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          {onMenuToggle && (
+          {handleToggle && (
             <button
-              onClick={() => onMenuToggle(!menuOpen)}
+              onClick={handleToggle}
               className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
             >
               {menuOpen ? (
@@ -58,12 +61,20 @@ export function DashboardHeader({
             </div>
           )}
 
-          <h1 className="text-lg md:text-xl font-bold text-gray-800 truncate">
-            {title}
-          </h1>
+          <div className="flex flex-col min-w-0">
+            <h1 className="text-base md:text-lg font-bold text-gray-800 truncate">
+              {title}
+            </h1>
+            {user?.referenceCode && (
+              <div className="flex items-center gap-1 text-[10px] md:text-xs font-mono text-blue-600 font-bold">
+                <Hash className="w-3 h-3" />
+                <span>{user.referenceCode}</span>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Right/Left Section - Controls */}
+        {/* Right Section - Controls */}
         <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
           {/* Language Selector */}
           <select
@@ -75,13 +86,13 @@ export function DashboardHeader({
             <option value="ar">AR</option>
           </select>
 
-          {/* User Avatar */}
+          {/* User Info */}
           <div className="flex items-center gap-2">
             <div className="hidden sm:flex flex-col items-end">
               <p className="text-xs md:text-sm font-semibold text-gray-800 truncate max-w-[100px]">
                 {user?.name || 'User'}
               </p>
-              <p className="text-xs text-gray-500 capitalize">
+              <p className="text-[10px] text-gray-500 capitalize">
                 {user?.role || 'Guest'}
               </p>
             </div>
