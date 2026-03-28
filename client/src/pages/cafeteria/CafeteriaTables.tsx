@@ -123,6 +123,7 @@ export default function CafeteriaTables() {
     setSubmitting(true);
     try {
       const { error } = await supabase.from('sections').insert({
+        id: crypto.randomUUID ? crypto.randomUUID() : undefined,
         cafeteria_id: cafeteriaId,
         name: sectionForm.name.trim(),
         display_order: sections.length,
@@ -150,6 +151,7 @@ export default function CafeteriaTables() {
     try {
       const tableToken = Math.random().toString(36).substring(2, 34);
       const { error } = await supabase.from('cafeteria_tables').insert({
+        id: crypto.randomUUID ? crypto.randomUUID() : undefined,
         cafeteria_id: cafeteriaId,
         section_id: tableForm.sectionId,
         table_number: parseInt(tableForm.tableNumber),

@@ -84,10 +84,11 @@ export default function OwnerMarketers() {
       // and the user will sign up or be created via a trigger/edge function.
       const { data, error } = await supabase.from('marketers').insert([
         {
+          id: crypto.randomUUID ? crypto.randomUUID() : undefined, // Generate ID
           name: formData.name.trim(),
           email: formData.email.trim().toLowerCase(),
-          isRoot: false,
-          createdAt: new Date().toISOString(),
+          is_root: false,
+          created_at: new Date().toISOString(),
         },
       ]).select();
 

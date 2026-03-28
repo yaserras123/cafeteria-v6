@@ -39,9 +39,10 @@ export default function OwnerSettings() {
     try {
       // Save system configuration
       const { error } = await supabase
-        .from('systemConfigs')
+        .from('system_configs')
         .upsert({
-          key: 'defaultFreePeriodMonths',
+          id: crypto.randomUUID ? crypto.randomUUID() : undefined,
+          key: 'default_free_period_months',
           value: settings.defaultFreePeriodMonths.toString(),
         }, { onConflict: 'key' });
 

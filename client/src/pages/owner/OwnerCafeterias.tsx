@@ -88,15 +88,17 @@ export default function OwnerCafeterias() {
 
     setSubmitting(true);
     try {
+      // Use direct insert with proper ID generation
       const { data, error } = await supabase.from('cafeterias').insert([
         {
+          id: crypto.randomUUID ? crypto.randomUUID() : undefined, // Let DB generate if not available
           name: formData.name.trim(),
           location: formData.location.trim() || null,
-          subscriptionPlan: formData.subscriptionPlan,
-          subscriptionStatus: 'active',
-          pointsBalance: 0,
-          marketerId: user?.id || null,
-          createdAt: new Date().toISOString(),
+          subscription_plan: formData.subscriptionPlan,
+          subscription_status: 'active',
+          points_balance: '0',
+          marketer_id: user?.id || null,
+          created_at: new Date().toISOString(),
         },
       ]).select();
 
@@ -127,7 +129,7 @@ export default function OwnerCafeterias() {
         .update({
           name: formData.name.trim(),
           location: formData.location.trim() || null,
-          subscriptionPlan: formData.subscriptionPlan,
+          subscription_plan: formData.subscriptionPlan,
         })
         .eq('id', selectedCafeteria.id);
 
@@ -174,7 +176,7 @@ export default function OwnerCafeterias() {
       const { error } = await supabase
         .from('cafeterias')
         .update({
-          freeOperationEndDate: endDate.toISOString(),
+          free_operation_end_date: endDate.toISOString(),
         })
         .eq('id', selectedCafeteria.id);
 

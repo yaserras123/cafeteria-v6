@@ -142,6 +142,7 @@ export default function CafeteriaMenu() {
     setSubmitting(true);
     try {
       const { data, error } = await supabase.from('menu_categories').insert({
+        id: crypto.randomUUID ? crypto.randomUUID() : undefined,
         cafeteria_id: cafeteriaId,
         name: categoryForm.name.trim(),
         display_order: categories.length,
@@ -211,6 +212,7 @@ export default function CafeteriaMenu() {
     setSubmitting(true);
     try {
       const { error } = await supabase.from('menu_items').insert({
+        id: crypto.randomUUID ? crypto.randomUUID() : undefined,
         cafeteria_id: cafeteriaId,
         category_id: itemForm.categoryId,
         name: itemForm.name.trim(),
