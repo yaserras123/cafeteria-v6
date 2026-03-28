@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, createContext, ReactNode } from 'react';
+import { useState, useEffect, useContext, createContext, ReactNode, useCallback } from 'react';
 
 interface TranslationContextType {
   t: (key: string, vars?: Record<string, string | number>) => string;
@@ -13,55 +13,60 @@ interface TranslationProviderProps {
   defaultLanguage?: string;
 }
 
-const translations: Record<string, Record<string, string>> = {};
+const translationsCache: Record<string, Record<string, string>> = {};
 
 export const TranslationProvider = ({ children, defaultLanguage = 'en' }: TranslationProviderProps) => {
   const [language, setLanguageState] = useState<string>(() => {
-    // Try to get language from localStorage, then browser, then default
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('preferredLanguage') || navigator.language.split('-')[0] || defaultLanguage;
+      const saved = localStorage.getItem('preferredLanguage');
+      if (saved) return saved;
+      return navigator.language.split('-')[0] === 'ar' ? 'ar' : defaultLanguage;
     }
     return defaultLanguage;
   });
+  
   const [messages, setMessages] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    const loadMessages = async () => {
-      try {
-        const response = await fetch(`/src/locales/${language}.json`);
-        if (!response.ok) {
-          throw new Error(`Could not load translation file for ${language}`);
-        }
-        const data = await response.json();
-        translations[language] = data; // Cache translations
-        setMessages(data);
-      } catch (error) {
-        console.error(`Error loading translation for ${language}:`, error);
-        // Fallback to default language if loading fails
-        if (language !== defaultLanguage) {
-          console.warn(`Falling back to default language: ${defaultLanguage}`);
-          setLanguageState(defaultLanguage);
-        } else {
-          setMessages({}); // No translations available
-        }
-      }
-    };
-
-    if (translations[language]) {
-      setMessages(translations[language]);
-    } else {
-      loadMessages();
+  const loadMessages = useCallback(async (lang: string) => {
+    if (translationsCache[lang]) {
+      setMessages(translationsCache[lang]);
+      return;
     }
+
+    try {
+      // Use a more robust path for production
+      const response = await fetch(`/locales/${lang}.json`);
+      if (!response.ok) {
+        // Try alternative path if first one fails
+        const altResponse = await fetch(`/src/locales/${lang}.json`);
+        if (!altResponse.ok) throw new Error(`Could not load translation file for ${lang}`);
+        const data = await altResponse.json();
+        translationsCache[lang] = data;
+        setMessages(data);
+      } else {
+        const data = await response.json();
+        translationsCache[lang] = data;
+        setMessages(data);
+      }
+    } catch (error) {
+      console.error(`Error loading translation for ${lang}:`, error);
+      if (lang !== 'en') {
+        loadMessages('en');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMessages(language);
 
     if (typeof window !== 'undefined') {
       localStorage.setItem('preferredLanguage', language);
       document.documentElement.lang = language;
-      // Set dir attribute for RTL languages
-      document.documentElement.dir = (language === 'ar' || language === 'he') ? 'rtl' : 'ltr';
+      document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
     }
-  }, [language, defaultLanguage]);
+  }, [language, loadMessages]);
 
-  const t = (key: string, vars?: Record<string, string | number>): string => {
+  const t = useCallback((key: string, vars?: Record<string, string | number>): string => {
     let message = messages[key] || key;
     if (vars) {
       for (const [varKey, varValue] of Object.entries(vars)) {
@@ -69,13 +74,14 @@ export const TranslationProvider = ({ children, defaultLanguage = 'en' }: Transl
       }
     }
     return message;
-  };
+  }, [messages]);
 
-  const setLanguage = (lang: string) => {
+  const setLanguage = useCallback((lang: string) => {
     setLanguageState(lang);
-    // Here you would also call a backend API to save the user's preference
-    // For now, we'll just update localStorage and the state.
-  };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('preferredLanguage', lang);
+    }
+  }, []);
 
   return (
     <TranslationContext.Provider value={{ t, setLanguage, language }}>

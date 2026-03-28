@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import {
   Users, LayoutDashboard, Store, Wallet, BarChart3, Settings,
-  Plus, Edit, Trash2, Mail, Phone, RefreshCw, ArrowLeft, Home
+  Plus, Edit, Trash2, Mail, Phone, RefreshCw, ArrowLeft, Home, AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
@@ -27,7 +27,7 @@ interface Marketer {
 }
 
 export default function OwnerMarketers() {
-  const { user } = useAuth({ redirectOnUnauthenticated: true });
+  const { user, loading: authLoading } = useAuth({ redirectOnUnauthenticated: true });
   const { language } = useTranslation();
   const [, setLocation] = useLocation();
   const isRTL = language === 'ar';
@@ -66,8 +66,10 @@ export default function OwnerMarketers() {
   };
 
   useEffect(() => {
-    fetchMarketers();
-  }, []);
+    if (!authLoading) {
+      fetchMarketers();
+    }
+  }, [authLoading]);
 
   const handleAddMarketer = async () => {
     if (!formData.name.trim() || !formData.email.trim()) {
@@ -77,21 +79,26 @@ export default function OwnerMarketers() {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase.from('marketers').insert([
+      // 1. Create the user in Supabase Auth first (if needed) or just the record
+      // For this system, we usually create the record in the 'marketers' table
+      // and the user will sign up or be created via a trigger/edge function.
+      const { data, error } = await supabase.from('marketers').insert([
         {
-          name: formData.name,
-          email: formData.email,
+          name: formData.name.trim(),
+          email: formData.email.trim().toLowerCase(),
           isRoot: false,
           createdAt: new Date().toISOString(),
         },
-      ]);
+      ]).select();
 
       if (error) throw error;
+      
       toast.success(isRTL ? 'تم إضافة المسوق بنجاح' : 'Marketer added successfully');
       setShowAddDialog(false);
       setFormData({ name: '', email: '', password: '' });
       fetchMarketers();
     } catch (err: any) {
+      console.error('Add marketer error:', err);
       toast.error(err.message || (isRTL ? 'خطأ في إضافة المسوق' : 'Error adding marketer'));
     } finally {
       setSubmitting(false);
@@ -109,8 +116,8 @@ export default function OwnerMarketers() {
       const { error } = await supabase
         .from('marketers')
         .update({
-          name: formData.name,
-          email: formData.email,
+          name: formData.name.trim(),
+          email: formData.email.trim().toLowerCase(),
         })
         .eq('id', selectedMarketer.id);
 
@@ -161,6 +168,10 @@ export default function OwnerMarketers() {
     m.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  if (authLoading) {
+    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div></div>;
+  }
+
   return (
     <div className={`min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
@@ -178,31 +189,11 @@ export default function OwnerMarketers() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={fetchMarketers}
-              className="h-10 w-10 text-slate-600 hover:text-purple-600"
-            >
+            <Button variant="ghost" size="icon" onClick={fetchMarketers} className="h-10 w-10 text-slate-600 hover:text-purple-600">
               <RefreshCw className="w-5 h-5" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setLocation('/dashboard/owner')}
-              className="h-10 w-10 text-slate-600 hover:text-purple-600"
-              title={isRTL ? 'العودة للخلف' : 'Go Back'}
-            >
+            <Button variant="ghost" size="icon" onClick={() => setLocation('/dashboard/owner')} className="h-10 w-10 text-slate-600 hover:text-purple-600">
               <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setLocation('/dashboard/owner')}
-              className="h-10 w-10 text-slate-600 hover:text-purple-600"
-              title={isRTL ? 'الصفحة الرئيسية' : 'Home'}
-            >
-              <Home className="w-5 h-5" />
             </Button>
           </div>
         </div>
@@ -210,7 +201,7 @@ export default function OwnerMarketers() {
 
       <main className="px-4 py-6 max-w-6xl mx-auto">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card className="border-0 shadow-md bg-gradient-to-br from-purple-500 to-purple-700 text-white">
             <CardContent className="p-4">
               <p className="text-3xl font-black">{marketers.length}</p>
@@ -270,7 +261,6 @@ export default function OwnerMarketers() {
                       <TableHead>{isRTL ? 'البريد الإلكتروني' : 'Email'}</TableHead>
                       <TableHead>{isRTL ? 'النوع' : 'Type'}</TableHead>
                       <TableHead>{isRTL ? 'الرقم المرجعي' : 'Reference Code'}</TableHead>
-                      <TableHead>{isRTL ? 'التاريخ' : 'Date'}</TableHead>
                       <TableHead>{isRTL ? 'إجراءات' : 'Actions'}</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -280,38 +270,18 @@ export default function OwnerMarketers() {
                         <TableCell className="font-semibold text-gray-900">{marketer.name}</TableCell>
                         <TableCell className="text-gray-600 text-sm">{marketer.email}</TableCell>
                         <TableCell>
-                          <Badge className={`${marketer.isRoot ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'} border-none text-xs font-bold`}>
-                            {isRTL ? (marketer.isRoot ? 'رئيسي' : 'فرعي') : (marketer.isRoot ? 'Root' : 'Child')}
+                          <Badge className={marketer.isRoot ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}>
+                            {marketer.isRoot ? (isRTL ? 'رئيسي' : 'Root') : (isRTL ? 'فرعي' : 'Child')}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-gray-500 text-sm font-mono">
-                          {marketer.referenceCode || '-'}
-                        </TableCell>
-                        <TableCell className="text-gray-500 text-sm">
-                          {new Date(marketer.createdAt).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US')}
-                        </TableCell>
+                        <TableCell className="font-mono text-xs text-purple-600 font-bold">{marketer.referenceCode || '---'}</TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                              onClick={() => openEditDialog(marketer)}
-                              title={isRTL ? 'تعديل' : 'Edit'}
-                            >
-                              <Edit className="w-3 h-3" />
+                          <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(marketer)} className="h-8 w-8 text-blue-600 hover:bg-blue-50">
+                              <Edit className="w-4 h-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-red-600 hover:text-red-800 hover:bg-red-50"
-                              onClick={() => {
-                                setSelectedMarketer(marketer);
-                                setShowDeleteDialog(true);
-                              }}
-                              title={isRTL ? 'حذف' : 'Delete'}
-                            >
-                              <Trash2 className="w-3 h-3" />
+                            <Button variant="ghost" size="icon" onClick={() => { setSelectedMarketer(marketer); setShowDeleteDialog(true); }} className="h-8 w-8 text-red-600 hover:bg-red-50">
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>
@@ -327,34 +297,23 @@ export default function OwnerMarketers() {
 
       {/* Add Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent dir={isRTL ? 'rtl' : 'ltr'}>
+        <DialogContent className="max-w-md" dir={isRTL ? 'rtl' : 'ltr'}>
           <DialogHeader>
             <DialogTitle>{isRTL ? 'إضافة مسوق جديد' : 'Add New Marketer'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>{isRTL ? 'الاسم' : 'Name'}</Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder={isRTL ? 'اسم المسوق' : 'Marketer name'}
-              />
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>{isRTL ? 'الاسم الكامل' : 'Full Name'}</Label>
+              <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={isRTL ? 'أدخل الاسم' : 'Enter name'} />
             </div>
-            <div>
-              <Label>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder={isRTL ? 'البريد الإلكتروني' : 'Email address'}
-              />
+            <div className="space-y-2">
+              <Label>{isRTL ? 'البريد الإلكتروني' : 'Email Address'}</Label>
+              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="example@mail.com" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              {isRTL ? 'إلغاء' : 'Cancel'}
-            </Button>
-            <Button onClick={handleAddMarketer} disabled={submitting}>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
+            <Button onClick={handleAddMarketer} disabled={submitting} className="bg-purple-600 text-white">
               {submitting ? '...' : (isRTL ? 'إضافة' : 'Add')}
             </Button>
           </DialogFooter>
@@ -363,35 +322,24 @@ export default function OwnerMarketers() {
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent dir={isRTL ? 'rtl' : 'ltr'}>
+        <DialogContent className="max-w-md" dir={isRTL ? 'rtl' : 'ltr'}>
           <DialogHeader>
-            <DialogTitle>{isRTL ? 'تعديل المسوق' : 'Edit Marketer'}</DialogTitle>
+            <DialogTitle>{isRTL ? 'تعديل بيانات المسوق' : 'Edit Marketer'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>{isRTL ? 'الاسم' : 'Name'}</Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder={isRTL ? 'اسم المسوق' : 'Marketer name'}
-              />
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>{isRTL ? 'الاسم الكامل' : 'Full Name'}</Label>
+              <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
             </div>
-            <div>
-              <Label>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder={isRTL ? 'البريد الإلكتروني' : 'Email address'}
-              />
+            <div className="space-y-2">
+              <Label>{isRTL ? 'البريد الإلكتروني' : 'Email Address'}</Label>
+              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
-              {isRTL ? 'إلغاء' : 'Cancel'}
-            </Button>
-            <Button onClick={handleEditMarketer} disabled={submitting}>
-              {submitting ? '...' : (isRTL ? 'تحديث' : 'Update')}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
+            <Button onClick={handleEditMarketer} disabled={submitting} className="bg-purple-600 text-white">
+              {submitting ? '...' : (isRTL ? 'حفظ التعديلات' : 'Save Changes')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -401,14 +349,14 @@ export default function OwnerMarketers() {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent dir={isRTL ? 'rtl' : 'ltr'}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{isRTL ? 'حذف المسوق' : 'Delete Marketer'}</AlertDialogTitle>
+            <AlertDialogTitle>{isRTL ? 'هل أنت متأكد من الحذف؟' : 'Are you sure?'}</AlertDialogTitle>
             <AlertDialogDescription>
-              {isRTL ? 'هل أنت متأكد من حذف هذا المسوق؟' : 'Are you sure you want to delete this marketer?'}
+              {isRTL ? `سيتم حذف المسوق "${selectedMarketer?.name}" نهائياً من النظام.` : `This will permanently delete marketer "${selectedMarketer?.name}".`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{isRTL ? 'إلغاء' : 'Cancel'}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteMarketer} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={handleDeleteMarketer} className="bg-red-600 text-white">
               {isRTL ? 'حذف' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
