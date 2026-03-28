@@ -49,7 +49,11 @@ export default function OwnerCafeterias() {
   const [formData, setFormData] = useState({
     name: '',
     location: '',
+    password: '',
     subscriptionPlan: 'starter',
+    country: 'SA',
+    currency: 'SAR',
+    language: 'ar',
   });
 
   const [freePeriodData, setFreePeriodData] = useState({
@@ -88,30 +92,41 @@ export default function OwnerCafeterias() {
 
     setSubmitting(true);
     try {
-      // Get current user's marketer data to inherit country/currency
-      const { data: currentUserMarketer, error: fetchError } = await supabase
-        .from('marketers')
-        .select('id, country, currency')
-        .eq('email', user?.email)
-        .single();
+      let insertData: any = {
+        id: crypto.randomUUID ? crypto.randomUUID() : undefined,
+        name: formData.name.trim(),
+        location: formData.location.trim() || null,
+        passwordHash: formData.password, // Simple password for now
+        subscriptionPlan: formData.subscriptionPlan,
+        subscriptionStatus: 'active',
+        pointsBalance: '0',
+        createdAt: new Date().toISOString(),
+      };
 
-      if (fetchError) throw new Error(isRTL ? 'فشل في جلب بيانات المسوق الحالي' : 'Failed to fetch current marketer data');
+      if (user?.role === 'owner') {
+        // Owner creates Level 1 Cafeterias
+        insertData.marketerId = 'owner'; // Or a specific system ID
+        insertData.country = formData.country;
+        insertData.currency = formData.currency;
+        insertData.language = formData.language;
+      } else {
+        // Marketer creates Cafeterias (Inheritance)
+        const { data: currentUserMarketer, error: fetchError } = await supabase
+          .from('marketers')
+          .select('id, country, currency, language')
+          .eq('email', user?.email)
+          .single();
+
+        if (fetchError) throw new Error(isRTL ? 'فشل في جلب بيانات المسوق الحالي' : 'Failed to fetch current marketer data');
+
+        insertData.marketerId = currentUserMarketer.id;
+        insertData.country = currentUserMarketer.country;
+        insertData.currency = currentUserMarketer.currency;
+        insertData.language = currentUserMarketer.language;
+      }
 
       // Use direct insert with proper ID generation
-      const { data, error } = await supabase.from('cafeterias').insert([
-        {
-          id: crypto.randomUUID ? crypto.randomUUID() : undefined,
-          name: formData.name.trim(),
-          location: formData.location.trim() || null,
-          subscriptionPlan: formData.subscriptionPlan,
-          subscriptionStatus: 'active',
-          pointsBalance: '0',
-          marketerId: currentUserMarketer.id,
-          country: currentUserMarketer.country,
-          currency: currentUserMarketer.currency,
-          createdAt: new Date().toISOString(),
-        },
-      ]).select();
+      const { data, error } = await supabase.from('cafeterias').insert([insertData]).select();
 
       if (error) throw error;
       
@@ -375,6 +390,33 @@ export default function OwnerCafeterias() {
               <Label>{isRTL ? 'الموقع / العنوان' : 'Location / Address'}</Label>
               <Input value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder={isRTL ? 'أدخل الموقع' : 'Enter location'} />
             </div>
+            <div className="space-y-2">
+              <Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label>
+              <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="******" />
+            </div>
+            {user?.role === 'owner' && (
+              <>
+                <div className="space-y-2">
+                  <Label>{isRTL ? 'البلد' : 'Country'}</Label>
+                  <Input value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="SA, EG, etc." />
+                </div>
+                <div className="space-y-2">
+                  <Label>{isRTL ? 'العملة' : 'Currency'}</Label>
+                  <Input value={formData.currency} onChange={(e) => setFormData({ ...formData, currency: e.target.value })} placeholder="SAR, EGP, etc." />
+                </div>
+                <div className="space-y-2">
+                  <Label>{isRTL ? 'اللغة' : 'Language'}</Label>
+                  <select 
+                    className="w-full p-2 border rounded-md"
+                    value={formData.language}
+                    onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                  >
+                    <option value="ar">العربية</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
               <Label>{isRTL ? 'خطة الاشتراك' : 'Subscription Plan'}</Label>

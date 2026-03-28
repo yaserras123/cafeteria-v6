@@ -45,6 +45,9 @@ export default function OwnerMarketers() {
     name: '',
     email: '',
     password: '',
+    country: 'SA',
+    currency: 'SAR',
+    language: 'ar',
   });
 
   const fetchMarketers = async () => {
@@ -79,25 +82,36 @@ export default function OwnerMarketers() {
 
     setSubmitting(true);
     try {
-      // Get current user's marketer data to inherit country/currency
-      const { data: currentUserMarketer, error: fetchError } = await supabase
-        .from('marketers')
-        .select('id, country, currency')
-        .eq('email', user?.email)
-        .single();
-
-      if (fetchError) throw new Error(isRTL ? 'فشل في جلب بيانات المسوق الحالي' : 'Failed to fetch current marketer data');
-
       let insertData: any = {
         id: crypto.randomUUID ? crypto.randomUUID() : undefined,
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
-        isRoot: false, // User-created marketers are never root
-        parentId: currentUserMarketer.id,
-        country: currentUserMarketer.country,
-        currency: currentUserMarketer.currency,
+        passwordHash: formData.password, // Simple password for now
         createdAt: new Date().toISOString(),
       };
+
+      if (user?.role === 'owner') {
+        // Owner creates Level 1 Marketers (Root)
+        insertData.isRoot = true;
+        insertData.country = formData.country;
+        insertData.currency = formData.currency;
+        insertData.language = formData.language;
+      } else {
+        // Marketer creates Child Marketers (Inheritance)
+        const { data: currentUserMarketer, error: fetchError } = await supabase
+          .from('marketers')
+          .select('id, country, currency, language')
+          .eq('email', user?.email)
+          .single();
+
+        if (fetchError) throw new Error(isRTL ? 'فشل في جلب بيانات المسوق الحالي' : 'Failed to fetch current marketer data');
+
+        insertData.isRoot = false;
+        insertData.parentId = currentUserMarketer.id;
+        insertData.country = currentUserMarketer.country;
+        insertData.currency = currentUserMarketer.currency;
+        insertData.language = currentUserMarketer.language;
+      }
 
       const { data, error } = await supabase.from('marketers').insert([insertData]).select();
 
@@ -320,6 +334,33 @@ export default function OwnerMarketers() {
               <Label>{isRTL ? 'البريد الإلكتروني' : 'Email Address'}</Label>
               <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="example@mail.com" />
             </div>
+            <div className="space-y-2">
+              <Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label>
+              <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="******" />
+            </div>
+            {user?.role === 'owner' && (
+              <>
+                <div className="space-y-2">
+                  <Label>{isRTL ? 'البلد' : 'Country'}</Label>
+                  <Input value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="SA, EG, etc." />
+                </div>
+                <div className="space-y-2">
+                  <Label>{isRTL ? 'العملة' : 'Currency'}</Label>
+                  <Input value={formData.currency} onChange={(e) => setFormData({ ...formData, currency: e.target.value })} placeholder="SAR, EGP, etc." />
+                </div>
+                <div className="space-y-2">
+                  <Label>{isRTL ? 'اللغة' : 'Language'}</Label>
+                  <select 
+                    className="w-full p-2 border rounded-md"
+                    value={formData.language}
+                    onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                  >
+                    <option value="ar">العربية</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
