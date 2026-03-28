@@ -20,7 +20,6 @@ export default function OwnerDashboard() {
   const [stats, setStats] = useState({
     totalCafeterias: 0,
     totalMarketers: 0,
-    activeSubscriptions: 0,
     freePeriodCafeterias: 0,
     totalPointsRecharged: 0,
     totalCommissionsPaid: 0
@@ -48,7 +47,6 @@ export default function OwnerDashboard() {
         setStats({
           totalCafeterias: cafeCount || 0,
           totalMarketers: marketerCount || 0,
-          activeSubscriptions: cafeCount ? Math.floor(cafeCount * 0.7) : 0,
           freePeriodCafeterias: freePeriodCount || 0,
           totalPointsRecharged: totalPoints,
           totalCommissionsPaid: totalPoints * 0.1 // Placeholder logic
@@ -68,7 +66,7 @@ export default function OwnerDashboard() {
       path: '/dashboard/owner/cafeterias', 
       icon: <Store className="w-6 h-6" />, 
       color: 'bg-blue-500',
-      description: isRTL ? 'إضافة وتعديل بيانات الكافيتريات' : 'Manage cafeteria data and plans'
+      description: isRTL ? 'إضافة وتعديل بيانات الكافيتريات' : 'Manage cafeteria data'
     },
     { 
       label: isRTL ? 'إدارة المسوقين' : 'Marketers', 
@@ -134,12 +132,6 @@ export default function OwnerDashboard() {
               <CardContent className="p-4">
                 <p className="text-xl font-bold">{stats.totalMarketers}</p>
                 <p className="text-[10px] text-slate-400 uppercase tracking-wider">{isRTL ? 'المسوقين' : 'Marketers'}</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">
-              <CardContent className="p-4">
-                <p className="text-xl font-bold">{stats.activeSubscriptions}</p>
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider">{isRTL ? 'الاشتراكات' : 'Subs'}</p>
               </CardContent>
             </Card>
             <Card className="bg-white/5 border-white/10 backdrop-blur-md text-white border-0 shadow-none">

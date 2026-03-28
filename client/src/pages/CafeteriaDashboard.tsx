@@ -134,7 +134,6 @@ export default function CafeteriaDashboard() {
     },
   ];
 
-  const plan = cafeteriaInfo?.plan || 'free';
 
   return (
     <div
@@ -152,8 +151,8 @@ export default function CafeteriaDashboard() {
               <h1 className="text-xl font-black text-slate-900">
                 {cafeteriaInfo?.name || (isRTL ? 'الكافيتريا' : 'Cafeteria')}
               </h1>
-              <Badge className="bg-purple-100 text-purple-700 border-none text-xs font-bold uppercase">
-                {plan} {isRTL ? 'خطة' : 'Plan'}
+              <Badge className="bg-blue-100 text-blue-700 border-none text-xs font-bold uppercase">
+                {isRTL ? 'لوحة التحكم' : 'Dashboard'}
               </Badge>
             </div>
           </div>

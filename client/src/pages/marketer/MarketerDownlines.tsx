@@ -149,18 +149,30 @@ export default function MarketerDownlines() {
       toast.error(isRTL ? 'يرجى ملء جميع الحقول' : 'Please fill all fields');
       return;
     }
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cafeteriaForm.email.trim())) {
+      toast.error(isRTL ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format');
+      return;
+    }
+    if (cafeteriaForm.password.length < 8) {
+      toast.error(isRTL ? 'كلمة المرور يجب أن تكون 8 خانات على الأقل' : 'Password must be at least 8 characters');
+      return;
+    }
     setSubmitting(true);
     try {
       const refCode = `${user?.referenceCode}-CAF-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
       
       const { error } = await supabase.from('cafeterias').insert({
         name: cafeteriaForm.name,
-        parent_id: user?.id,
+        loginUsername: cafeteriaForm.email.trim().toLowerCase(),
+        passwordHash: cafeteriaForm.password,
+        marketerId: user?.id,
         country: user?.country,
         currency: user?.currency,
-        reference_code: refCode,
+        referenceCode: refCode,
         subscriptionStatus: 'active',
-        created_at: new Date().toISOString()
+        createdAt: new Date().toISOString()
       });
 
       if (error) throw error;
@@ -299,8 +311,30 @@ export default function MarketerDownlines() {
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Store className="w-5 h-5 text-green-600" /> {isRTL ? 'إضافة كافيتريا تابعة جديدة' : 'Add New Sub-Cafeteria'}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label>{isRTL ? 'اسم الكافيتريا' : 'Cafeteria Name'}</Label><Input value={cafeteriaForm.name} onChange={e => setCafeteriaForm({...cafeteriaForm, name: e.target.value})} placeholder="My Cafeteria" /></div>
-            <div className="space-y-2"><Label>{isRTL ? 'بريد الأدمن' : 'Admin Email'}</Label><Input type="email" value={cafeteriaForm.email} onChange={e => setCafeteriaForm({...cafeteriaForm, email: e.target.value})} placeholder="admin@cafeteria.com" /></div>
-            <div className="space-y-2"><Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label><Input type="password" value={cafeteriaForm.password} onChange={e => setCafeteriaForm({...cafeteriaForm, password: e.target.value})} /></div>
+            <div className="space-y-2">
+              <Label>{isRTL ? 'البريد الإلكتروني (اسم المستخدم)' : 'Email (Login Username)'} <span className="text-red-500">*</span></Label>
+              <Input
+                type="email"
+                value={cafeteriaForm.email}
+                onChange={e => setCafeteriaForm({...cafeteriaForm, email: e.target.value})}
+                placeholder="admin@cafeteria.com"
+                className={cafeteriaForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cafeteriaForm.email) ? 'border-red-400' : ''}
+              />
+              {cafeteriaForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cafeteriaForm.email) && (
+                <p className="text-xs text-red-500">{isRTL ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format'}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>{isRTL ? 'كلمة المرور' : 'Password'} <span className="text-red-500">*</span></Label>
+              <Input
+                type="password"
+                value={cafeteriaForm.password}
+                onChange={e => setCafeteriaForm({...cafeteriaForm, password: e.target.value})}
+              />
+              {cafeteriaForm.password && cafeteriaForm.password.length < 8 && (
+                <p className="text-xs text-red-500">{isRTL ? 'كلمة المرور يجب أن تكون 8 خانات على الأقل' : 'Password must be at least 8 characters'}</p>
+              )}
+            </div>
             <div className="p-3 bg-green-50 rounded-lg border border-green-100 flex gap-2">
               <Globe className="w-4 h-4 text-green-600 shrink-0" />
               <p className="text-[10px] text-green-700">{isRTL ? `ستتبع الكافيتريا بلدك (${user?.country}) وعملتك (${user?.currency}) تلقائياً.` : `Cafeteria will follow your country (${user?.country}) and currency (${user?.currency}) automatically.`}</p>

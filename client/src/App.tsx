@@ -16,9 +16,7 @@ import OwnerDashboard from "./pages/OwnerDashboard";
 import MarketerDashboard from "./pages/MarketerDashboard";
 import CafeteriaDashboard from "./pages/CafeteriaDashboard";
 import CustomerMenu from "./pages/CustomerMenu";
-import Upgrade from "./pages/Upgrade";
-import UpgradeSuccess from "./pages/UpgradeSuccess";
-import UpgradeCancel from "./pages/UpgradeCancel";
+// Upgrade pages removed - no subscription plans in this project
 
 // Owner Dashboard Sub-pages
 import OwnerCafeterias from "./pages/owner/OwnerCafeterias";
@@ -103,9 +101,7 @@ function Router() {
 
       {/* ===== OTHER ROUTES ===== */}
       <Route path={"/reports"} component={ReportingDashboard} />
-      <Route path={"/upgrade"} component={Upgrade} />
-      <Route path={"/upgrade/success"} component={UpgradeSuccess} />
-      <Route path={"/upgrade/cancel"} component={UpgradeCancel} />
+      {/* Upgrade routes removed - no subscription plans in this project */}
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

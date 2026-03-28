@@ -2,7 +2,6 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardMetricCard } from "@/components/DashboardMetricCard";
-import { FeatureGate, UpgradeModal } from "@/components/SubscriptionGating";
 import { trpc } from "@/lib/trpc";
 import {
   formatCurrency,
@@ -13,7 +12,6 @@ import {
 import { Loader2, TrendingUp, BarChart3, Users } from "lucide-react";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePlanCheck } from "@/hooks/usePlanCheck";
 
 export default function ReportingDashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -22,43 +20,37 @@ export default function ReportingDashboard() {
   const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly">("daily");
   const [startDate, setStartDate] = useState<Date>(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
   const [endDate, setEndDate] = useState<Date>(new Date());
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-
-  // Plan check — all reporting is premium
-  const { hasFeature, plan, isLoading: planLoading } = usePlanCheck();
-  const isPremiumReportsAllowed = hasFeature("premiumReports");
-
-  // Fetch cafeteria reports — only enabled when plan allows
+  // Fetch cafeteria reports
   const { data: reports, isLoading: reportsLoading } = trpc.reporting.getCafeteriaReports.useQuery(
     { cafeteriaId, reportType, startDate, endDate },
-    { enabled: !!cafeteriaId && isPremiumReportsAllowed }
+    { enabled: !!cafeteriaId }
   );
 
   // Fetch sales comparison
   const { data: salesComparison, isLoading: salesLoading } = trpc.reporting.getSalesComparison.useQuery(
     { cafeteriaId, startDate, endDate },
-    { enabled: !!cafeteriaId && isPremiumReportsAllowed }
+    { enabled: !!cafeteriaId }
   );
 
   // Fetch top items
   const { data: topItems, isLoading: topItemsLoading } = trpc.reporting.getTopItemsReport.useQuery(
     { cafeteriaId, startDate, endDate, limit: 10 },
-    { enabled: !!cafeteriaId && isPremiumReportsAllowed }
+    { enabled: !!cafeteriaId }
   );
 
   // Fetch top staff
   const { data: topStaff, isLoading: topStaffLoading } = trpc.reporting.getTopStaffReport.useQuery(
     { cafeteriaId, startDate, endDate, limit: 10 },
-    { enabled: !!cafeteriaId && isPremiumReportsAllowed }
+    { enabled: !!cafeteriaId }
   );
 
   // Fetch occupancy data
   const { data: occupancyData } = trpc.tables.getCafeteriaOccupancy.useQuery(
     { cafeteriaId },
-    { enabled: !!cafeteriaId && isPremiumReportsAllowed }
+    { enabled: !!cafeteriaId }
   );
 
-  if (authLoading || planLoading) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="animate-spin" />
@@ -85,8 +77,7 @@ export default function ReportingDashboard() {
           <p className="text-gray-600 mt-2">Cafeteria performance and insights</p>
         </div>
 
-        {/* Wrap all premium content with FeatureGate */}
-        <FeatureGate feature="premiumReports">
+        {/* Reports Content */}
           {/* Date Range Filter */}
           <Card className="mb-6">
             <CardHeader>
@@ -315,14 +306,7 @@ export default function ReportingDashboard() {
               </div>
             </CardContent>
           </Card>
-        </FeatureGate>
 
-        {/* Upgrade modal for manual trigger if needed */}
-        <UpgradeModal
-          open={showUpgradeModal}
-          onClose={() => setShowUpgradeModal(false)}
-          reason="Premium Reports & Analytics require a higher subscription plan."
-        />
       </div>
     </div>
   );

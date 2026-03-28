@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import {
   Store, LayoutDashboard, Users, Wallet, BarChart3, Settings,
@@ -22,7 +21,7 @@ interface Cafeteria {
   id: string;
   name: string;
   location?: string;
-  subscriptionPlan: string;
+  loginUsername?: string;
   subscriptionStatus: string;
   createdAt: string;
   pointsBalance?: number;
@@ -44,13 +43,12 @@ export default function OwnerCafeterias() {
   const [selectedCafeteria, setSelectedCafeteria] = useState<Cafeteria | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterPlan, setFilterPlan] = useState('all');
 
   const [formData, setFormData] = useState({
     name: '',
     location: '',
+    loginUsername: '',
     password: '',
-    subscriptionPlan: 'starter',
     country: 'SA',
     currency: 'SAR',
     language: 'ar',
@@ -84,9 +82,26 @@ export default function OwnerCafeterias() {
     }
   }, [authLoading]);
 
+  // Email validation helper
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleAddCafeteria = async () => {
     if (!formData.name.trim()) {
       toast.error(isRTL ? 'اسم الكافيتريا مطلوب' : 'Cafeteria name is required');
+      return;
+    }
+
+    // loginUsername (email) validation
+    if (!formData.loginUsername.trim()) {
+      toast.error(isRTL ? 'البريد الإلكتروني (اسم المستخدم) مطلوب' : 'Login email (username) is required');
+      return;
+    }
+
+    if (!isValidEmail(formData.loginUsername.trim())) {
+      toast.error(isRTL ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format');
       return;
     }
 
@@ -102,8 +117,8 @@ export default function OwnerCafeterias() {
         id: crypto.randomUUID ? crypto.randomUUID() : undefined,
         name: formData.name.trim(),
         location: formData.location.trim() || null,
-        passwordHash: formData.password, // Simple password for now
-        subscriptionPlan: formData.subscriptionPlan,
+        loginUsername: formData.loginUsername.trim().toLowerCase(),
+        passwordHash: formData.password,
         subscriptionStatus: 'active',
         pointsBalance: '0',
         createdAt: new Date().toISOString(),
@@ -111,7 +126,7 @@ export default function OwnerCafeterias() {
 
       if (user?.role === 'owner') {
         // Owner creates Level 1 Cafeterias
-        insertData.marketerId = 'owner'; // Or a specific system ID
+        insertData.marketerId = 'owner';
         insertData.country = formData.country.trim().substring(0, 2).toUpperCase();
         insertData.currency = formData.currency.trim().substring(0, 3).toUpperCase();
         insertData.language = formData.language;
@@ -131,14 +146,13 @@ export default function OwnerCafeterias() {
         insertData.language = currentUserMarketer.language;
       }
 
-      // Use direct insert with proper ID generation
       const { data, error } = await supabase.from('cafeterias').insert([insertData]).select();
 
       if (error) throw error;
       
       toast.success(isRTL ? 'تم إضافة الكافيتريا بنجاح' : 'Cafeteria added successfully');
       setShowAddDialog(false);
-      setFormData({ name: '', location: '', subscriptionPlan: 'starter' });
+      setFormData({ name: '', location: '', loginUsername: '', password: '', country: 'SA', currency: 'SAR', language: 'ar' });
       fetchCafeterias();
     } catch (err: any) {
       console.error('Add cafeteria error:', err);
@@ -154,15 +168,26 @@ export default function OwnerCafeterias() {
       return;
     }
 
+    // Validate loginUsername if provided
+    if (formData.loginUsername.trim() && !isValidEmail(formData.loginUsername.trim())) {
+      toast.error(isRTL ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format');
+      return;
+    }
+
     setSubmitting(true);
     try {
+      const updateData: any = {
+        name: formData.name.trim(),
+        location: formData.location.trim() || null,
+      };
+
+      if (formData.loginUsername.trim()) {
+        updateData.loginUsername = formData.loginUsername.trim().toLowerCase();
+      }
+
       const { error } = await supabase
         .from('cafeterias')
-        .update({
-          name: formData.name.trim(),
-          location: formData.location.trim() || null,
-          subscription_plan: formData.subscriptionPlan,
-        })
+        .update(updateData)
         .eq('id', selectedCafeteria.id);
 
       if (error) throw error;
@@ -229,26 +254,18 @@ export default function OwnerCafeterias() {
     setFormData({
       name: cafeteria.name,
       location: cafeteria.location || '',
-      subscriptionPlan: cafeteria.subscriptionPlan || 'starter',
+      loginUsername: cafeteria.loginUsername || '',
+      password: '',
+      country: 'SA',
+      currency: 'SAR',
+      language: 'ar',
     });
     setShowEditDialog(true);
   };
 
   const filteredCafeterias = cafeterias.filter((c) => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesPlan = filterPlan === 'all' || c.subscriptionPlan === filterPlan;
-    return matchesSearch && matchesPlan;
+    return c.name.toLowerCase().includes(searchTerm.toLowerCase());
   });
-
-  const getPlanColor = (plan: string) => {
-    const colors: Record<string, string> = {
-      starter: 'bg-gray-100 text-gray-700',
-      basic: 'bg-blue-100 text-blue-700',
-      pro: 'bg-purple-100 text-purple-700',
-      enterprise: 'bg-green-100 text-green-700',
-    };
-    return colors[plan] || colors.starter;
-  };
 
   if (authLoading) {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
@@ -281,25 +298,31 @@ export default function OwnerCafeterias() {
         </div>
       </header>
 
-      <main className="px-4 py-6 max-w-6xl mx-auto">
+      <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <Card className="border-0 shadow-md bg-gradient-to-br from-blue-500 to-blue-700 text-white">
-            <CardContent className="p-4">
+            <CardContent className="p-4 text-center">
               <p className="text-3xl font-black">{cafeterias.length}</p>
               <p className="text-xs opacity-80">{isRTL ? 'إجمالي الكافيتريات' : 'Total Cafeterias'}</p>
             </CardContent>
           </Card>
           <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-700 text-white">
-            <CardContent className="p-4">
+            <CardContent className="p-4 text-center">
               <p className="text-3xl font-black">{cafeterias.filter(c => c.subscriptionStatus === 'active').length}</p>
               <p className="text-xs opacity-80">{isRTL ? 'نشطة' : 'Active'}</p>
             </CardContent>
           </Card>
-          <Card className="border-0 shadow-md bg-gradient-to-br from-purple-500 to-purple-700 text-white">
-            <CardContent className="p-4">
-              <p className="text-3xl font-black">{cafeterias.filter(c => c.subscriptionPlan === 'pro').length}</p>
-              <p className="text-xs opacity-80">{isRTL ? 'خطة Pro' : 'Pro Plan'}</p>
+          <Card className="border-0 shadow-md bg-gradient-to-br from-orange-500 to-orange-700 text-white">
+            <CardContent className="p-4 text-center">
+              <p className="text-3xl font-black">{cafeterias.filter(c => c.freeOperationEndDate && new Date(c.freeOperationEndDate) > new Date()).length}</p>
+              <p className="text-xs opacity-80">{isRTL ? 'فترة مجانية' : 'Free Period'}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-0 shadow-md bg-gradient-to-br from-slate-600 to-slate-800 text-white">
+            <CardContent className="p-4 text-center">
+              <p className="text-3xl font-black">{cafeterias.filter(c => c.subscriptionStatus !== 'active').length}</p>
+              <p className="text-xs opacity-80">{isRTL ? 'غير نشطة' : 'Inactive'}</p>
             </CardContent>
           </Card>
         </div>
@@ -314,7 +337,7 @@ export default function OwnerCafeterias() {
           />
           <Button
             onClick={() => {
-              setFormData({ name: '', location: '', subscriptionPlan: 'starter' });
+              setFormData({ name: '', location: '', loginUsername: '', password: '', country: 'SA', currency: 'SAR', language: 'ar' });
               setShowAddDialog(true);
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
@@ -341,7 +364,7 @@ export default function OwnerCafeterias() {
                     <TableRow className="bg-gray-50">
                       <TableHead>{isRTL ? 'الاسم' : 'Name'}</TableHead>
                       <TableHead>{isRTL ? 'الموقع' : 'Location'}</TableHead>
-                      <TableHead>{isRTL ? 'الخطة' : 'Plan'}</TableHead>
+                      <TableHead>{isRTL ? 'البريد الإلكتروني' : 'Email (Username)'}</TableHead>
                       <TableHead>{isRTL ? 'الحالة' : 'Status'}</TableHead>
                       <TableHead>{isRTL ? 'إجراءات' : 'Actions'}</TableHead>
                     </TableRow>
@@ -351,16 +374,12 @@ export default function OwnerCafeterias() {
                       <TableRow key={cafeteria.id} className="hover:bg-gray-50">
                         <TableCell className="font-semibold text-gray-900">{cafeteria.name}</TableCell>
                         <TableCell className="text-gray-600 text-sm">{cafeteria.location || '---'}</TableCell>
-	                        <TableCell>
-	                          <Badge className={getPlanColor(cafeteria.subscriptionPlan || 'starter')}>
-	                            {(cafeteria.subscriptionPlan || 'starter').toUpperCase()}
-	                          </Badge>
-	                        </TableCell>
-	                        <TableCell>
-	                          <Badge variant={(cafeteria.subscriptionStatus || 'active') === 'active' ? 'outline' : 'secondary'} className={(cafeteria.subscriptionStatus || 'active') === 'active' ? 'text-green-600 border-green-200 bg-green-50' : ''}>
-	                            {(cafeteria.subscriptionStatus || 'active') === 'active' ? (isRTL ? 'نشطة' : 'Active') : (isRTL ? 'متوقفة' : 'Inactive')}
-	                          </Badge>
-	                        </TableCell>
+                        <TableCell className="text-gray-600 text-sm font-mono">{cafeteria.loginUsername || '---'}</TableCell>
+                        <TableCell>
+                          <Badge variant={(cafeteria.subscriptionStatus || 'active') === 'active' ? 'outline' : 'secondary'} className={(cafeteria.subscriptionStatus || 'active') === 'active' ? 'text-green-600 border-green-200 bg-green-50' : ''}>
+                            {(cafeteria.subscriptionStatus || 'active') === 'active' ? (isRTL ? 'نشطة' : 'Active') : (isRTL ? 'متوقفة' : 'Inactive')}
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Button variant="ghost" size="icon" onClick={() => openEditDialog(cafeteria)} className="h-8 w-8 text-blue-600 hover:bg-blue-50">
@@ -389,30 +408,73 @@ export default function OwnerCafeterias() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>{isRTL ? 'اسم الكافيتريا' : 'Cafeteria Name'}</Label>
-              <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={isRTL ? 'أدخل الاسم' : 'Enter name'} />
+              <Label>{isRTL ? 'اسم الكافيتريا' : 'Cafeteria Name'} <span className="text-red-500">*</span></Label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder={isRTL ? 'أدخل الاسم' : 'Enter name'}
+              />
             </div>
             <div className="space-y-2">
               <Label>{isRTL ? 'الموقع / العنوان' : 'Location / Address'}</Label>
-              <Input value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder={isRTL ? 'أدخل الموقع' : 'Enter location'} />
+              <Input
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder={isRTL ? 'أدخل الموقع' : 'Enter location'}
+              />
             </div>
             <div className="space-y-2">
-              <Label>{isRTL ? 'كلمة المرور' : 'Password'}</Label>
-              <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="******" />
+              <Label>{isRTL ? 'البريد الإلكتروني (اسم المستخدم)' : 'Email (Login Username)'} <span className="text-red-500">*</span></Label>
+              <Input
+                type="email"
+                value={formData.loginUsername}
+                onChange={(e) => setFormData({ ...formData, loginUsername: e.target.value })}
+                placeholder="admin@cafeteria.com"
+                className={formData.loginUsername && !isValidEmail(formData.loginUsername) ? 'border-red-400 focus:ring-red-400' : ''}
+              />
+              {formData.loginUsername && !isValidEmail(formData.loginUsername) && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {isRTL ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format'}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>{isRTL ? 'كلمة المرور' : 'Password'} <span className="text-red-500">*</span></Label>
+              <Input
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="••••••••"
+              />
+              {formData.password && formData.password.length < 8 && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {isRTL ? 'كلمة المرور يجب أن تكون 8 خانات على الأقل' : 'Password must be at least 8 characters'}
+                </p>
+              )}
             </div>
             {user?.role === 'owner' && (
               <>
                 <div className="space-y-2">
                   <Label>{isRTL ? 'البلد' : 'Country'}</Label>
-                  <Input value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="SA, EG, etc." />
+                  <Input
+                    value={formData.country}
+                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                    placeholder="SA, EG, etc."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>{isRTL ? 'العملة' : 'Currency'}</Label>
-                  <Input value={formData.currency} onChange={(e) => setFormData({ ...formData, currency: e.target.value })} placeholder="SAR, EGP, etc." />
+                  <Input
+                    value={formData.currency}
+                    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                    placeholder="SAR, EGP, etc."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>{isRTL ? 'اللغة' : 'Language'}</Label>
-                  <select 
+                  <select
                     className="w-full p-2 border rounded-md"
                     value={formData.language}
                     onChange={(e) => setFormData({ ...formData, language: e.target.value })}
@@ -423,25 +485,14 @@ export default function OwnerCafeterias() {
                 </div>
               </>
             )}
-
-            <div className="space-y-2">
-              <Label>{isRTL ? 'خطة الاشتراك' : 'Subscription Plan'}</Label>
-              <Select value={formData.subscriptionPlan} onValueChange={(v) => setFormData({ ...formData, subscriptionPlan: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="starter">Starter</SelectItem>
-                  <SelectItem value="basic">Basic</SelectItem>
-                  <SelectItem value="pro">Pro</SelectItem>
-                  <SelectItem value="enterprise">Enterprise</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>{isRTL ? 'إلغاء' : 'Cancel'}</Button>
-            <Button onClick={handleAddCafeteria} disabled={submitting} className="bg-blue-600 text-white">
+            <Button
+              onClick={handleAddCafeteria}
+              disabled={submitting}
+              className="bg-blue-600 text-white"
+            >
               {submitting ? '...' : (isRTL ? 'إضافة' : 'Add')}
             </Button>
           </DialogFooter>
@@ -464,18 +515,20 @@ export default function OwnerCafeterias() {
               <Input value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>{isRTL ? 'خطة الاشتراك' : 'Subscription Plan'}</Label>
-              <Select value={formData.subscriptionPlan} onValueChange={(v) => setFormData({ ...formData, subscriptionPlan: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="starter">Starter</SelectItem>
-                  <SelectItem value="basic">Basic</SelectItem>
-                  <SelectItem value="pro">Pro</SelectItem>
-                  <SelectItem value="enterprise">Enterprise</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>{isRTL ? 'البريد الإلكتروني (اسم المستخدم)' : 'Email (Login Username)'}</Label>
+              <Input
+                type="email"
+                value={formData.loginUsername}
+                onChange={(e) => setFormData({ ...formData, loginUsername: e.target.value })}
+                placeholder="admin@cafeteria.com"
+                className={formData.loginUsername && !isValidEmail(formData.loginUsername) ? 'border-red-400 focus:ring-red-400' : ''}
+              />
+              {formData.loginUsername && !isValidEmail(formData.loginUsername) && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {isRTL ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format'}
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter className="gap-2">

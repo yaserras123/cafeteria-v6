@@ -222,8 +222,8 @@ export default function CafeteriaSettings() {
               </div>
             </div>
             <div className="text-center md:text-right">
-              <p className="text-blue-100 text-xs">{isRTL ? 'خطة الاشتراك الحالية' : 'Current Subscription Plan'}</p>
-              <span className="inline-block mt-1 px-3 py-1 bg-white text-blue-700 rounded-full text-xs font-bold uppercase">{cafeteriaInfo?.plan}</span>
+              <p className="text-blue-100 text-xs">{isRTL ? 'حالة الكافيتريا' : 'Cafeteria Status'}</p>
+              <span className="inline-block mt-1 px-3 py-1 bg-white text-green-700 rounded-full text-xs font-bold uppercase">{isRTL ? 'نشطة' : 'Active'}</span>
             </div>
           </CardContent>
         </Card>
