@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { DashboardNavigation } from '@/components/DashboardNavigation';
 import {
@@ -114,6 +113,13 @@ export default function OwnerCafeterias() {
         currency: selected.currency,
         language: selected.language
       }));
+    }
+  };
+
+  const handleCountryInputChange = (value: string) => {
+    const selected = countries.find(c => (isRTL ? c.arName : c.name) === value);
+    if (selected) {
+      handleCountryChange(selected.code);
     }
   };
 
@@ -223,10 +229,11 @@ export default function OwnerCafeterias() {
   };
 
   const filteredCountries = countries.filter(c => 
-    c.arName.includes(countrySearch) || c.name.toLowerCase().includes(countrySearch.toLowerCase())
+    (isRTL ? c.arName : c.name).toLowerCase().includes(countrySearch.toLowerCase())
   );
 
   const isSystemOwner = user?.email === 'owner@cafeteria.com' || user?.role === 'owner';
+  const currentCountryName = countries.find(c => c.code === formData.country)?.[isRTL ? 'arName' : 'name'] || '';
 
   return (
     <div className={`min-h-screen bg-slate-50 pb-20 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
@@ -344,24 +351,23 @@ export default function OwnerCafeterias() {
               <>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2"><Globe className="w-4 h-4" /> {isRTL ? 'البلد' : 'Country'}</Label>
-                  <Select value={formData.country} onValueChange={handleCountryChange}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="p-2">
-                        <Input 
-                          placeholder={isRTL ? 'بحث عن بلد...' : 'Search country...'} 
-                          value={countrySearch}
-                          onChange={e => setCountrySearch(e.target.value)}
-                          className="h-8 text-xs"
-                        />
-                      </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      list="cafeteria-countries-list"
+                      value={currentCountryName}
+                      onChange={(e) => handleCountryInputChange(e.target.value)}
+                      onInput={(e) => setCountrySearch(e.currentTarget.value)}
+                      placeholder={isRTL ? 'ابدأ بكتابة اسم البلد...' : 'Start typing country name...'}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      autoComplete="off"
+                    />
+                    <datalist id="cafeteria-countries-list">
                       {filteredCountries.map(c => (
-                        <SelectItem key={c.code} value={c.code}>{isRTL ? c.arName : c.name}</SelectItem>
+                        <option key={c.code} value={isRTL ? c.arName : c.name} />
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </datalist>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2"><Coins className="w-4 h-4" /> {isRTL ? 'العملة' : 'Currency'}</Label>
