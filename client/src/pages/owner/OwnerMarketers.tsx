@@ -90,8 +90,8 @@ export default function OwnerMarketers() {
         id: crypto.randomUUID ? crypto.randomUUID() : undefined,
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
-        is_root: formData.isRoot,
-        created_at: new Date().toISOString(),
+        isRoot: formData.isRoot,
+        createdAt: new Date().toISOString(),
       };
 
       if (formData.isRoot) {
@@ -100,7 +100,7 @@ export default function OwnerMarketers() {
       } else if (formData.parentId) {
         const parent = marketers.find(m => m.id === formData.parentId);
         if (parent) {
-          insertData.parent_id = parent.id;
+          insertData.parentId = parent.id;
           insertData.country = (parent as any).country;
           insertData.currency = (parent as any).currency;
         }

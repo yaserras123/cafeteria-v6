@@ -104,13 +104,13 @@ export default function OwnerCafeterias() {
           id: crypto.randomUUID ? crypto.randomUUID() : undefined,
           name: formData.name.trim(),
           location: formData.location.trim() || null,
-          subscription_plan: formData.subscriptionPlan,
-          subscription_status: 'active',
-          points_balance: '0',
-          marketer_id: formData.marketerId || user?.id || null,
+          subscriptionPlan: formData.subscriptionPlan,
+          subscriptionStatus: 'active',
+          pointsBalance: '0',
+          marketerId: formData.marketerId || user?.id || null,
           country: selectedMarketer?.country || null,
           currency: selectedMarketer?.currency || null,
-          created_at: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
         },
       ]).select();
 
