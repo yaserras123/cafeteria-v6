@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabaseClient";
-import { trpc } from "@/lib/trpc";
+import { trpcVanilla as trpc } from "@/lib/trpcVanilla";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
