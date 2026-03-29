@@ -77,7 +77,7 @@ export function DashboardNavigation({
       {/* Sidebar for Desktop */}
       <aside
         className={cn(
-          'hidden md:flex flex-col w-64 bg-white border-r border-gray-200 h-[calc(100vh-73px)] overflow-y-auto',
+          'hidden md:flex flex-col w-64 bg-white border-r border-gray-200 h-[calc(100vh-73px)] overflow-y-auto pointer-events-auto',
           className
         )}
         dir={isRTL ? 'rtl' : 'ltr'}
@@ -107,24 +107,30 @@ export function DashboardNavigation({
       </aside>
 
       {/* Mobile Sidebar - Only render when menu is open */}
-      {menuIsOpen && (
-        <>
-          {/* Overlay - FIXED: Now properly closes when clicked */}
-          <div
-            className="fixed inset-0 bg-black/50 z-30 md:hidden"
-            onClick={handleOverlayClick}
-            role="presentation"
-            aria-hidden="true"
-          />
+      <div 
+        className={cn(
+          "fixed inset-0 z-30 md:hidden transition-opacity duration-300",
+          menuIsOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+      >
+        {/* Overlay - FIXED: Now properly closes when clicked */}
+        <div
+          className="absolute inset-0 bg-black/50"
+          onClick={handleOverlayClick}
+          role="presentation"
+          aria-hidden="true"
+        />
 
-          {/* Mobile Menu */}
-          <aside
-            className={cn(
-              'fixed top-0 left-0 h-screen w-64 bg-white z-40 md:hidden overflow-y-auto transition-transform duration-300 transform',
-              isRTL ? 'right-0 left-auto translate-x-0' : 'left-0 translate-x-0'
-            )}
-            dir={isRTL ? 'rtl' : 'ltr'}
-          >
+        {/* Mobile Menu */}
+        <aside
+          className={cn(
+            'absolute top-0 h-screen w-64 bg-white z-40 overflow-y-auto transition-transform duration-300 transform',
+            isRTL 
+              ? `right-0 ${menuIsOpen ? 'translate-x-0' : 'translate-x-full'}` 
+              : `left-0 ${menuIsOpen ? 'translate-x-0' : '-translate-x-full'}`
+          )}
+          dir={isRTL ? 'rtl' : 'ltr'}
+        >
             <nav className="px-4 py-6 space-y-2 mt-16">
               {items.map((item) => (
                 <button
@@ -148,8 +154,7 @@ export function DashboardNavigation({
               ))}
             </nav>
           </aside>
-        </>
-      )}
+      </div>
     </>
   );
 }
