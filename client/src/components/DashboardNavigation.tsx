@@ -72,6 +72,13 @@ export function DashboardNavigation({
     };
   }, [menuIsOpen]);
 
+  // ROOT CAUSE FIX: Auto-close menu when location changes
+  // This ensures the menu state is reset during navigation,
+  // preventing invisible overlays from persisting after route changes
+  useEffect(() => {
+    onClose?.();
+  }, [location, onClose]);
+
   return (
     <>
       {/* Sidebar for Desktop */}
