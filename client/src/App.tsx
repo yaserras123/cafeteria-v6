@@ -16,42 +16,8 @@ import OwnerDashboard from "./pages/OwnerDashboard";
 import MarketerDashboard from "./pages/MarketerDashboard";
 import CafeteriaDashboard from "./pages/CafeteriaDashboard";
 import CustomerMenu from "./pages/CustomerMenu";
-// Upgrade pages removed - no subscription plans in this project
-
-// Owner Dashboard Sub-pages
-import OwnerCafeterias from "./pages/owner/OwnerCafeterias";
-import OwnerMarketers from "./pages/owner/OwnerMarketers";
-import OwnerPoints from "./pages/owner/OwnerPoints";
-import OwnerReports from "./pages/owner/OwnerReports";
-import OwnerSettings from "./pages/owner/OwnerSettings";
-
-// Marketer Dashboard Sub-pages
-import MarketerDownlines from "./pages/marketer/MarketerDownlines";
-import MarketerCommissions from "./pages/marketer/MarketerCommissions";
-import MarketerReports from "./pages/marketer/MarketerReports";
-
-// Cafeteria Admin Dashboard Sub-pages
-import CafeteriaMenu from "./pages/cafeteria/CafeteriaMenu";
-import CafeteriaTables from "./pages/cafeteria/CafeteriaTables";
-import CafeteriaStaff from "./pages/cafeteria/CafeteriaStaff";
-import CafeteriaReports from "./pages/cafeteria/CafeteriaReports";
-import CafeteriaOrders from "./pages/cafeteria/CafeteriaOrders";
-import CafeteriaRecharge from "./pages/cafeteria/CafeteriaRecharge";
-import CafeteriaSettings from "./pages/cafeteria/CafeteriaSettings";
-
-// Manager Dashboard Sub-pages
-import ManagerOrders from "./pages/manager/ManagerOrders";
-import ManagerStaff from "./pages/manager/ManagerStaff";
-import ManagerReports from "./pages/manager/ManagerReports";
-
-// Waiter Dashboard Sub-pages
-import WaiterTables from "./pages/waiter/WaiterTables";
-import WaiterOrders from "./pages/waiter/WaiterOrders";
-
-// Chef Dashboard Sub-pages
-import ChefKitchenBoard from "./pages/chef/ChefKitchenBoard";
+import { useAuth } from "./_core/hooks/useAuth";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabaseClient";
 
 function Router() {
   return (
@@ -101,7 +67,6 @@ function Router() {
 
       {/* ===== OTHER ROUTES ===== */}
       <Route path={"/reports"} component={ReportingDashboard} />
-      {/* Upgrade routes removed - no subscription plans in this project */}
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -110,75 +75,63 @@ function Router() {
 
 function App() {
   const [, setLocation] = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
   const [autoLogoutTime, setAutoLogoutTime] = useState(120 * 60 * 1000); // Default 2 hours
 
+  // This useEffect now relies on the useAuth hook for authentication state
   useEffect(() => {
-    const fetchSettings = async () => {
-      const staffUser = localStorage.getItem('staff_user');
-      if (staffUser) {
-        const staff = JSON.parse(staffUser);
-        const { data } = await supabase.from('cafeterias').select('auto_logout_minutes').eq('id', staff.cafeteria_id).single();
-        if (data?.auto_logout_minutes) {
-          setAutoLogoutTime(data.auto_logout_minutes * 60 * 1000);
-        }
-      }
-    };
-    fetchSettings();
-  }, []);
-
-  useEffect(() => {
+    let interval: NodeJS.Timeout;
     const checkSession = async () => {
-      const staffUser = localStorage.getItem('staff_user');
-      const lastActivity = localStorage.getItem('last_activity');
-      
-      if (staffUser) {
-        const staff = JSON.parse(staffUser);
-        
-        // 1. Check for inactivity
+      if (!isAuthenticated && localStorage.getItem('last_activity')) {
+        // If not authenticated by useAuth but localStorage still has activity, force logout
+        localStorage.removeItem('last_activity');
+        toast.error("Session expired. Please login again.");
+        setLocation('/login');
+        return;
+      }
+
+      if (isAuthenticated) {
+        const lastActivity = localStorage.getItem('last_activity');
         if (lastActivity) {
           const now = Date.now();
           if (now - parseInt(lastActivity) > autoLogoutTime) {
-            localStorage.removeItem('staff_user');
-            localStorage.removeItem('last_activity');
+            logout(); // Use the logout from useAuth
             toast.error("Session expired due to inactivity. Please login again.");
             setLocation('/login');
-            return;
           }
-        }
-
-        // 2. Check for real-time block (Force Logout)
-        const { data, error } = await supabase.from('cafeteria_staff').select('can_login, status').eq('id', staff.id).single();
-        if (data && (!data.can_login || data.status !== 'active')) {
-          localStorage.removeItem('staff_user');
-          localStorage.removeItem('last_activity');
-          toast.error("Your session has been terminated by the administrator.");
-          setLocation('/login');
         }
       }
     };
 
     const updateActivity = () => {
-      if (localStorage.getItem('staff_user')) {
+      if (isAuthenticated) {
         localStorage.setItem('last_activity', Date.now().toString());
       }
     };
 
-    // Check every 30 seconds for real-time security
-    const interval = setInterval(checkSession, 30000);
-    
-    window.addEventListener('mousemove', updateActivity);
-    window.addEventListener('keydown', updateActivity);
-    window.addEventListener('click', updateActivity);
-    window.addEventListener('scroll', updateActivity);
+    if (isAuthenticated) {
+      interval = setInterval(checkSession, 30000); // Check every 30 seconds
+      window.addEventListener('mousemove', updateActivity);
+      window.addEventListener('keydown', updateActivity);
+      window.addEventListener('click', updateActivity);
+      window.addEventListener('scroll', updateActivity);
+    } else {
+      // Clear any existing interval or listeners if not authenticated
+      if (interval) clearInterval(interval);
+      window.removeEventListener('mousemove', updateActivity);
+      window.removeEventListener('keydown', updateActivity);
+      window.removeEventListener('click', updateActivity);
+      window.removeEventListener('scroll', updateActivity);
+    }
 
     return () => {
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
       window.removeEventListener('mousemove', updateActivity);
       window.removeEventListener('keydown', updateActivity);
       window.removeEventListener('click', updateActivity);
       window.removeEventListener('scroll', updateActivity);
     };
-  }, [setLocation, autoLogoutTime]);
+  }, [isAuthenticated, autoLogoutTime, setLocation, logout]);
 
   return (
     <ErrorBoundary>

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { supabase } from "@/lib/supabaseClient";
 import { trpcVanilla as trpc } from "@/lib/trpcVanilla";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,55 +42,21 @@ export default function Login() {
 
     setIsLoading(true);
     try {
-      // 1. Try tRPC login first (handles cafeteria accounts, staff, and local users)
-      // This is the primary login method for the custom database accounts
-      try {
-        const result = await trpc.auth.login.mutate({
-          email: email.trim(),
-          password: password,
-        });
-
-        if (result.success) {
-          // Store session info if needed (though tRPC uses cookies)
-          localStorage.setItem('last_activity', Date.now().toString());
-          
-          // If it's a staff member, we might want to store their data for compatibility
-          if (result.role !== 'owner' && result.role !== 'marketer') {
-             // For staff/admin roles, we can fetch more details if needed
-             // but for now, we just redirect to the correct dashboard
-          }
-
-          toast.success(`Welcome, ${result.name}!`);
-          setLocation(ROLE_ROUTES[result.role] || "/dashboard/cafeteria-admin");
-          return;
-        }
-      } catch (trpcErr: any) {
-        // If tRPC login fails, we fall back to Supabase Auth
-        // or show the error if it's a definitive failure
-        console.log("tRPC login failed, trying Supabase Auth...", trpcErr);
-      }
-
-      // 2. Fallback to standard Supabase Auth (for legacy Owner, Marketer, Admin)
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const result = await trpc.auth.login.mutate({
         email: email.trim(),
-        password,
+        password: password,
       });
 
-      if (error) {
-        setErrorMessage(error.message || "Invalid email or password.");
-        return;
-      }
-
-      if (data.user) {
-        const role = data.user.user_metadata?.role ?? "admin";
-        const name = data.user.user_metadata?.name ?? data.user.email?.split("@")[0];
-        
+      if (result.success) {
         localStorage.setItem('last_activity', Date.now().toString());
-        toast.success(`Welcome, ${name}!`);
-        setLocation(ROLE_ROUTES[role] || "/dashboard/cafeteria-admin");
+        toast.success(`Welcome, ${result.name}!`);
+        setLocation(ROLE_ROUTES[result.role] || "/dashboard/cafeteria-admin");
+      } else {
+        setErrorMessage(result.message || "Invalid email or password.");
       }
     } catch (err: any) {
-      setErrorMessage("An unexpected error occurred. Please try again.");
+      console.error("Login error:", err);
+      setErrorMessage(err.message || "An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }

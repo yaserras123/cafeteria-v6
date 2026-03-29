@@ -1,5 +1,5 @@
-import { supabase } from "@/lib/supabaseClient";
 import { useCallback, useEffect, useState, useRef } from "react";
+import { trpcVanilla as trpc } from "@/lib/trpcVanilla";
 
 export type AuthUser = {
   id: string;
@@ -18,23 +18,6 @@ type AuthState = {
   isUnauthenticated: boolean;
 };
 
-/**
- * Simplified user builder that uses only metadata from auth.getUser()
- * This prevents infinite loading states and database dependency issues
- */
-async function buildUser(supabaseUser: any): Promise<AuthUser> {
-  const meta = supabaseUser.user_metadata ?? {};
-  
-  return {
-    id: supabaseUser.id,
-    email: supabaseUser.email,
-    name: meta.name ?? meta.full_name ?? supabaseUser.email?.split("@")[0] ?? "User",
-    role: meta.role ?? "cafeteria_admin",
-    cafeteriaId: meta.cafeteriaId ?? null,
-    referenceCode: meta.referenceCode,
-  };
-}
-
 export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -45,20 +28,19 @@ export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
   });
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const refresh = useCallback(async () => {
+  const fetchUser = useCallback(async () => {
     try {
-      const { data, error } = await supabase.auth.getUser();
+      const result = await trpc.auth.me.query();
       
-      if (error || !data.user) {
-        setState({
-          user: null,
-          loading: false,
-          error: error ?? null,
-          isAuthenticated: false,
-          isUnauthenticated: true,
-        });
-      } else {
-        const user = await buildUser(data.user);
+      if (result && result.user) {
+        const user: AuthUser = {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name,
+          role: result.user.role,
+          cafeteriaId: result.user.cafeteriaId,
+          referenceCode: result.user.referenceCode,
+        };
         setState({
           user,
           loading: false,
@@ -66,9 +48,17 @@ export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
           isAuthenticated: true,
           isUnauthenticated: false,
         });
+      } else {
+        setState({
+          user: null,
+          loading: false,
+          error: null,
+          isAuthenticated: false,
+          isUnauthenticated: true,
+        });
       }
     } catch (err: any) {
-      console.error("Error in useAuth refresh:", err);
+      console.error("Error in useAuth fetchUser:", err);
       setState({
         user: null,
         loading: false,
@@ -80,7 +70,6 @@ export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
   }, []);
 
   useEffect(() => {
-    // Set a timeout to prevent infinite loading
     refreshTimeoutRef.current = setTimeout(() => {
       if (state.loading) {
         console.warn("Auth loading timeout - forcing completion");
@@ -90,59 +79,22 @@ export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
           isUnauthenticated: true,
         }));
       }
-    }, 3000); // 3 second timeout
+    }, 3000);
 
-    refresh();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      try {
-        if (refreshTimeoutRef.current) {
-          clearTimeout(refreshTimeoutRef.current);
-        }
-        
-        if (session?.user) {
-          const user = await buildUser(session.user);
-          setState({
-            user,
-            loading: false,
-            error: null,
-            isAuthenticated: true,
-            isUnauthenticated: false,
-          });
-        } else {
-          setState({
-            user: null,
-            loading: false,
-            error: null,
-            isAuthenticated: false,
-            isUnauthenticated: true,
-          });
-        }
-      } catch (err: any) {
-        console.error("Error in auth state change:", err);
-        setState({
-          user: null,
-          loading: false,
-          error: err,
-          isAuthenticated: false,
-          isUnauthenticated: true,
-        });
-      }
-    });
+    fetchUser();
 
     return () => {
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
       }
-      subscription.unsubscribe();
     };
-  }, [refresh]);
+  }, [fetchUser]);
 
   const logout = useCallback(async () => {
     if (refreshTimeoutRef.current) {
       clearTimeout(refreshTimeoutRef.current);
     }
-    await supabase.auth.signOut();
+    await trpc.auth.logout.mutate();
     setState({
       user: null,
       loading: false,
@@ -155,6 +107,6 @@ export function useAuth(options?: { redirectOnUnauthenticated?: boolean }) {
   return {
     ...state,
     logout,
-    refresh,
+    refresh: fetchUser,
   };
 }
