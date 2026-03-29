@@ -119,12 +119,14 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       values.lastSignedIn = user.lastSignedIn;
       updateSet.lastSignedIn = user.lastSignedIn;
     }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
+    // Role preservation: if the user already has the 'owner' role, keep it.
+    // Otherwise, fallback to the ENV.ownerOpenId check.
+    if (user.role === 'owner' || user.openId === ENV.ownerOpenId) {
       values.role = 'owner';
       updateSet.role = 'owner';
+    } else if (user.role !== undefined) {
+      values.role = user.role;
+      updateSet.role = user.role;
     }
 
     if (!values.lastSignedIn) {
