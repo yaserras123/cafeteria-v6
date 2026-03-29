@@ -19,6 +19,39 @@ import CustomerMenu from "./pages/CustomerMenu";
 import { useAuth } from "./_core/hooks/useAuth";
 import { toast } from "sonner";
 
+// Owner Dashboard Sub-pages
+import OwnerCafeterias from "./pages/owner/OwnerCafeterias";
+import OwnerMarketers from "./pages/owner/OwnerMarketers";
+import OwnerPoints from "./pages/owner/OwnerPoints";
+import OwnerReports from "./pages/owner/OwnerReports";
+import OwnerSettings from "./pages/owner/OwnerSettings";
+
+// Marketer Dashboard Sub-pages
+import MarketerDownlines from "./pages/marketer/MarketerDownlines";
+import MarketerCommissions from "./pages/marketer/MarketerCommissions";
+import MarketerReports from "./pages/marketer/MarketerReports";
+
+// Cafeteria Admin Dashboard Sub-pages
+import CafeteriaMenu from "./pages/cafeteria/CafeteriaMenu";
+import CafeteriaTables from "./pages/cafeteria/CafeteriaTables";
+import CafeteriaStaff from "./pages/cafeteria/CafeteriaStaff";
+import CafeteriaReports from "./pages/cafeteria/CafeteriaReports";
+import CafeteriaOrders from "./pages/cafeteria/CafeteriaOrders";
+import CafeteriaRecharge from "./pages/cafeteria/CafeteriaRecharge";
+import CafeteriaSettings from "./pages/cafeteria/CafeteriaSettings";
+
+// Manager Dashboard Sub-pages
+import ManagerOrders from "./pages/manager/ManagerOrders";
+import ManagerStaff from "./pages/manager/ManagerStaff";
+import ManagerReports from "./pages/manager/ManagerReports";
+
+// Waiter Dashboard Sub-pages
+import WaiterTables from "./pages/waiter/WaiterTables";
+import WaiterOrders from "./pages/waiter/WaiterOrders";
+
+// Chef Dashboard Sub-pages
+import ChefKitchenBoard from "./pages/chef/ChefKitchenBoard";
+
 function Router() {
   return (
     <Switch>
