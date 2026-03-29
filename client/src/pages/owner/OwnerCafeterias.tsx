@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
+import bcryptjs from 'bcryptjs';
 
 interface Cafeteria {
   id: string;
@@ -189,12 +190,16 @@ export default function OwnerCafeterias() {
       const newRefCode = `${parentRefCode}P${String(nextNum).padStart(2, '0')}`;
 
       // 3. Prepare Data with explicit ID to avoid NULL constraint error
+      // Hash the password before saving to ensure compatibility with the server-side login system
+      const salt = await bcryptjs.genSalt(10);
+      const hashedPassword = await bcryptjs.hash(formData.password, salt);
+
       const insertData: any = {
         id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
         name: formData.name.trim(),
         location: formData.location.trim() || null,
         loginUsername: formData.loginUsername.trim().toLowerCase(),
-        passwordHash: formData.password,
+        passwordHash: hashedPassword,
         marketerId,
         referenceCode: newRefCode,
         country: formData.country,
