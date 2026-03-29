@@ -45,18 +45,31 @@ export async function getDb() {
   try {
     if (!_db && process.env.DATABASE_URL) {
       const connectionString = process.env.DATABASE_URL;
-      // Detect if this is a Supabase/pooler connection (requires SSL)
-      const isSupabase = connectionString?.includes('supabase') ||
-        connectionString?.includes('.pooler.') ||
-        connectionString?.includes('6543') ||
-        connectionString?.includes('5432');
-      _pool = new Pool({
-        connectionString,
-        max: 3, // Keep low for serverless — avoid connection exhaustion
-        idleTimeoutMillis: 20000,
-        connectionTimeoutMillis: 10000,
-        ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
-      });
+      
+      // In serverless, we want to reuse the pool if it exists
+      if (!_pool) {
+        // Most cloud Postgres providers (Supabase, Neon, AWS) require SSL in production
+        const useSSL = process.env.NODE_ENV === "production" || 
+                      connectionString?.includes('supabase') ||
+                      connectionString?.includes('.pooler.') ||
+                      connectionString?.includes('neon.tech');
+
+        _pool = new Pool({
+          connectionString,
+          max: 1, // Serverless: one connection per instance to avoid exhaustion
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 5000,
+          ssl: useSSL ? { rejectUnauthorized: false } : false,
+        });
+
+        // Error handling for the pool
+        _pool.on('error', (err) => {
+          console.error('[Database] Unexpected error on idle client', err);
+          _db = null;
+          _pool = null;
+        });
+      }
+
       _db = drizzle(_pool, { schema }) as any;
     }
     return _db;
