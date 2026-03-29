@@ -44,31 +44,33 @@ try {
   console.error("[OAuth Registration Error]", err);
 }
 
-// tRPC API — wrapped in per-request try/catch for global error safety
-app.use(
-  "/api/trpc",
-  (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    try {
-      createExpressMiddleware({
-        router: appRouter,
-        createContext,
-        onError: ({ error, path }) => {
-          console.error(`[tRPC ERROR] path=${path}`, error);
-        },
-      })(req, res, next);
-    } catch (err: any) {
-      console.error("[tRPC Middleware Error]", err);
-      // Ensure we always return JSON, never crash the function
-      if (!res.headersSent) {
-        res.status(500).json({
-          success: false,
-          error: "Server crashed",
-          message: err?.message ?? "Unknown error",
-        });
-      }
+// Create tRPC middleware once at startup
+const trpcMiddleware = createExpressMiddleware({
+  router: appRouter,
+  createContext,
+  onError: ({ error, path }) => {
+    console.error(`[tRPC ERROR] path=${path}`, error);
+  },
+});
+
+// tRPC API — mount at /api/trpc
+// The Vercel rewrite /api/(.*) -> /api/index.ts means requests to /api/trpc
+// will have their path preserved when they reach this handler.
+app.use("/api/trpc", (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try {
+    trpcMiddleware(req, res, next);
+  } catch (err: any) {
+    console.error("[tRPC Middleware Error]", err);
+    // Ensure we always return JSON, never crash the function
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: "Server crashed",
+        message: err?.message ?? "Unknown error",
+      });
     }
   }
-);
+});
 
 // Root-level error handler — MUST be registered AFTER all routes
 // This catches any error passed via next(err) from route handlers
