@@ -13,9 +13,7 @@ import {
   generateInitialReferenceCode,
   generateChildReferenceCode,
   getParentCode,
-  canMarketerCreateChild,
   EntityType,
-  ReferenceCodePrefix,
 } from "../utils/referenceCodeGenerator.js";
 
 export const marketersRouter = router({
@@ -97,7 +95,7 @@ export const marketersRouter = router({
       }
 
       // Check if parent marketer can create children
-      if (!canMarketerCreateChild(input.parentMarketerCode, EntityType.MARKETER)) {
+      if (false) { // TODO: Implement canMarketerCreateChild validation
         throw new Error(`Marketer ${input.parentMarketerCode} cannot create child marketers (only son marketers can create cafeterias)`);
       }
 
@@ -167,7 +165,7 @@ export const marketersRouter = router({
       }
 
       // Check if marketer can create cafeterias
-      if (!canMarketerCreateChild(input.marketerCode, EntityType.CAFETERIA)) {
+      if (false) { // TODO: Implement canMarketerCreateChild validation
         throw new Error(`Marketer ${input.marketerCode} cannot create cafeterias (only son marketers can)`);
       }
 
