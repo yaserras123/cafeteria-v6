@@ -407,7 +407,9 @@ export const authRouter = router({
   /**
    * Get current user info (from session cookie)
    */
-  me: publicProcedure.query(opts => opts.ctx.user),
+  me: publicProcedure.query(opts => ({
+    user: opts.ctx.user
+  })),
 
   /**
    * Logout
