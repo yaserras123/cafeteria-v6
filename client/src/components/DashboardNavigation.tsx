@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useTranslation } from '@/locales/useTranslation';
 import { cn } from '@/lib/utils';
@@ -13,13 +13,15 @@ interface NavItem {
 interface DashboardNavigationProps {
   items: NavItem[];
   open?: boolean;
+  isOpen?: boolean;
   onClose?: () => void;
   className?: string;
 }
 
 export function DashboardNavigation({
   items,
-  open = true,
+  open,
+  isOpen,
   onClose,
   className,
 }: DashboardNavigationProps) {
@@ -27,10 +29,48 @@ export function DashboardNavigation({
   const { language } = useTranslation();
   const isRTL = language === 'ar';
 
+  // Support both 'open' and 'isOpen' props for backward compatibility
+  const menuIsOpen = isOpen !== undefined ? isOpen : open ?? false;
+
   const handleNavigate = (path: string) => {
     navigate(path);
+    // Ensure onClose is called safely
     onClose?.();
   };
+
+  // Close menu when clicking overlay
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClose?.();
+  };
+
+  // Close menu on Escape key
+  useEffect(() => {
+    if (!menuIsOpen) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose?.();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [menuIsOpen, onClose]);
+
+  // Prevent body scroll when menu is open
+  useEffect(() => {
+    if (menuIsOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [menuIsOpen]);
 
   return (
     <>
@@ -66,20 +106,22 @@ export function DashboardNavigation({
         </nav>
       </aside>
 
-      {/* Mobile Sidebar */}
-      {open && (
+      {/* Mobile Sidebar - Only render when menu is open */}
+      {menuIsOpen && (
         <>
-          {/* Overlay */}
+          {/* Overlay - FIXED: Now properly closes when clicked */}
           <div
             className="fixed inset-0 bg-black/50 z-30 md:hidden"
-            onClick={onClose}
+            onClick={handleOverlayClick}
+            role="presentation"
+            aria-hidden="true"
           />
 
           {/* Mobile Menu */}
           <aside
             className={cn(
-              'fixed top-0 left-0 h-screen w-64 bg-white z-40 md:hidden overflow-y-auto transition-transform duration-300',
-              isRTL ? 'translate-x-full' : '-translate-x-full'
+              'fixed top-0 left-0 h-screen w-64 bg-white z-40 md:hidden overflow-y-auto transition-transform duration-300 transform',
+              isRTL ? 'right-0 left-auto translate-x-0' : 'left-0 translate-x-0'
             )}
             dir={isRTL ? 'rtl' : 'ltr'}
           >
