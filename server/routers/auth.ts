@@ -7,6 +7,7 @@ import { publicProcedure, protectedProcedure, adminProcedure, marketerProcedure,
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";
+import { serialize } from "cookie";
 import { getDb } from "../db.js";
 import { users, marketers, cafeterias, cafeteriaStaff } from "../../drizzle/schema.js";
 import bcryptjs from "bcryptjs";
@@ -150,7 +151,11 @@ export const authRouter = router({
           });
 
           const cookieOptions = getSessionCookieOptions(ctx.req);
-          ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+          const cookieStr = serialize(COOKIE_NAME, sessionToken, {
+            ...cookieOptions,
+            maxAge: ONE_YEAR_MS / 1000,
+          });
+          ctx.res.setHeader("Set-Cookie", cookieStr);
 
           return {
             success: true,
@@ -188,7 +193,11 @@ export const authRouter = router({
           });
 
           const cookieOptions = getSessionCookieOptions(ctx.req);
-          ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+          const cookieStr = serialize(COOKIE_NAME, sessionToken, {
+            ...cookieOptions,
+            maxAge: ONE_YEAR_MS / 1000,
+          });
+          ctx.res.setHeader("Set-Cookie", cookieStr);
 
           return {
             success: true,
@@ -220,7 +229,11 @@ export const authRouter = router({
           });
 
           const cookieOptions = getSessionCookieOptions(ctx.req);
-          ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+          const cookieStr = serialize(COOKIE_NAME, sessionToken, {
+            ...cookieOptions,
+            maxAge: ONE_YEAR_MS / 1000,
+          });
+          ctx.res.setHeader("Set-Cookie", cookieStr);
 
           return {
             success: true,
@@ -252,7 +265,11 @@ export const authRouter = router({
           });
 
           const cookieOptions = getSessionCookieOptions(ctx.req);
-          ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+          const cookieStr = serialize(COOKIE_NAME, sessionToken, {
+            ...cookieOptions,
+            maxAge: ONE_YEAR_MS / 1000,
+          });
+          ctx.res.setHeader("Set-Cookie", cookieStr);
 
           const role = mapStaffRole(staffRow.role ?? "manager");
 
@@ -417,7 +434,12 @@ export const authRouter = router({
   logout: publicProcedure.mutation(({ ctx }) => {
     try {
       const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      const cookieStr = serialize(COOKIE_NAME, "", {
+        ...cookieOptions,
+        maxAge: 0,
+      });
+      ctx.res.setHeader("Set-Cookie", cookieStr);
+
       return {
         success: true,
       } as const;
