@@ -8,7 +8,7 @@ import bcryptjs from "bcryptjs";
 import { COOKIE_NAME, ONE_YEAR_MS } from "../../shared/const.js";
 import { getSessionCookieOptions } from "../_core/cookies.js";
 import { sdk } from "../_core/sdk.js";
-import { serialize } from "cookie";
+import * as cookie from "cookie";
 
 const SALT_ROUNDS = 10;
 
@@ -34,7 +34,7 @@ function mapStaffRole(staffRole: string): string {
 function setCookie(ctx: any, sessionToken: string) {
   const cookieOptions = getSessionCookieOptions(ctx.req);
 
-  const cookieStr = serialize(
+  const cookieStr = cookie.serialize(
     COOKIE_NAME,
     sessionToken,
     {
