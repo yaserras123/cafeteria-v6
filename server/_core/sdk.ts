@@ -182,23 +182,28 @@ class SDKServer {
     payload: SessionPayload,
     options: { expiresInMs?: number } = {}
   ): Promise<string> {
-    if (!ENV.cookieSecret) {
-      console.error("[SDK] CRITICAL: JWT_SECRET is not set — cannot sign session token");
-      throw new Error("JWT_SECRET is not configured. Cannot create session.");
-    }
-    const issuedAt = Date.now();
-    const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
-    const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1000);
-    const secretKey = this.getSessionSecret();
+    try {
+      if (!ENV.cookieSecret) {
+        console.error("[SDK] CRITICAL: JWT_SECRET is not set — cannot sign session token");
+        throw new Error("JWT_SECRET is not configured. Cannot create session.");
+      }
+      const issuedAt = Date.now();
+      const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
+      const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1000);
+      const secretKey = this.getSessionSecret();
 
-    return new SignJWT({
-      openId: payload.openId,
-      appId: payload.appId,
-      name: payload.name,
-    })
-      .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-      .setExpirationTime(expirationSeconds)
-      .sign(secretKey);
+      return await new SignJWT({
+        openId: payload.openId,
+        appId: payload.appId,
+        name: payload.name,
+      })
+        .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+        .setExpirationTime(expirationSeconds)
+        .sign(secretKey);
+    } catch (error) {
+      console.error("[SDK] JWT SIGN ERROR:", error);
+      throw error;
+    }
   }
 
   async verifySession(
